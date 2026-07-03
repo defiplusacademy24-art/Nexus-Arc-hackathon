@@ -1,72 +1,144 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, BookOpen } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
+
+/* ─────────────────────────────────────────────
+   Layer colour tokens — two complete sets
+   so every surface is visible in both modes
+───────────────────────────────────────────── */
+type LayerConfig = {
+  label: string;
+  sub: string;
+  cy: number;
+  topFill: string;
+  topStroke: string;
+  leftFill: string;
+  rightFill: string;
+  sideStroke: string;
+  labelColor: string;
+  subColor: string;
+  glow: boolean;
+  delay: number;
+};
+
+const DARK_LAYERS: LayerConfig[] = [
+  {
+    label: 'COMMUNITIES',
+    sub: 'Member Layer',
+    cy: 88,
+    topFill: 'rgba(255,255,255,0.045)',
+    topStroke: 'rgba(255,255,255,0.40)',
+    leftFill: 'rgba(255,255,255,0.02)',
+    rightFill: 'rgba(255,255,255,0.08)',
+    sideStroke: 'rgba(255,255,255,0.20)',
+    labelColor: 'rgba(255,255,255,0.92)',
+    subColor: 'rgba(255,255,255,0.42)',
+    glow: false,
+    delay: 0.15,
+  },
+  {
+    label: 'COOPERATIVE OS',
+    sub: 'Nexusu Kernel',
+    cy: 255,
+    topFill: 'rgba(232,70,30,0.82)',
+    topStroke: '#F97316',
+    leftFill: 'rgba(160,36,12,0.92)',
+    rightFill: 'rgba(200,55,18,0.90)',
+    sideStroke: '#F97316',
+    labelColor: '#ffffff',
+    subColor: 'rgba(255,220,180,0.72)',
+    glow: true,
+    delay: 0.35,
+  },
+  {
+    label: 'UNICITY NETWORK',
+    sub: 'Proof System',
+    cy: 422,
+    topFill: 'rgba(232,70,30,0.07)',
+    topStroke: 'rgba(232,70,30,0.55)',
+    leftFill: 'rgba(90,25,8,0.35)',
+    rightFill: 'rgba(110,32,10,0.45)',
+    sideStroke: 'rgba(232,70,30,0.38)',
+    labelColor: 'rgba(255,255,255,0.68)',
+    subColor: 'rgba(255,255,255,0.33)',
+    glow: false,
+    delay: 0.55,
+  },
+];
+
+const LIGHT_LAYERS: LayerConfig[] = [
+  {
+    label: 'COMMUNITIES',
+    sub: 'Member Layer',
+    cy: 88,
+    // Warm charcoal outline — clearly readable on white
+    topFill: 'rgba(27,25,23,0.055)',
+    topStroke: 'rgba(27,25,23,0.50)',
+    leftFill: 'rgba(27,25,23,0.025)',
+    rightFill: 'rgba(27,25,23,0.09)',
+    sideStroke: 'rgba(27,25,23,0.28)',
+    labelColor: 'rgba(27,25,23,0.88)',
+    subColor: 'rgba(27,25,23,0.46)',
+    glow: false,
+    delay: 0.15,
+  },
+  {
+    label: 'COOPERATIVE OS',
+    sub: 'Nexusu Kernel',
+    cy: 255,
+    // Orange layer identical — it already pops on light
+    topFill: 'rgba(232,70,30,0.88)',
+    topStroke: '#E8461E',
+    leftFill: 'rgba(168,38,14,0.95)',
+    rightFill: 'rgba(210,58,20,0.92)',
+    sideStroke: '#E8461E',
+    labelColor: '#ffffff',
+    subColor: 'rgba(255,220,180,0.80)',
+    glow: true,
+    delay: 0.35,
+  },
+  {
+    label: 'UNICITY NETWORK',
+    sub: 'Proof System',
+    cy: 422,
+    // Light warm fill with solid orange border
+    topFill: 'rgba(232,70,30,0.06)',
+    topStroke: 'rgba(232,70,30,0.68)',
+    leftFill: 'rgba(232,70,30,0.10)',
+    rightFill: 'rgba(232,70,30,0.16)',
+    sideStroke: 'rgba(232,70,30,0.50)',
+    labelColor: 'rgba(27,25,23,0.72)',
+    subColor: 'rgba(27,25,23,0.42)',
+    glow: false,
+    delay: 0.55,
+  },
+];
 
 /* ─────────────────────────────────────────────
    Stacked isometric architecture layers
-   Three diamond platforms stacked in 3-D space:
-     1. COMMUNITIES  — top (glass)
-     2. COOPERATIVE OS — middle (orange glow core)
-     3. UNICITY NETWORK — bottom (proof layer)
 ───────────────────────────────────────────── */
 const ArchitectureLayers = () => {
-  const cx = 240;         // SVG center-x
-  const hx = 132;         // half horizontal span
-  const hy = 58;          // half vertical span of top face
-  const thick = 20;       // visible thickness of each slab
+  const { resolvedTheme } = useTheme();
+  // Avoid hydration mismatch: default to dark until theme resolves
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = !mounted || resolvedTheme !== 'light';
+  const layers = isDark ? DARK_LAYERS : LIGHT_LAYERS;
 
-  const layers = [
-    {
-      label: 'COMMUNITIES',
-      sub: 'Member Layer',
-      cy: 88,
-      topFill: 'rgba(255,255,255,0.045)',
-      topStroke: 'rgba(255,255,255,0.38)',
-      leftFill: 'rgba(255,255,255,0.018)',
-      rightFill: 'rgba(255,255,255,0.07)',
-      sideStroke: 'rgba(255,255,255,0.18)',
-      labelColor: 'rgba(255,255,255,0.92)',
-      subColor: 'rgba(255,255,255,0.40)',
-      glow: false,
-      delay: 0.15,
-    },
-    {
-      label: 'COOPERATIVE OS',
-      sub: 'Nexusu Kernel',
-      cy: 255,
-      topFill: 'rgba(232,70,30,0.82)',
-      topStroke: '#F97316',
-      leftFill: 'rgba(160,36,12,0.92)',
-      rightFill: 'rgba(200,55,18,0.9)',
-      sideStroke: '#F97316',
-      labelColor: '#ffffff',
-      subColor: 'rgba(255,220,180,0.70)',
-      glow: true,
-      delay: 0.35,
-    },
-    {
-      label: 'UNICITY NETWORK',
-      sub: 'Proof System',
-      cy: 422,
-      topFill: 'rgba(232,70,30,0.07)',
-      topStroke: 'rgba(232,70,30,0.55)',
-      leftFill: 'rgba(90,25,8,0.35)',
-      rightFill: 'rgba(110,32,10,0.45)',
-      sideStroke: 'rgba(232,70,30,0.35)',
-      labelColor: 'rgba(255,255,255,0.68)',
-      subColor: 'rgba(255,255,255,0.32)',
-      glow: false,
-      delay: 0.55,
-    },
-  ];
+  const cx = 240;
+  const hx = 132;
+  const hy = 58;
+  const thick = 20;
 
   function diamondPoints(cY: number) {
     const T = [cx, cY - hy];
     const R = [cx + hx, cY];
     const B = [cx, cY + hy];
     const L = [cx - hx, cY];
-    const top = `${T[0]},${T[1]} ${R[0]},${R[1]} ${B[0]},${B[1]} ${L[0]},${L[1]}`;
-    const left = `${L[0]},${L[1]} ${L[0]},${L[1] + thick} ${B[0]},${B[1] + thick} ${B[0]},${B[1]}`;
-    const right = `${R[0]},${R[1]} ${R[0]},${R[1] + thick} ${B[0]},${B[1] + thick} ${B[0]},${B[1]}`;
+    const top  = `${T[0]},${T[1]} ${R[0]},${R[1]} ${B[0]},${B[1]} ${L[0]},${L[1]}`;
+    const left = `${L[0]},${L[1]} ${L[0]},${L[1]+thick} ${B[0]},${B[1]+thick} ${B[0]},${B[1]}`;
+    const right= `${R[0]},${R[1]} ${R[0]},${R[1]+thick} ${B[0]},${B[1]+thick} ${B[0]},${B[1]}`;
     return { top, left, right };
   }
 
@@ -77,7 +149,7 @@ const ArchitectureLayers = () => {
       animate={{ y: [0, -10, 0] }}
       transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
     >
-      {/* Orange radial glow behind the middle layer */}
+      {/* Orange radial glow — kept subtle in light mode */}
       <motion.div
         aria-hidden="true"
         className="absolute pointer-events-none"
@@ -87,8 +159,9 @@ const ArchitectureLayers = () => {
           transform: 'translate(-50%, -50%)',
           width: 320,
           height: 120,
-          background:
-            'radial-gradient(ellipse at center, rgba(232,70,30,0.38) 0%, rgba(232,70,30,0.12) 45%, transparent 70%)',
+          background: isDark
+            ? 'radial-gradient(ellipse at center, rgba(232,70,30,0.38) 0%, rgba(232,70,30,0.12) 45%, transparent 70%)'
+            : 'radial-gradient(ellipse at center, rgba(232,70,30,0.22) 0%, rgba(232,70,30,0.06) 50%, transparent 70%)',
           filter: 'blur(28px)',
         }}
         animate={{ opacity: [0.75, 1, 0.75], scale: [1, 1.08, 1] }}
@@ -102,7 +175,6 @@ const ArchitectureLayers = () => {
         aria-label="Nexusu architecture: Communities, Cooperative OS, and Unicity Network layers"
       >
         <defs>
-          {/* Soft edge glow for the orange layer */}
           <filter id="layer-glow" x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur" />
             <feMerge>
@@ -110,9 +182,12 @@ const ArchitectureLayers = () => {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          {/* Subtle drop shadow for glass layer */}
           <filter id="glass-shadow" x="-10%" y="-10%" width="120%" height="120%">
-            <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#000000" floodOpacity="0.18" />
+            <feDropShadow
+              dx="0" dy="3" stdDeviation="5"
+              floodColor={isDark ? '#000000' : '#1B1917'}
+              floodOpacity={isDark ? 0.18 : 0.08}
+            />
           </filter>
         </defs>
 
@@ -127,50 +202,27 @@ const ArchitectureLayers = () => {
               transition={{ delay: layer.delay, duration: 0.9, ease: 'easeOut' }}
               filter={layer.glow ? 'url(#layer-glow)' : 'url(#glass-shadow)'}
             >
-              {/* Side faces rendered first (below top face) */}
-              <polygon
-                points={pts.left}
-                fill={layer.leftFill}
-                stroke={layer.sideStroke}
-                strokeWidth="1"
-                strokeLinejoin="round"
-              />
-              <polygon
-                points={pts.right}
-                fill={layer.rightFill}
-                stroke={layer.sideStroke}
-                strokeWidth="1"
-                strokeLinejoin="round"
-              />
-              {/* Top diamond face */}
-              <polygon
-                points={pts.top}
-                fill={layer.topFill}
-                stroke={layer.topStroke}
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-              {/* Label */}
+              <polygon points={pts.left}  fill={layer.leftFill}  stroke={layer.sideStroke} strokeWidth="1"   strokeLinejoin="round" />
+              <polygon points={pts.right} fill={layer.rightFill} stroke={layer.sideStroke} strokeWidth="1"   strokeLinejoin="round" />
+              <polygon points={pts.top}   fill={layer.topFill}   stroke={layer.topStroke}  strokeWidth="1.5" strokeLinejoin="round" />
               <text
-                x={cx}
-                y={textY}
+                x={cx} y={textY}
                 textAnchor="middle"
                 fill={layer.labelColor}
                 fontSize="11.5"
                 fontWeight="700"
-                fontFamily="'JetBrains Mono', 'Fira Mono', monospace"
+                fontFamily="'JetBrains Mono','Fira Mono',monospace"
                 letterSpacing="3"
                 style={{ userSelect: 'none' }}
               >
                 {layer.label}
               </text>
               <text
-                x={cx}
-                y={textY + 15}
+                x={cx} y={textY + 15}
                 textAnchor="middle"
                 fill={layer.subColor}
                 fontSize="8.5"
-                fontFamily="'JetBrains Mono', 'Fira Mono', monospace"
+                fontFamily="'JetBrains Mono','Fira Mono',monospace"
                 letterSpacing="2"
                 style={{ userSelect: 'none' }}
               >
@@ -180,47 +232,27 @@ const ArchitectureLayers = () => {
           );
         })}
 
-        {/* Animated data particles flowing between layers */}
+        {/* Data particles flowing down between layers */}
         {[0, 0.6, 1.2, 1.8].map((delay, i) => (
           <motion.circle
-            key={i}
+            key={`p1-${i}`}
             r="2.5"
             fill="#F97316"
-            opacity={0.7}
             cx={cx + (i % 2 === 0 ? 18 : -22)}
             initial={{ cy: 175, opacity: 0 }}
-            animate={{
-              cy: [175, 238, 238],
-              opacity: [0, 0.9, 0],
-            }}
-            transition={{
-              duration: 1.8,
-              delay: delay + 0.8,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              repeatDelay: 1.2,
-            }}
+            animate={{ cy: [175, 238, 238], opacity: [0, 0.9, 0] }}
+            transition={{ duration: 1.8, delay: delay + 0.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.2 }}
           />
         ))}
         {[0, 0.7, 1.4].map((delay, i) => (
           <motion.circle
-            key={`d2-${i}`}
+            key={`p2-${i}`}
             r="2.5"
             fill="#E8461E"
-            opacity={0.6}
             cx={cx + (i % 2 === 0 ? -15 : 25)}
             initial={{ cy: 343, opacity: 0 }}
-            animate={{
-              cy: [343, 400, 400],
-              opacity: [0, 0.85, 0],
-            }}
-            transition={{
-              duration: 1.8,
-              delay: delay + 1.4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              repeatDelay: 1.4,
-            }}
+            animate={{ cy: [343, 400, 400], opacity: [0, 0.85, 0] }}
+            transition={{ duration: 1.8, delay: delay + 1.4, repeat: Infinity, ease: 'easeInOut', repeatDelay: 1.4 }}
           />
         ))}
       </svg>
@@ -234,10 +266,10 @@ const ArchitectureLayers = () => {
 const MobileHeroVisual = () => (
   <div className="grid grid-cols-2 gap-3 mt-8" aria-label="Platform highlights">
     {[
-      { value: '10+', label: 'Pilot Communities', color: 'text-[#E8461E]' },
-      { value: 'AI', label: 'Powered Governance', color: 'text-[#F97316]' },
-      { value: '24/7', label: 'Autonomous Ops', color: 'text-[#E8461E]' },
-      { value: 'Unicity', label: 'Infrastructure', color: 'text-[#F97316]' },
+      { value: '10+',     label: 'Pilot Communities', color: 'text-[#E8461E]' },
+      { value: 'AI',      label: 'Powered Governance', color: 'text-[#F97316]' },
+      { value: '24/7',    label: 'Autonomous Ops',     color: 'text-[#E8461E]' },
+      { value: 'Unicity', label: 'Infrastructure',     color: 'text-[#F97316]' },
     ].map((s, i) => (
       <motion.div
         key={i}
