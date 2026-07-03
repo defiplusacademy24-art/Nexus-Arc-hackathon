@@ -1,0 +1,1 @@
+- [Nexusu Dashboard Architecture](nexusu-dashboard.md) — full dashboard routes, layout, demo data, and service abstraction patterns.

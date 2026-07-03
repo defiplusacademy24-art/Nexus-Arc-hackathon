@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Nexusu"
+version = "1.0.0"
+id = "artifacts/nexusu"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24670
+
+[services.development]
+run = "pnpm --filter @workspace/nexusu run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/nexusu", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/nexusu/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24670"
+BASE_PATH = "/"
