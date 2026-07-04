@@ -1,8 +1,11 @@
 // ── Cooperative ────────────────────────────────────────────────────────────────
 
-export type CoopType = 'Esusu' | 'Ajo' | 'Chama' | 'Stokvel' | 'Susu' | 'ROSCA' | 'General';
+export type CoopType = 'Esusu' | 'Ajo' | 'Chama' | 'Stokvel' | 'Susu' | 'ROSCA' | 'SACCO' | 'General' | 'Other';
 export type CoopStatus = 'active' | 'inactive' | 'pending';
 export type ContributionFrequency = 'weekly' | 'bi-weekly' | 'monthly';
+export type CoopPrivacy = 'public' | 'private' | 'invite-only';
+export type VotingModel = 'simple-majority' | 'supermajority' | 'unanimous';
+export type LoanApprovalPolicy = 'admin-only' | 'member-vote' | 'ai-recommended' | 'hybrid';
 
 export interface Cooperative {
   id: string;
@@ -20,11 +23,22 @@ export interface Cooperative {
   aiHealthScore: number;
   createdAt: string;
   description: string;
+  // Governance & rules (optional for backward compat)
+  privacy?: CoopPrivacy;
+  votingModel?: VotingModel;
+  approvalThreshold?: number;
+  loanApprovalPolicy?: LoanApprovalPolicy;
+  aiGovernanceEnabled?: boolean;
+  maxMembers?: number;
+  // Identity
+  inviteCode?: string;
+  cooperativeId?: string;
+  founderWalletIdentity?: string;
 }
 
 // ── Member ─────────────────────────────────────────────────────────────────────
 
-export type MemberRole = 'admin' | 'treasurer' | 'secretary' | 'member';
+export type MemberRole = 'founder' | 'admin' | 'treasurer' | 'secretary' | 'auditor' | 'member';
 export type MemberStatus = 'active' | 'inactive' | 'suspended';
 
 export interface Member {

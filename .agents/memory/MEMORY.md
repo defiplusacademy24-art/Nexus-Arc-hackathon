@@ -1,1 +1,2 @@
 - [Nexusu Dashboard Architecture](nexusu-dashboard.md) — full dashboard routes, layout, demo data, and service abstraction patterns.
+- [Cooperative Module](cooperative-module.md) — full cooperative management feature: services, context, components, auth rules, and known constraints.

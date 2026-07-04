@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Building2, Users, Vault, PiggyBank,
   Banknote, Sparkles, Scale, BarChart3, Bell, Settings,
-  ChevronRight, X, Wallet, LogOut, UserCircle,
+  X, Wallet, LogOut, UserCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEMO_COOPERATIVE } from '@/lib/demo-data';
 import { useUnicity } from '@/providers/UnicityProvider';
+import { WorkspaceSwitcher } from '@/components/cooperative/WorkspaceSwitcher';
+import { CreateWizard } from '@/components/cooperative/CreateWizard';
+import { JoinModal } from '@/components/cooperative/JoinModal';
 
 interface NavItem {
   label: string;
@@ -67,6 +70,8 @@ function NavLink({ item, active, onClick }: { item: NavItem; active: boolean; on
 export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
   const [location] = useLocation();
   const { identity, disconnect } = useUnicity();
+  const [showCreate, setShowCreate] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
 
   const isActive = (href: string) =>
     href === '/dashboard' ? location === '/dashboard' : location.startsWith(href);
@@ -95,18 +100,12 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
         )}
       </div>
 
-      {/* Cooperative switcher */}
+      {/* Cooperative workspace switcher */}
       <div className="px-4 py-3 border-b border-stone-100 dark:border-white/6">
-        <button className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-white/6 transition-colors text-left group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xs font-bold">SS</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-stone-800 dark:text-white truncate">{DEMO_COOPERATIVE.name}</p>
-            <p className="text-[10px] text-stone-400 dark:text-white/40 truncate">{DEMO_COOPERATIVE.type} · {DEMO_COOPERATIVE.country}</p>
-          </div>
-          <ChevronRight className="w-3.5 h-3.5 text-stone-300 dark:text-white/25 group-hover:text-stone-500 dark:group-hover:text-white/40 flex-shrink-0" />
-        </button>
+        <WorkspaceSwitcher
+          onCreateRequest={() => setShowCreate(true)}
+          onJoinRequest={() => setShowJoin(true)}
+        />
       </div>
 
       {/* Navigation */}
@@ -157,6 +156,12 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
           <span>Disconnect</span>
         </button>
       </div>
+
+      {/* Cooperative modals (rendered inside sidebar so they overlay the full page) */}
+      <AnimatePresence>
+        {showCreate && <CreateWizard onClose={() => setShowCreate(false)} />}
+        {showJoin && <JoinModal onClose={() => setShowJoin(false)} />}
+      </AnimatePresence>
     </div>
   );
 

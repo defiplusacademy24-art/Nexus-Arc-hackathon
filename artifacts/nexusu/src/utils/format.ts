@@ -97,10 +97,33 @@ export function truncateWallet(address: string, start = 8, end = 6): string {
 
 export function roleLabel(role: string): string {
   const map: Record<string, string> = {
+    founder: 'Founder',
     admin: 'Admin',
     treasurer: 'Treasurer',
     secretary: 'Secretary',
+    auditor: 'Auditor',
     member: 'Member',
   };
   return map[role] ?? role;
+}
+
+export function roleBadgeClass(role: string): string {
+  const map: Record<string, string> = {
+    founder:
+      'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-500/20',
+    admin:
+      'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-500/20',
+    treasurer:
+      'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/20',
+    secretary:
+      'bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-500/20',
+    auditor:
+      'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20',
+    member:
+      'bg-stone-50 dark:bg-white/5 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10',
+  };
+  return (
+    map[role] ??
+    'bg-stone-50 dark:bg-white/5 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10'
+  );
 }

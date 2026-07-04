@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, UserPlus, Star, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Search, UserPlus, Star, TrendingUp, AlertTriangle, Users } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
-import { DEMO_MEMBERS } from '@/lib/demo-data';
-import { formatCurrency, formatDate, formatPercent, riskColor, riskLabel, roleLabel, scoreBg, truncateWallet } from '@/utils/format';
+import { useCooperative } from '@/providers/CooperativeProvider';
+import { loadCoopMembers } from '@/services/cooperative/members';
+import { formatCurrency, formatDate, riskColor, riskLabel, roleLabel, scoreBg, truncateWallet } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import type { Member } from '@/types';
 
@@ -124,16 +125,35 @@ function MemberDrawer({ member, onClose }: { member: Member; onClose: () => void
 }
 
 export default function Members() {
+  const { activeCooperative } = useCooperative();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'flagged'>('all');
   const [selected, setSelected] = useState<Member | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
 
-  const filtered = DEMO_MEMBERS.filter((m) => {
+  // Reload from localStorage whenever the active cooperative changes
+  useEffect(() => {
+    setMembers(activeCooperative ? loadCoopMembers(activeCooperative.id) : []);
+  }, [activeCooperative?.id]);
+
+  const filtered = members.filter((m) => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.email.toLowerCase().includes(search.toLowerCase());
     if (filter === 'active') return matchSearch && m.status === 'active';
     if (filter === 'flagged') return matchSearch && (m.riskScore > 60 || m.missedContributions > 2);
     return matchSearch;
   });
+
+  if (!activeCooperative) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-full py-24 px-6 text-center">
+          <Users className="w-12 h-12 text-stone-200 dark:text-white/10 mb-4" />
+          <p className="font-display font-bold text-stone-800 dark:text-white mb-2">No Cooperative</p>
+          <p className="text-sm text-stone-400 dark:text-white/40">Create or join a cooperative to see its members.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -143,7 +163,9 @@ export default function Members() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-4 mb-7">
           <div className="flex-1">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Members</h1>
-            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">{DEMO_MEMBERS.length} total · {DEMO_MEMBERS.filter(m => m.status === 'active').length} active</p>
+            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
+              {activeCooperative.name} · {members.length} total · {members.filter(m => m.status === 'active').length} active
+            </p>
           </div>
           <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] transition-colors">
             <UserPlus className="w-4 h-4" /> Invite Member
