@@ -1,62 +1,80 @@
-import { motion } from 'framer-motion';
+const steps = [
+  {
+    num: '01',
+    title: 'Create a cooperative',
+    desc: 'Define contribution schedules, treasury rules, lending policies, and governance settings in minutes.',
+  },
+  {
+    num: '02',
+    title: 'Invite members',
+    desc: 'Members join through Arc smart accounts and participate in contributions, governance, and treasury activities.',
+  },
+  {
+    num: '03',
+    title: 'Agents operate the treasury',
+    desc: 'Treasury agents monitor contributions, manage reserves, coordinate payouts, and enforce cooperative rules automatically.',
+  },
+  {
+    num: '04',
+    title: 'Borrow and repay',
+    desc: 'Lending agents evaluate requests using contribution history and cooperative reputation while repayments build portable financial identity.',
+  },
+];
 
 export function HowItWorks() {
-  const steps = [
-    { num: "01", title: "Create a Cooperative", desc: "Set contribution amounts, cycle frequency, and loan parameters in minutes." },
-    { num: "02", title: "Invite Members", desc: "Members join via link. Their personal AI agent and secure wallet are created instantly." },
-    { num: "03", title: "AI Agents Manage Contributions", desc: "Agents monitor accounts, pull contributions, and send reminders automatically." },
-    { num: "04", title: "Members Request Loans", desc: "Members request capital directly through the platform—no negotiation needed." },
-    { num: "05", title: "Autonomous Credit Evaluation", desc: "The Cooperative Agent evaluates treasury health and member reputation instantly." },
-    { num: "06", title: "Funds Settle Automatically", desc: "Approved loans deploy via smart contract. No paperwork, no manual transfers." },
-    { num: "07", title: "Credit Scores Update", desc: "Each repayment automatically updates the member's portable global credit score." }
-  ];
-
   return (
-    <section className="py-32 bg-[#F9EDE3] dark:bg-[#1B1917] relative overflow-hidden">
-      <div className="container mx-auto px-6 max-w-4xl relative z-10">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-[#1B1917] dark:text-white mb-4">
-            From Savings Group to{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E8461E] to-[#F97316]">Autonomous Bank in Minutes</span>
+    <section
+      id="how"
+      className="py-20 sm:py-24 bg-white dark:bg-[#030F1F] border-t border-stone-200/80 dark:border-[#1A2A3A]"
+      aria-labelledby="how-heading"
+    >
+      <div className="container mx-auto px-5 sm:px-6 max-w-3xl">
+        <header className="text-center mb-12 sm:mb-14 max-w-2xl mx-auto">
+          <p className="text-xs font-semibold text-[#6393C4] tracking-[0.16em] uppercase mb-3">
+            How it works
+          </p>
+          <h2
+            id="how-heading"
+            className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-[#030F1F] dark:text-white leading-tight"
+          >
+            Launch an autonomous cooperative in four steps
           </h2>
-        </div>
+        </header>
 
-        <div className="relative">
-          <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-orange-200 dark:bg-white/10 md:-translate-x-1/2" />
-
-          <motion.div
-            className="absolute left-4 md:left-1/2 top-0 w-[3px] h-24 bg-gradient-to-b from-transparent via-[#E8461E] to-transparent md:-translate-x-1/2"
-            animate={{ top: ['-10%', '110%'] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-          />
-
-          <div className="space-y-10">
-            {steps.map((step, i) => (
-              <div
-                key={i}
-                className={`flex flex-col md:flex-row gap-8 md:gap-0 items-start md:items-center ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
+        <ol className="space-y-0 list-none m-0 p-0">
+          {steps.map((step, i) => {
+            const stepId = `how-step-${step.num}`;
+            return (
+              <li
+                key={step.num}
+                className={`relative flex gap-5 sm:gap-6 pb-10 sm:pb-12 ${
+                  i < steps.length - 1
+                    ? 'border-l border-stone-200 dark:border-[#1A2A3A] ml-4 sm:ml-5 pl-8 sm:pl-10'
+                    : 'ml-4 sm:ml-5 pl-8 sm:pl-10'
+                }`}
+                aria-labelledby={stepId}
               >
-                <motion.div
-                  initial={{ opacity: 0, x: i % 2 === 0 ? -50 : 50 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  className={`w-full md:w-1/2 pl-12 md:pl-0 ${i % 2 === 0 ? 'md:pr-14 md:text-right' : 'md:pl-14 md:text-left'}`}
+                <span
+                  className="absolute -left-4 sm:-left-5 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full border-2 border-[#6393C4] bg-white dark:bg-[#030F1F] text-[10px] sm:text-xs font-mono font-bold text-[#6393C4]"
+                  aria-hidden="true"
                 >
-                  <div className="bg-white dark:bg-white/4 border border-stone-200 dark:border-white/8 rounded-2xl p-6 hover:border-[#E8461E]/25 hover:shadow-sm transition-all duration-300">
-                    <h3 className="text-lg font-display font-bold text-[#1B1917] dark:text-white mb-1">{step.title}</h3>
-                    <p className="text-stone-500 dark:text-white/60 text-sm leading-relaxed">{step.desc}</p>
-                  </div>
-                </motion.div>
-
-                <div className="absolute left-4 md:left-1/2 w-8 h-8 rounded-full bg-white dark:bg-[#1B1917] border-2 border-[#E8461E] flex items-center justify-center md:-translate-x-1/2 z-10 mt-1 md:mt-0">
-                  <span className="text-[10px] font-mono font-bold text-[#E8461E]">{step.num}</span>
+                  {step.num}
+                </span>
+                <div className="pt-0.5">
+                  <h3
+                    id={stepId}
+                    className="text-xl sm:text-2xl font-display font-semibold text-[#030F1F] dark:text-white mb-2"
+                  >
+                    {step.title}
+                  </h3>
+                  <p className="text-sm sm:text-base text-stone-500 dark:text-white/60 leading-relaxed">
+                    {step.desc}
+                  </p>
                 </div>
-
-                <div className="hidden md:block w-1/2" />
-              </div>
-            ))}
-          </div>
-        </div>
+              </li>
+            );
+          })}
+        </ol>
       </div>
     </section>
   );

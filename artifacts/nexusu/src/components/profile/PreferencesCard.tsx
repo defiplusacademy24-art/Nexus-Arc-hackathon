@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Settings, Globe, Clock, Bell, Check, Save } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import type { UseProfileState } from '@/hooks/useProfile';
-import { AVATAR_COLORS, LANGUAGES, type AvatarColor } from '@/services/unicity/profile';
+import { AVATAR_COLORS, LANGUAGES, type AvatarColor } from '@/services/profile';
 
 interface PreferencesCardProps {
   profile: UseProfileState;
@@ -32,12 +32,12 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
     >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-stone-100 dark:border-white/6 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Settings className="w-4 h-4 text-[#E8461E]" />
+          <Settings className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">Preferences</span>
         </div>
         {isDirty && (
@@ -45,7 +45,7 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             onClick={save}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E8461E] text-white text-xs font-semibold hover:bg-[#d43e1b] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#6393C4] text-white text-xs font-semibold hover:bg-[#d43e1b] transition-colors"
           >
             <Save className="w-3 h-3" />
             Save
@@ -89,7 +89,7 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
             value={prefs.displayNameOverride}
             onChange={(e) => update('displayNameOverride', e.target.value)}
             placeholder="Leave blank to use wallet identity"
-            className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/8 text-sm text-stone-700 dark:text-white placeholder:text-stone-300 dark:placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-[#E8461E]/30 transition-all"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] text-sm text-stone-700 dark:text-white placeholder:text-stone-300 dark:placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-[#6393C4]/30 transition-all"
           />
           <p className="text-[10px] text-stone-400 dark:text-white/25 mt-1">
             This is a local preference — it doesn't change your on-chain identity.
@@ -105,7 +105,7 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
           <select
             value={prefs.language}
             onChange={(e) => update('language', e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/8 text-sm text-stone-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#E8461E]/30 transition-all"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] text-sm text-stone-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#6393C4]/30 transition-all"
           >
             {LANGUAGES.map((l) => (
               <option key={l.code} value={l.code}>{l.label}</option>
@@ -122,7 +122,7 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
           <select
             value={prefs.timezone}
             onChange={(e) => update('timezone', e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/8 text-sm text-stone-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#E8461E]/30 transition-all"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] text-sm text-stone-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#6393C4]/30 transition-all"
           >
             {TIMEZONES.map((tz) => (
               <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
@@ -142,8 +142,8 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
                 onClick={() => setTheme(t)}
                 className={`py-2.5 rounded-xl text-xs font-semibold capitalize transition-all border ${
                   resolvedTheme === t || (t === 'system' && !['light', 'dark'].includes(resolvedTheme ?? ''))
-                    ? 'bg-[#E8461E] text-white border-[#E8461E]'
-                    : 'border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/40 hover:bg-stone-50 dark:hover:bg-white/5'
+                    ? 'bg-[#6393C4] text-white border-[#6393C4]'
+                    : 'border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/40 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50'
                 }`}
               >
                 {t}
@@ -173,7 +173,7 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
                 <button
                   onClick={() => setNotifPref(key, !prefs.notifPrefs[key])}
                   className={`relative w-9 h-5 rounded-full transition-colors ${
-                    prefs.notifPrefs[key] ? 'bg-[#E8461E]' : 'bg-stone-200 dark:bg-white/10'
+                    prefs.notifPrefs[key] ? 'bg-[#6393C4]' : 'bg-stone-200 dark:bg-white/10'
                   }`}
                 >
                   <motion.div

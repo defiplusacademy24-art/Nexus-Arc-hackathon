@@ -1,7 +1,7 @@
 /**
- * WalletBalanceCard — displays real Sphere SDK wallet balances.
+ * WalletBalanceCard — displays Arc Testnet USDC balances via wagmi/viem.
  *
- * Data comes from sphere_getAssets (Asset[]) via useWalletAssets.
+ * Data comes from on-chain balance reads via useWalletAssets.
  * Amounts are pre-formatted by the assets service (formatUnits).
  * Never shows hard-coded or mock values.
  */
@@ -20,7 +20,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import type { UseWalletAssetsState } from '@/hooks/useWalletAssets';
-import type { WalletAsset } from '@/services/unicity/assets';
+import type { WalletAsset } from '@/services/wallet/assets';
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function Skeleton({ className = '' }: { className?: string }) {
@@ -30,7 +30,7 @@ function Skeleton({ className = '' }: { className?: string }) {
 // ── Portfolio total header ────────────────────────────────────────────────────
 function PortfolioTotal({ usd }: { usd: number }) {
   return (
-    <div className="px-5 py-4 bg-gradient-to-r from-[#E8461E]/5 to-[#F97316]/5 dark:from-[#E8461E]/10 dark:to-[#F97316]/8 border-b border-stone-100 dark:border-white/6">
+    <div className="px-5 py-4 bg-gradient-to-r from-[#6393C4]/5 to-[#77A6DB]/5 dark:from-[#6393C4]/10 dark:to-[#77A6DB]/8 border-b border-stone-100 dark:border-[#1A2A3A]">
       <p className="text-[10px] font-semibold text-stone-400 dark:text-white/35 uppercase tracking-widest mb-1">
         Portfolio Value
       </p>
@@ -73,14 +73,14 @@ function AssetRow({ asset, index }: { asset: WalletAsset; index: number }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06 }}
-      className="flex items-center gap-3 p-3.5 rounded-xl bg-stone-50 dark:bg-white/4 border border-stone-100 dark:border-white/5"
+      className="flex items-center gap-3 p-3.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/5"
     >
       {/* Icon */}
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E8461E]/18 to-[#F97316]/12 dark:from-[#E8461E]/20 dark:to-[#F97316]/14 flex items-center justify-center flex-shrink-0 shadow-sm">
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6393C4]/18 to-[#77A6DB]/12 dark:from-[#6393C4]/20 dark:to-[#77A6DB]/14 flex items-center justify-center flex-shrink-0 shadow-sm">
         {asset.iconUrl ? (
           <img src={asset.iconUrl} alt={asset.symbol} className="w-6 h-6 rounded-full" />
         ) : (
-          <span className="text-[11px] font-bold text-[#E8461E]">{ticker}</span>
+          <span className="text-[11px] font-bold text-[#6393C4]">{ticker}</span>
         )}
       </div>
 
@@ -93,7 +93,7 @@ function AssetRow({ asset, index }: { asset: WalletAsset; index: number }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] text-stone-400 dark:text-white/35 font-mono uppercase">{asset.symbol}</span>
           {hasPending && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-500 dark:text-amber-400">
+            <span className="inline-flex items-center gap-0.5 text-[10px] text-[#6393C4] dark:text-[#77A6DB]">
               <Clock className="w-2.5 h-2.5" />
               {asset.pendingBalance} pending
             </span>
@@ -154,9 +154,9 @@ function EmptyState({ supported }: { supported: boolean }) {
         </p>
       </div>
       {!supported && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-500/8 border border-amber-200/60 dark:border-amber-500/15">
-          <AlertCircle className="w-3 h-3 text-amber-500" />
-          <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#6393C4]/8 dark:bg-[#6393C4]/10 border border-[#6393C4]/20 dark:border-[#6393C4]/15">
+          <AlertCircle className="w-3 h-3 text-[#6393C4]" />
+          <span className="text-[10px] font-semibold text-[#5289B8] dark:text-[#77A6DB]">
             Testnet · Balance queries not available
           </span>
         </div>
@@ -183,12 +183,12 @@ export function WalletBalanceCard({ assets, delay = 0 }: WalletBalanceCardProps)
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
     >
       {/* ── Header ── */}
-      <div className="px-5 py-4 border-b border-stone-100 dark:border-white/6 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Coins className="w-4 h-4 text-[#E8461E]" />
+          <Coins className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">Wallet Assets</span>
         </div>
         <div className="flex items-center gap-3">
@@ -201,7 +201,7 @@ export function WalletBalanceCard({ assets, delay = 0 }: WalletBalanceCardProps)
           <button
             onClick={refresh}
             disabled={isLoading}
-            className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:text-[#E8461E] hover:bg-[#E8461E]/8 transition-colors disabled:opacity-40"
+            className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:text-[#6393C4] hover:bg-[#6393C4]/8 transition-colors disabled:opacity-40"
             aria-label="Refresh assets"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />

@@ -14,12 +14,12 @@ export function Technology() {
   ];
 
   return (
-    <section id="technology" className="py-32 bg-white dark:bg-[#201E1C] relative">
+    <section id="technology" className="py-32 bg-white dark:bg-[#030F1F] relative">
       <div className="container mx-auto px-6 max-w-7xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-[#1B1917] dark:text-white mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-[#030F1F] dark:text-white mb-4">
             Built on the{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E8461E] to-[#F97316]">Unicity Stack</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6393C4] to-[#77A6DB]">Unicity Stack</span>
           </h2>
           <p className="text-base text-stone-500 dark:text-white/60 max-w-xl mx-auto">
             Enterprise-grade cryptographic primitives and decentralized agent infrastructure for treasury security and operational resilience.
@@ -28,10 +28,10 @@ export function Technology() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 relative">
           <div className="absolute inset-0 pointer-events-none hidden lg:block">
-            <div className="w-full h-[1px] bg-stone-100 dark:bg-white/5 absolute top-1/2 -translate-y-1/2" />
-            <div className="h-full w-[1px] bg-stone-100 dark:bg-white/5 absolute left-1/4 -translate-x-1/2" />
-            <div className="h-full w-[1px] bg-stone-100 dark:bg-white/5 absolute left-2/4 -translate-x-1/2" />
-            <div className="h-full w-[1px] bg-stone-100 dark:bg-white/5 absolute left-3/4 -translate-x-1/2" />
+            <div className="w-full h-[1px] bg-stone-100 dark:bg-[#2E3B4B]/40 absolute top-1/2 -translate-y-1/2" />
+            <div className="h-full w-[1px] bg-stone-100 dark:bg-[#2E3B4B]/40 absolute left-1/4 -translate-x-1/2" />
+            <div className="h-full w-[1px] bg-stone-100 dark:bg-[#2E3B4B]/40 absolute left-2/4 -translate-x-1/2" />
+            <div className="h-full w-[1px] bg-stone-100 dark:bg-[#2E3B4B]/40 absolute left-3/4 -translate-x-1/2" />
           </div>
 
           {techCards.map((tech, i) => (
@@ -41,12 +41,12 @@ export function Technology() {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className="bg-white dark:bg-white/5 p-7 rounded-2xl border border-stone-200 dark:border-white/10 hover:border-[#E8461E]/40 dark:hover:border-[#E8461E]/40 hover:shadow-sm dark:hover:shadow-none transition-all group relative z-10"
+              className="bg-white dark:bg-[#2E3B4B]/40 p-7 rounded-2xl border border-stone-200 dark:border-white/10 hover:border-[#6393C4]/40 dark:hover:border-[#6393C4]/40 hover:shadow-sm dark:hover:shadow-none transition-all group relative z-10"
             >
-              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-[#E8461E]/10 to-[#F97316]/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-                <tech.icon className="w-5 h-5 text-[#E8461E]" />
+              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-[#6393C4]/10 to-[#77A6DB]/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                <tech.icon className="w-5 h-5 text-[#6393C4]" />
               </div>
-              <h3 className="font-display font-semibold text-base text-[#1B1917] dark:text-white mb-1.5">{tech.title}</h3>
+              <h3 className="font-display font-semibold text-base text-[#030F1F] dark:text-white mb-1.5">{tech.title}</h3>
               <p className="text-sm text-stone-400 dark:text-white/50 leading-relaxed">{tech.desc}</p>
             </motion.div>
           ))}

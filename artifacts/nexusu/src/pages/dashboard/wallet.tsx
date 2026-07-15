@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
-import { ShieldCheck, Copy, ExternalLink, Wallet, CheckCircle2, Key, Globe, Clock } from 'lucide-react';
+import { ShieldCheck, Copy, ExternalLink, Wallet, CheckCircle2, Globe } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
-import { useUnicity } from '@/providers/UnicityProvider';
-import { truncateWallet } from '@/utils/format';
-import { WALLET_INSTALL_URL } from '@/services/unicity';
+import { useWallet } from '@/providers/WalletProvider';
+import { ARC_EXPLORER_URL, ARC_TESTNET_CHAIN_ID } from '@/config/arc';
+import { ARC_FAUCET_URL, ARC_NETWORK_LABEL, WALLET_INSTALL_URL } from '@/services/wallet/constants';
 import { useToast } from '@/hooks/use-toast';
 
 function InfoRow({ label, value, mono = false, onCopy }: {
@@ -19,7 +19,7 @@ function InfoRow({ label, value, mono = false, onCopy }: {
         {onCopy && (
           <button
             onClick={onCopy}
-            className="flex-shrink-0 p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:text-[#E8461E] hover:bg-[#E8461E]/8 transition-colors"
+            className="flex-shrink-0 p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:text-[#6393C4] hover:bg-[#6393C4]/8 transition-colors"
           >
             <Copy className="w-3.5 h-3.5" />
           </button>
@@ -30,7 +30,7 @@ function InfoRow({ label, value, mono = false, onCopy }: {
 }
 
 export default function WalletProfile() {
-  const { identity, walletAddress, publicKey, session, disconnect } = useUnicity();
+  const { identity, walletAddress, disconnect, chainId, isOnArcTestnet } = useWallet();
   const { toast } = useToast();
 
   const copy = async (text: string, label: string) => {
@@ -45,22 +45,24 @@ export default function WalletProfile() {
 
   if (!identity) return null;
 
+  const explorerLink = walletAddress
+    ? `${ARC_EXPLORER_URL}/address/${walletAddress}`
+    : ARC_EXPLORER_URL;
+
   return (
     <DashboardLayout>
       <div className="px-6 py-6 max-w-2xl mx-auto">
 
-        {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
           <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Wallet Profile</h1>
-          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">Your Unicity decentralised identity</p>
+          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">Your Arc Testnet wallet on Circle&apos;s network</p>
         </motion.div>
 
-        {/* Identity card */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-gradient-to-br from-[#E8461E] to-[#F97316] rounded-2xl p-7 mb-5 text-white relative overflow-hidden"
+          className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-7 mb-5 text-white relative overflow-hidden"
         >
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, white, transparent 60%)' }} />
 
@@ -70,77 +72,66 @@ export default function WalletProfile() {
             </div>
             <div>
               <h2 className="text-2xl font-display font-bold">{identity.displayName}</h2>
-              {identity.nametag && (
-                <p className="text-white/70 text-sm">@{identity.nametag}</p>
-              )}
+              <p className="text-white/70 text-sm">{ARC_NETWORK_LABEL}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
             <CheckCircle2 className="w-4 h-4 text-white flex-shrink-0" />
-            <span className="text-sm font-semibold">Verified by Unicity Network</span>
-            <span className="ml-auto text-xs text-white/70">testnet2</span>
+            <span className="text-sm font-semibold">
+              {isOnArcTestnet ? 'Connected to Arc Testnet' : 'Switch to Arc Testnet in your wallet'}
+            </span>
+            <span className="ml-auto text-xs text-white/70">USDC gas</span>
           </div>
         </motion.div>
 
-        {/* Details */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5 mb-4"
+          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
         >
           <div className="flex items-center gap-2 mb-3">
-            <Globe className="w-4 h-4 text-[#E8461E]" />
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Identity Details</h2>
+            <Globe className="w-4 h-4 text-[#6393C4]" />
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Wallet Details</h2>
           </div>
 
           {walletAddress && (
             <InfoRow
-              label="Wallet Address (DIRECT)"
+              label="Wallet Address"
               value={walletAddress}
               mono
               onCopy={() => copy(walletAddress, 'Wallet address')}
             />
           )}
-          {publicKey && (
-            <InfoRow
-              label="Public Key"
-              value={publicKey}
-              mono
-              onCopy={() => copy(publicKey, 'Public key')}
-            />
-          )}
-          {identity.nametag && (
-            <InfoRow label="Registered Nametag" value={`@${identity.nametag}`} />
-          )}
-          <InfoRow label="Verification Status" value="Verified · Unicity Sphere" />
-          {session && (
-            <InfoRow label="Session ID" value={truncateWallet(session, 12, 8)} mono />
-          )}
+          <InfoRow label="Network" value={ARC_NETWORK_LABEL} />
+          <InfoRow label="Chain ID" value={String(chainId ?? ARC_TESTNET_CHAIN_ID)} mono />
+          <InfoRow
+            label="Gas Token"
+            value="USDC (native on Arc)"
+          />
         </motion.div>
 
-        {/* Security */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5 mb-4"
+          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
         >
           <div className="flex items-center gap-2 mb-4">
-            <ShieldCheck className="w-4 h-4 text-[#E8461E]" />
+            <ShieldCheck className="w-4 h-4 text-[#6393C4]" />
             <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Security Model</h2>
           </div>
           <div className="space-y-3">
             {[
-              { icon: Key, text: 'Non-custodial — only you control your private keys' },
-              { icon: ShieldCheck, text: 'Cryptographic identity — no username/password stored' },
-              { icon: CheckCircle2, text: 'Verified on Unicity Network (testnet2)' },
-              { icon: Globe, text: 'Session persists in this browser tab only' },
-            ].map(({ icon: Icon, text }) => (
+              { text: 'Non-custodial — only you control your private keys' },
+              { text: 'EVM-compatible wallet on Circle Arc Testnet' },
+              { text: 'USDC used for gas and treasury operations' },
+              { text: 'Connection persists via wagmi session in this browser' },
+            ].map(({ text }) => (
               <div key={text} className="flex items-center gap-3 text-sm">
                 <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-3.5 h-3.5 text-emerald-500" />
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 </div>
                 <span className="text-stone-600 dark:text-white/65">{text}</span>
               </div>
@@ -148,7 +139,6 @@ export default function WalletProfile() {
           </div>
         </motion.div>
 
-        {/* Actions */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -156,13 +146,31 @@ export default function WalletProfile() {
           className="flex flex-col gap-3"
         >
           <a
+            href={explorerLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-medium text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-all"
+          >
+            <ExternalLink className="w-4 h-4" />
+            View on ArcScan
+          </a>
+          <a
+            href={ARC_FAUCET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-[#6393C4]/25 text-sm font-medium text-[#6393C4] hover:bg-[#6393C4]/8 transition-all"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Get Testnet USDC
+          </a>
+          <a
             href={WALLET_INSTALL_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-medium text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-white/5 transition-all"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-medium text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-all"
           >
             <ExternalLink className="w-4 h-4" />
-            Open Sphere Wallet
+            Wallet Setup Guide
           </a>
           <button
             onClick={async () => { await disconnect(); window.location.href = '/'; }}

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Activity, Wallet, ShieldCheck, Zap, FileText, Banknote, PiggyBank } from 'lucide-react';
-import { loadIdentity } from '@/services/unicity/session';
+import { loadIdentity } from '@/services/wallet/session';
 
 interface TimelineEvent {
   id: string;
@@ -28,15 +28,15 @@ function buildEvents(): TimelineEvent[] {
       iconColor: 'text-emerald-500',
       iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
       title: 'Wallet Connected',
-      description: 'Sphere wallet authenticated via Unicity Network',
+      description: 'Wallet connected on Arc Testnet',
       timestamp: connectedAt,
       type: 'wallet',
     },
     {
       id: 'identity-verified',
       icon: ShieldCheck,
-      iconColor: 'text-[#E8461E]',
-      iconBg: 'bg-red-50 dark:bg-[#E8461E]/10',
+      iconColor: 'text-[#6393C4]',
+      iconBg: 'bg-red-50 dark:bg-[#6393C4]/10',
       title: 'Identity Verified',
       description: 'Non-custodial identity confirmed on testnet2',
       timestamp: connectedAt,
@@ -68,8 +68,8 @@ function buildEvents(): TimelineEvent[] {
     {
       id: 'loan-repayment',
       icon: Banknote,
-      iconColor: 'text-amber-500',
-      iconBg: 'bg-amber-50 dark:bg-amber-500/10',
+      iconColor: 'text-[#6393C4]',
+      iconBg: 'bg-[#6393C4]/8 dark:bg-[#6393C4]/10',
       title: 'Loan Repayment',
       description: '$250 instalment on $3,000 inventory loan',
       timestamp: 'Jun 15, 2026',
@@ -78,8 +78,8 @@ function buildEvents(): TimelineEvent[] {
     {
       id: 'nexa-insight',
       icon: Zap,
-      iconColor: 'text-[#E8461E]',
-      iconBg: 'bg-red-50 dark:bg-[#E8461E]/10',
+      iconColor: 'text-[#6393C4]',
+      iconBg: 'bg-red-50 dark:bg-[#6393C4]/10',
       title: 'Nexa AI Insight',
       description: 'Treasury projected to reach $60K by September',
       timestamp: 'Jun 10, 2026',
@@ -102,11 +102,11 @@ export function ActivityTimeline({ delay = 0 }: ActivityTimelineProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
     >
-      <div className="px-5 py-4 border-b border-stone-100 dark:border-white/6 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Activity className="w-4 h-4 text-[#E8461E]" />
+          <Activity className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">
             Recent Activity
           </span>
@@ -138,7 +138,7 @@ export function ActivityTimeline({ delay = 0 }: ActivityTimelineProps) {
                   className="flex items-start gap-4 relative"
                 >
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 relative z-10 ${event.iconBg} border border-stone-100 dark:border-white/8`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 relative z-10 ${event.iconBg} border border-stone-100 dark:border-[#1A2A3A]`}
                   >
                     <Icon className={`w-4 h-4 ${event.iconColor}`} />
                   </div>

@@ -29,14 +29,14 @@ const STATS: StatItem[] = [
     value: '1',
     subLabel: '$3,000 total',
     icon: Banknote,
-    color: 'text-amber-500',
+    color: 'text-[#77A6DB]',
   },
   {
     label: 'Repayment Rate',
     value: '98%',
     subLabel: 'Excellent',
     icon: BarChart3,
-    color: 'text-[#E8461E]',
+    color: 'text-[#6393C4]',
   },
   {
     label: 'Governance Votes',
@@ -64,11 +64,11 @@ export function MemberStats({ delay = 0 }: MemberStatsProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
     >
-      <div className="px-5 py-4 border-b border-stone-100 dark:border-white/6">
+      <div className="px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A]">
         <div className="flex items-center gap-2.5">
-          <BarChart3 className="w-4 h-4 text-[#E8461E]" />
+          <BarChart3 className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">
             Member Statistics
           </span>
@@ -81,7 +81,7 @@ export function MemberStats({ delay = 0 }: MemberStatsProps) {
           return (
             <div
               key={stat.label}
-              className="p-4 rounded-xl bg-stone-50 dark:bg-white/3 border border-stone-100 dark:border-white/5"
+              className="p-4 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/30 border border-stone-100 dark:border-white/5"
             >
               <div className={`mb-2 ${stat.color}`}>
                 <Icon className="w-4 h-4" />

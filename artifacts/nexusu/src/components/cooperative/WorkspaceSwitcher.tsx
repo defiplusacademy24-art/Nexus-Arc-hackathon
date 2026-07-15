@@ -13,7 +13,7 @@ function CoopAvatar({ coop, size = 'md' }: { coop: Cooperative; size?: 'sm' | 'm
   const initials = coop.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   return (
     <div className={cn(
-      'rounded-lg bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center flex-shrink-0',
+      'rounded-lg bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0',
       size === 'md' ? 'w-8 h-8' : 'w-6 h-6',
     )}>
       <span className={cn('text-white font-bold', size === 'md' ? 'text-xs' : 'text-[10px]')}>{initials}</span>
@@ -53,7 +53,7 @@ export function WorkspaceSwitcher({ onCreateRequest, onJoinRequest }: WorkspaceS
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-white/6 transition-colors text-left group"
+        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60 transition-colors text-left group"
       >
         <CoopAvatar coop={activeCooperative} />
         <div className="flex-1 min-w-0">
@@ -79,7 +79,7 @@ export function WorkspaceSwitcher({ onCreateRequest, onJoinRequest }: WorkspaceS
                   <button
                     key={coop.id}
                     onClick={() => handleSwitch(coop.id)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-50 dark:hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors text-left"
                   >
                     <CoopAvatar coop={coop} size="sm" />
                     <div className="flex-1 min-w-0">
@@ -87,17 +87,17 @@ export function WorkspaceSwitcher({ onCreateRequest, onJoinRequest }: WorkspaceS
                       <p className="text-[10px] text-stone-400 dark:text-white/35">{coop.memberCount} members</p>
                     </div>
                     {coop.id === activeCooperative.id && (
-                      <Check className="w-3.5 h-3.5 text-[#E8461E] flex-shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-[#6393C4] flex-shrink-0" />
                     )}
                   </button>
                 ))}
               </div>
             )}
 
-            <div className="border-t border-stone-100 dark:border-white/6 p-1">
+            <div className="border-t border-stone-100 dark:border-[#1A2A3A] p-1">
               <button
                 onClick={handleCreate}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-50 dark:hover:bg-white/5 transition-colors text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors text-left"
               >
                 <div className="w-6 h-6 rounded-md bg-stone-100 dark:bg-white/8 flex items-center justify-center flex-shrink-0">
                   <Plus className="w-3 h-3 text-stone-500 dark:text-white/50" />
@@ -106,7 +106,7 @@ export function WorkspaceSwitcher({ onCreateRequest, onJoinRequest }: WorkspaceS
               </button>
               <button
                 onClick={handleJoin}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-50 dark:hover:bg-white/5 transition-colors text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors text-left"
               >
                 <div className="w-6 h-6 rounded-md bg-stone-100 dark:bg-white/8 flex items-center justify-center flex-shrink-0">
                   <UserPlus className="w-3 h-3 text-stone-500 dark:text-white/50" />

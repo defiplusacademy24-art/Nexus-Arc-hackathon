@@ -7,7 +7,7 @@ import {
   X, Wallet, LogOut, UserCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUnicity } from '@/providers/UnicityProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import { WorkspaceSwitcher } from '@/components/cooperative/WorkspaceSwitcher';
 import { CreateWizard } from '@/components/cooperative/CreateWizard';
 import { JoinModal } from '@/components/cooperative/JoinModal';
@@ -49,8 +49,8 @@ function NavLink({ item, active, onClick }: { item: NavItem; active: boolean; on
       className={cn(
         'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 group relative',
         active
-          ? 'bg-[#E8461E] text-white shadow-[0_2px_12px_rgba(232,70,30,0.30)]'
-          : 'text-stone-400 dark:text-white/50 hover:text-stone-900 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-white/6',
+          ? 'bg-[#6393C4] text-white shadow-[0_2px_12px_rgba(99,147,196,0.30)]'
+          : 'text-stone-400 dark:text-[#707B89] hover:text-stone-900 dark:hover:text-[#EEE6E6] hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60',
       )}
     >
       <item.icon className={cn('w-4 h-4 flex-shrink-0', active ? 'text-white' : 'text-stone-400 dark:text-white/40 group-hover:text-stone-600 dark:group-hover:text-white/70')} />
@@ -58,7 +58,7 @@ function NavLink({ item, active, onClick }: { item: NavItem; active: boolean; on
       {item.badge && (
         <span className={cn(
           'flex-shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center',
-          active ? 'bg-white/25 text-white' : 'bg-[#E8461E]/12 text-[#E8461E]',
+          active ? 'bg-white/25 text-white' : 'bg-[#6393C4]/12 text-[#6393C4]',
         )}>
           {item.badge}
         </span>
@@ -69,7 +69,7 @@ function NavLink({ item, active, onClick }: { item: NavItem; active: boolean; on
 
 export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
   const [location] = useLocation();
-  const { identity, disconnect } = useUnicity();
+  const { identity, disconnect } = useWallet();
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
 
@@ -86,9 +86,9 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
   const content = (
     <div className="flex flex-col h-full">
       {/* Logo + close */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-stone-100 dark:border-white/6">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-stone-100 dark:border-[#1A2A3A]">
         <Link href="/dashboard" className="flex items-center gap-2.5" onClick={mobile ? onClose : undefined}>
-          <div className="w-8 h-8 rounded-lg overflow-hidden bg-white flex-shrink-0 shadow-sm border border-orange-100 dark:border-white/10">
+          <div className="w-8 h-8 rounded-lg overflow-hidden bg-white flex-shrink-0 shadow-sm border border-[#1A2A3A]/15 dark:border-white/10">
             <img src="/logo.png" alt="Nexusu" className="w-full h-full object-contain" />
           </div>
           <span className="font-display font-bold text-base text-stone-900 dark:text-white tracking-tight">Nexusu</span>
@@ -101,7 +101,7 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
       </div>
 
       {/* Cooperative workspace switcher */}
-      <div className="px-4 py-3 border-b border-stone-100 dark:border-white/6">
+      <div className="px-4 py-3 border-b border-stone-100 dark:border-[#1A2A3A]">
         <WorkspaceSwitcher
           onCreateRequest={() => setShowCreate(true)}
           onJoinRequest={() => setShowJoin(true)}
@@ -127,23 +127,23 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
       </nav>
 
       {/* User profile */}
-      <div className="px-3 pb-4 pt-2 border-t border-stone-100 dark:border-white/6 space-y-1">
+      <div className="px-3 pb-4 pt-2 border-t border-stone-100 dark:border-[#1A2A3A] space-y-1">
         <Link
           href="/dashboard/profile"
           onClick={mobile ? onClose : undefined}
           className={cn(
-            'flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all hover:bg-stone-100 dark:hover:bg-white/6',
-            isActive('/dashboard/profile') ? 'bg-[#E8461E] text-white' : 'text-stone-500 dark:text-white/50',
+            'flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60',
+            isActive('/dashboard/profile') ? 'bg-[#6393C4] text-white' : 'text-stone-500 dark:text-white/50',
           )}
         >
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center flex-shrink-0">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0">
             <Wallet className="w-3.5 h-3.5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate text-stone-800 dark:text-white">{identity?.displayName ?? 'My Wallet'}</p>
             <div className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-              <p className="text-[10px] text-emerald-500 truncate">Verified by Unicity</p>
+              <p className="text-[10px] text-emerald-500 truncate">Arc Testnet</p>
             </div>
           </div>
         </Link>
@@ -167,7 +167,7 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
 
   if (!mobile) {
     return (
-      <aside className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-white dark:bg-stone-950 border-r border-stone-100 dark:border-white/6 h-screen sticky top-0">
+      <aside className="hidden lg:flex flex-col w-60 flex-shrink-0 bg-white dark:bg-[#081827] border-r border-stone-100 dark:border-[#1A2A3A] h-screen sticky top-0">
         {content}
       </aside>
     );
@@ -189,7 +189,7 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-stone-950 border-r border-stone-100 dark:border-white/6 lg:hidden"
+            className="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#081827] border-r border-stone-100 dark:border-[#1A2A3A] lg:hidden"
           >
             {content}
           </motion.aside>

@@ -16,7 +16,7 @@ import { DashboardLayout } from '@/components/dashboard/Layout';
 import { CreateWizard } from '@/components/cooperative/CreateWizard';
 import { JoinModal } from '@/components/cooperative/JoinModal';
 import { useCooperative } from '@/providers/CooperativeProvider';
-import { useUnicity } from '@/providers/UnicityProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import { loadCoopMembers, updateMemberRole, removeMember, updateMemberStatus } from '@/services/cooperative/members';
 import { updateCooperative } from '@/services/cooperative/cooperative';
 import { getInviteLink } from '@/services/cooperative/invitations';
@@ -30,7 +30,7 @@ function CoopAvatar({ coop, size = 'lg' }: { coop: Cooperative; size?: 'sm' | 'm
   const initials = coop.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   return (
     <div className={cn(
-      'rounded-xl bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center flex-shrink-0 font-bold text-white',
+      'rounded-xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0 font-bold text-white',
       size === 'lg' ? 'w-12 h-12 text-base' : size === 'md' ? 'w-9 h-9 text-sm' : 'w-7 h-7 text-xs',
     )}>
       {initials}
@@ -39,7 +39,7 @@ function CoopAvatar({ coop, size = 'lg' }: { coop: Cooperative; size?: 'sm' | 'm
 }
 
 function MemberAvatar({ initials, size = 'md' }: { initials: string; size?: 'sm' | 'md' }) {
-  const colours = ['from-[#E8461E] to-[#F97316]', 'from-purple-500 to-pink-500', 'from-blue-500 to-cyan-500', 'from-teal-500 to-emerald-500', 'from-amber-500 to-yellow-500'];
+  const colours = ['from-[#6393C4] to-[#77A6DB]', 'from-purple-500 to-pink-500', 'from-blue-500 to-cyan-500', 'from-teal-500 to-emerald-500', 'from-[#5289B8] to-[#6393C4]'];
   return (
     <div className={cn(
       'rounded-full bg-gradient-to-br flex items-center justify-center flex-shrink-0 font-semibold text-white',
@@ -69,17 +69,17 @@ function WorkspaceCard({ coop, active, onClick }: { coop: Cooperative; active: b
       className={cn(
         'flex-shrink-0 w-52 text-left p-4 rounded-2xl border transition-all',
         active
-          ? 'border-[#E8461E] bg-[#E8461E]/5 dark:bg-[#E8461E]/8 shadow-sm'
-          : 'border-stone-200 dark:border-white/8 bg-white dark:bg-stone-900/60 hover:border-stone-300 dark:hover:border-white/14',
+          ? 'border-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/8 shadow-sm'
+          : 'border-stone-200 dark:border-[#1A2A3A] bg-white dark:bg-stone-900/60 hover:border-stone-300 dark:hover:border-white/14',
       )}
     >
       <div className="flex items-center gap-2.5 mb-3">
         <CoopAvatar coop={coop} size="md" />
         {active && (
-          <span className="ml-auto text-[10px] font-semibold bg-[#E8461E] text-white px-2 py-0.5 rounded-full">Active</span>
+          <span className="ml-auto text-[10px] font-semibold bg-[#6393C4] text-white px-2 py-0.5 rounded-full">Active</span>
         )}
       </div>
-      <p className={cn('font-semibold text-sm leading-tight mb-0.5', active ? 'text-[#E8461E]' : 'text-stone-800 dark:text-white')}>{coop.name}</p>
+      <p className={cn('font-semibold text-sm leading-tight mb-0.5', active ? 'text-[#6393C4]' : 'text-stone-800 dark:text-white')}>{coop.name}</p>
       <p className="text-[11px] text-stone-400 dark:text-white/35">{coop.type} · {coop.country}</p>
       <p className="text-[11px] text-stone-500 dark:text-white/40 mt-2 font-semibold">{coop.memberCount} members</p>
     </button>
@@ -90,9 +90,9 @@ function WorkspaceCard({ coop, active, onClick }: { coop: Cooperative; active: b
 
 function Stat({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
   return (
-    <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4">
+    <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-4 h-4 text-[#E8461E]" />
+        <Icon className="w-4 h-4 text-[#6393C4]" />
         <p className="text-xs text-stone-400 dark:text-white/40">{label}</p>
       </div>
       <p className="text-base font-display font-bold text-stone-800 dark:text-white">{value}</p>
@@ -159,7 +159,7 @@ function MemberRow({
             ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
             : member.status === 'suspended'
             ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20'
-            : 'bg-stone-50 dark:bg-white/5 text-stone-500 dark:text-white/35 border-stone-200 dark:border-white/10',
+            : 'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-500 dark:text-white/35 border-stone-200 dark:border-white/10',
         )}>
           {member.status}
         </span>
@@ -191,15 +191,15 @@ function MemberRow({
                         const RIcon = ROLE_ICON[r] ?? Users;
                         return (
                           <button key={r} onClick={() => handleRoleChange(r)}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors">
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 rounded-lg transition-colors">
                             <RIcon className="w-3.5 h-3.5" /> {roleLabel(r)}
                           </button>
                         );
                       })}
                     </div>
-                    <div className="border-t border-stone-100 dark:border-white/6 p-1">
+                    <div className="border-t border-stone-100 dark:border-[#1A2A3A] p-1">
                       <button onClick={handleSuspend}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/8 rounded-lg transition-colors">
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#5289B8] dark:text-[#77A6DB] hover:bg-[#6393C4]/8 dark:hover:bg-[#6393C4]/10 rounded-lg transition-colors">
                         <AlertCircle className="w-3.5 h-3.5" />
                         {member.status === 'suspended' ? 'Reactivate' : 'Suspend'}
                       </button>
@@ -263,13 +263,13 @@ const CURRENCIES = [{ value: 'USD', label: 'USD — US Dollar' }, { value: 'NGN'
 function SettingsRadio<T extends string>({ value, current, onChange, label, desc }: { value: T; current: T; onChange: (v: T) => void; label: string; desc?: string }) {
   const active = value === current;
   return (
-    <button type="button" onClick={() => onChange(value)} className={cn('w-full text-left px-3 py-2.5 rounded-xl border transition-all text-sm', active ? 'border-[#E8461E] bg-[#E8461E]/5 dark:bg-[#E8461E]/8' : 'border-stone-200 dark:border-white/10 hover:border-stone-300 dark:hover:border-white/20 bg-stone-50 dark:bg-white/3')}>
+    <button type="button" onClick={() => onChange(value)} className={cn('w-full text-left px-3 py-2.5 rounded-xl border transition-all text-sm', active ? 'border-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/8' : 'border-stone-200 dark:border-white/10 hover:border-stone-300 dark:hover:border-white/20 bg-stone-50 dark:bg-[#2E3B4B]/30')}>
       <div className="flex items-center gap-3">
-        <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center', active ? 'border-[#E8461E]' : 'border-stone-300 dark:border-white/25')}>
-          {active && <div className="w-2 h-2 rounded-full bg-[#E8461E]" />}
+        <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center', active ? 'border-[#6393C4]' : 'border-stone-300 dark:border-white/25')}>
+          {active && <div className="w-2 h-2 rounded-full bg-[#6393C4]" />}
         </div>
         <div>
-          <p className={cn('font-semibold', active ? 'text-[#E8461E]' : 'text-stone-700 dark:text-white/80')}>{label}</p>
+          <p className={cn('font-semibold', active ? 'text-[#6393C4]' : 'text-stone-700 dark:text-white/80')}>{label}</p>
           {desc && <p className="text-[11px] text-stone-400 dark:text-white/35 mt-0.5">{desc}</p>}
         </div>
       </div>
@@ -290,14 +290,14 @@ function SettingsField({ label, hint, children }: { label: string; hint?: string
 function SettingsInput({ value, onChange, placeholder, type = 'text' }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
   return (
     <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-      className="w-full bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#E8461E]/50 focus:ring-2 focus:ring-[#E8461E]/10 transition-all" />
+      className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all" />
   );
 }
 
 function SettingsSelect({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white outline-none focus:border-[#E8461E]/50 focus:ring-2 focus:ring-[#E8461E]/10 transition-all">
+      className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all">
       {children}
     </select>
   );
@@ -366,13 +366,13 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="w-full max-w-md bg-white dark:bg-stone-950 border-l border-stone-100 dark:border-white/6 flex flex-col"
+        className="w-full max-w-md bg-white dark:bg-[#081827] border-l border-stone-100 dark:border-[#1A2A3A] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 dark:border-white/6 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#E8461E]/10 flex items-center justify-center">
-              <Settings className="w-4 h-4 text-[#E8461E]" />
+            <div className="w-8 h-8 rounded-lg bg-[#6393C4]/10 flex items-center justify-center">
+              <Settings className="w-4 h-4 text-[#6393C4]" />
             </div>
             <div>
               <h2 className="font-display font-bold text-stone-900 dark:text-white text-sm">Cooperative Settings</h2>
@@ -385,9 +385,9 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-6 py-3 border-b border-stone-100 dark:border-white/6 flex-shrink-0">
+        <div className="flex gap-1 px-6 py-3 border-b border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)} className={cn('flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all', tab === t.id ? 'bg-[#E8461E] text-white' : 'text-stone-500 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-white/6')}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={cn('flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all', tab === t.id ? 'bg-[#6393C4] text-white' : 'text-stone-500 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60')}>
               {t.label}
             </button>
           ))}
@@ -404,7 +404,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                   </SettingsField>
                   <SettingsField label="Description">
                     <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={4} placeholder="What is the purpose of this cooperative?"
-                      className="w-full bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#E8461E]/50 focus:ring-2 focus:ring-[#E8461E]/10 transition-all resize-none" />
+                      className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all resize-none" />
                   </SettingsField>
                   <div className="grid grid-cols-2 gap-4">
                     <SettingsField label="Country">
@@ -418,17 +418,17 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                       </SettingsSelect>
                     </SettingsField>
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4">
-                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Cooperative ID & Invite Code</p>
-                    <p className="text-[11px] text-amber-600 dark:text-amber-500">These are permanent identifiers and cannot be changed after creation. Share the invite code with members to grow your cooperative.</p>
+                  <div className="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 border border-[#6393C4]/20 dark:border-[#6393C4]/20 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-[#5289B8] dark:text-[#77A6DB] mb-1">Cooperative ID & Invite Code</p>
+                    <p className="text-[11px] text-[#6393C4] dark:text-[#77A6DB]/80">These are permanent identifiers and cannot be changed after creation. Share the invite code with members to grow your cooperative.</p>
                     <div className="mt-3 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-amber-600/70 dark:text-amber-400/60">Cooperative ID</span>
-                        <span className="font-mono text-xs font-bold text-amber-800 dark:text-amber-300">{coop.cooperativeId ?? '—'}</span>
+                        <span className="text-[11px] text-[#6393C4]/70 dark:text-[#77A6DB]/60">Cooperative ID</span>
+                        <span className="font-mono text-xs font-bold text-[#5289B8] dark:text-[#77A6DB]">{coop.cooperativeId ?? '—'}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-amber-600/70 dark:text-amber-400/60">Invite Code</span>
-                        <span className="font-mono text-xs font-bold text-amber-800 dark:text-amber-300">{coop.inviteCode ?? '—'}</span>
+                        <span className="text-[11px] text-[#6393C4]/70 dark:text-[#77A6DB]/60">Invite Code</span>
+                        <span className="font-mono text-xs font-bold text-[#5289B8] dark:text-[#77A6DB]">{coop.inviteCode ?? '—'}</span>
                       </div>
                     </div>
                   </div>
@@ -472,7 +472,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                   <SettingsField label={`Approval Threshold — ${form.approvalThreshold}%`} hint="Percentage of votes required to pass a proposal">
                     <input type="range" min={50} max={100} step={1} value={form.approvalThreshold}
                       onChange={(e) => set('approvalThreshold', Number(e.target.value))}
-                      className="w-full h-2 bg-stone-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#E8461E]" />
+                      className="w-full h-2 bg-stone-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#6393C4]" />
                     <div className="flex justify-between text-[10px] text-stone-400 dark:text-white/30 mt-1">
                       <span>50%</span><span>75%</span><span>100%</span>
                     </div>
@@ -486,13 +486,13 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                   </SettingsField>
                   <SettingsField label="AI Governance Assistance">
                     <button type="button" onClick={() => set('aiGovernanceEnabled', !form.aiGovernanceEnabled)}
-                      className={cn('flex items-center gap-3 w-full px-4 py-3 rounded-xl border transition-all', form.aiGovernanceEnabled ? 'border-[#E8461E] bg-[#E8461E]/5 dark:bg-[#E8461E]/8' : 'border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-white/3')}>
-                      <Sparkles className={cn('w-4 h-4', form.aiGovernanceEnabled ? 'text-[#E8461E]' : 'text-stone-400')} />
+                      className={cn('flex items-center gap-3 w-full px-4 py-3 rounded-xl border transition-all', form.aiGovernanceEnabled ? 'border-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/8' : 'border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-[#2E3B4B]/30')}>
+                      <Sparkles className={cn('w-4 h-4', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-400')} />
                       <div className="flex-1 text-left">
-                        <p className={cn('text-sm font-semibold', form.aiGovernanceEnabled ? 'text-[#E8461E]' : 'text-stone-600 dark:text-white/60')}>Nexa AI Assistance</p>
+                        <p className={cn('text-sm font-semibold', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-600 dark:text-white/60')}>Nexa AI Assistance</p>
                         <p className="text-[11px] text-stone-400 dark:text-white/35">AI-powered insights, risk assessment, and governance recommendations</p>
                       </div>
-                      <div className={cn('w-10 h-6 rounded-full transition-all flex items-center px-0.5', form.aiGovernanceEnabled ? 'bg-[#E8461E]' : 'bg-stone-200 dark:bg-white/10')}>
+                      <div className={cn('w-10 h-6 rounded-full transition-all flex items-center px-0.5', form.aiGovernanceEnabled ? 'bg-[#6393C4]' : 'bg-stone-200 dark:bg-white/10')}>
                         <div className={cn('w-5 h-5 rounded-full bg-white shadow-sm transition-all', form.aiGovernanceEnabled ? 'translate-x-4' : 'translate-x-0')} />
                       </div>
                     </button>
@@ -504,11 +504,11 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-stone-100 dark:border-white/6 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] disabled:opacity-60 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60 transition-colors"
           >
             {saved ? (
               <><CheckCircle2 className="w-4 h-4" /> Saved!</>
@@ -526,7 +526,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
 
 export default function Cooperatives() {
   const { cooperatives, activeCooperative, setActiveCooperative, refresh } = useCooperative();
-  const { identity } = useUnicity();
+  const { identity } = useWallet();
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -584,10 +584,10 @@ export default function Cooperatives() {
           <p className="font-display font-bold text-stone-800 dark:text-white mb-2">No Cooperative Yet</p>
           <p className="text-sm text-stone-400 dark:text-white/40 mb-6">Create a new cooperative or join one with an invite code.</p>
           <div className="flex gap-3">
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] transition-colors">
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
               <Plus className="w-4 h-4" /> Create Cooperative
             </button>
-            <button onClick={() => setShowJoin(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-white/5 transition-colors">
+            <button onClick={() => setShowJoin(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors">
               <UserPlus className="w-4 h-4" /> Join with Code
             </button>
           </div>
@@ -614,20 +614,20 @@ export default function Cooperatives() {
             {isManager && (
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-white/5 transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
               >
                 <Settings className="w-3.5 h-3.5" /> Settings
               </button>
             )}
             <button
               onClick={() => setShowJoin(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-white/5 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
             >
               <UserPlus className="w-3.5 h-3.5" /> Join
             </button>
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors"
             >
               <Plus className="w-3.5 h-3.5" /> Create Cooperative
             </button>
@@ -652,10 +652,10 @@ export default function Cooperatives() {
             ))}
             <button
               onClick={() => setShowCreate(true)}
-              className="flex-shrink-0 w-52 p-4 rounded-2xl border-2 border-dashed border-stone-200 dark:border-white/10 hover:border-[#E8461E]/40 dark:hover:border-[#E8461E]/20 transition-colors group flex flex-col items-center justify-center gap-2 text-center"
+              className="flex-shrink-0 w-52 p-4 rounded-2xl border-2 border-dashed border-stone-200 dark:border-white/10 hover:border-[#6393C4]/40 dark:hover:border-[#6393C4]/20 transition-colors group flex flex-col items-center justify-center gap-2 text-center"
             >
-              <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-white/5 flex items-center justify-center group-hover:bg-[#E8461E]/8 transition-colors">
-                <Plus className="w-5 h-5 text-stone-400 dark:text-white/30 group-hover:text-[#E8461E]" />
+              <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-[#2E3B4B]/40 flex items-center justify-center group-hover:bg-[#6393C4]/8 transition-colors">
+                <Plus className="w-5 h-5 text-stone-400 dark:text-white/30 group-hover:text-[#6393C4]" />
               </div>
               <p className="text-xs font-semibold text-stone-400 dark:text-white/30 group-hover:text-stone-600 dark:group-hover:text-white/60">Add cooperative</p>
             </button>
@@ -667,9 +667,9 @@ export default function Cooperatives() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
         >
-          <div className="bg-gradient-to-r from-[#E8461E] to-[#F97316] p-6 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-r from-[#6393C4] to-[#77A6DB] p-6 text-white relative overflow-hidden">
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, white, transparent 70%)' }} />
             <div className="flex items-start justify-between gap-4 relative">
               <div className="flex items-center gap-4">
@@ -752,7 +752,7 @@ export default function Cooperatives() {
               {/* Invite & Share */}
               <div className="space-y-3">
                 <h3 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest">Invite & Share</h3>
-                <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4 space-y-3">
+                <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4 space-y-3">
                   {/* QR Code */}
                   <div className="flex justify-center">
                     <div className="bg-white rounded-xl p-2.5 shadow-sm">
@@ -766,7 +766,7 @@ export default function Cooperatives() {
                       <span className="font-mono text-sm font-bold text-stone-800 dark:text-white tracking-widest flex-1">{inviteCode}</span>
                       <button
                         onClick={() => copy(inviteCode, 'code')}
-                        className="p-1.5 rounded-lg bg-white dark:bg-white/8 border border-stone-200 dark:border-white/10 text-stone-400 dark:text-white/40 hover:text-[#E8461E] transition-colors"
+                        className="p-1.5 rounded-lg bg-white dark:bg-white/8 border border-stone-200 dark:border-white/10 text-stone-400 dark:text-white/40 hover:text-[#6393C4] transition-colors"
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </button>
@@ -775,7 +775,7 @@ export default function Cooperatives() {
                   {/* Invite link */}
                   <button
                     onClick={() => copy(inviteLink, 'link')}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#E8461E]/8 dark:bg-[#E8461E]/10 text-[#E8461E] text-xs font-semibold hover:bg-[#E8461E]/14 transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#6393C4] text-xs font-semibold hover:bg-[#6393C4]/14 transition-colors"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     {copied === 'link' ? 'Link copied!' : copied === 'code' ? 'Code copied!' : 'Copy Invite Link'}
@@ -791,7 +791,7 @@ export default function Cooperatives() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-stone-50 dark:border-white/4">
             <div>
@@ -801,13 +801,13 @@ export default function Cooperatives() {
             <div className="flex gap-2">
               <Link
                 href="/dashboard/members"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/50 text-xs font-semibold hover:bg-stone-50 dark:hover:bg-white/5 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/50 text-xs font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
               >
                 All Members <ChevronRight className="w-3 h-3" />
               </Link>
               <button
                 onClick={() => setShowJoin(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E8461E] text-white text-xs font-semibold hover:bg-[#D03D18] transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#6393C4] text-white text-xs font-semibold hover:bg-[#5289B8] transition-colors"
               >
                 <UserPlus className="w-3 h-3" /> Invite
               </button>
@@ -843,7 +843,7 @@ export default function Cooperatives() {
             <div className="px-6 py-3 border-t border-stone-50 dark:border-white/4">
               <button
                 onClick={() => setMembersExpanded((e) => !e)}
-                className="text-xs font-semibold text-stone-400 dark:text-white/40 hover:text-[#E8461E] transition-colors"
+                className="text-xs font-semibold text-stone-400 dark:text-white/40 hover:text-[#6393C4] transition-colors"
               >
                 {membersExpanded ? 'Show less' : `Show ${members.length - 8} more members`}
               </button>
@@ -864,11 +864,11 @@ export default function Cooperatives() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.25 }}
-            className="border-2 border-dashed border-stone-200 dark:border-white/10 rounded-2xl p-8 text-center hover:border-[#E8461E]/30 dark:hover:border-[#E8461E]/20 transition-colors cursor-pointer group"
+            className="border-2 border-dashed border-stone-200 dark:border-white/10 rounded-2xl p-8 text-center hover:border-[#6393C4]/30 dark:hover:border-[#6393C4]/20 transition-colors cursor-pointer group"
             onClick={() => setShowCreate(true)}
           >
-            <div className="w-10 h-10 rounded-xl bg-stone-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-3 group-hover:bg-[#E8461E]/8 transition-colors">
-              <Building2 className="w-5 h-5 text-stone-400 dark:text-white/30 group-hover:text-[#E8461E]" />
+            <div className="w-10 h-10 rounded-xl bg-stone-100 dark:bg-[#2E3B4B]/40 flex items-center justify-center mx-auto mb-3 group-hover:bg-[#6393C4]/8 transition-colors">
+              <Building2 className="w-5 h-5 text-stone-400 dark:text-white/30 group-hover:text-[#6393C4]" />
             </div>
             <p className="font-semibold text-stone-600 dark:text-white/60 text-sm mb-1">Add another workspace</p>
             <p className="text-xs text-stone-400 dark:text-white/30">Create or join another cooperative to manage multiple organisations.</p>

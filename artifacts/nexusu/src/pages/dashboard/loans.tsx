@@ -8,16 +8,16 @@ import { cn } from '@/lib/utils';
 import type { Loan, LoanStatus } from '@/types';
 
 const STATUS_CONFIG: Record<LoanStatus, { label: string; class: string; icon: React.ElementType }> = {
-  pending: { label: 'Pending', class: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20', icon: Clock },
+  pending: { label: 'Pending', class: 'bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB] border-[#6393C4]/20 dark:border-[#6393C4]/20', icon: Clock },
   approved: { label: 'Approved', class: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20', icon: CheckCircle2 },
   active: { label: 'Active', class: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20', icon: TrendingUp },
   rejected: { label: 'Rejected', class: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20', icon: XCircle },
-  completed: { label: 'Completed', class: 'bg-stone-50 dark:bg-white/5 text-stone-500 dark:text-white/40 border-stone-200 dark:border-white/10', icon: CheckCircle2 },
+  completed: { label: 'Completed', class: 'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-500 dark:text-white/40 border-stone-200 dark:border-white/10', icon: CheckCircle2 },
   defaulted: { label: 'Defaulted', class: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20', icon: XCircle },
 };
 
 function Avatar({ initials }: { initials: string }) {
-  const cols = ['from-[#E8461E] to-[#F97316]', 'from-purple-500 to-pink-500', 'from-blue-500 to-cyan-500', 'from-teal-500 to-emerald-500', 'from-amber-500 to-yellow-500'];
+  const cols = ['from-[#6393C4] to-[#77A6DB]', 'from-purple-500 to-pink-500', 'from-blue-500 to-cyan-500', 'from-teal-500 to-emerald-500', 'from-[#5289B8] to-[#6393C4]'];
   return (
     <div className={cn('w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center text-white text-xs font-bold flex-shrink-0', cols[initials.charCodeAt(0) % cols.length])}>
       {initials}
@@ -37,7 +37,7 @@ function LoanCard({ loan }: { loan: Loan }) {
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all"
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
@@ -69,15 +69,15 @@ function LoanCard({ loan }: { loan: Loan }) {
 
       {/* Risk + forecast */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex-1 bg-stone-50 dark:bg-white/4 rounded-xl px-3 py-2">
+        <div className="flex-1 bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl px-3 py-2">
           <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Risk</p>
           <p className={cn('text-xs font-bold', riskColor(loan.riskScore))}>{riskLabel(loan.riskScore)} ({loan.riskScore})</p>
         </div>
-        <div className="flex-1 bg-stone-50 dark:bg-white/4 rounded-xl px-3 py-2">
+        <div className="flex-1 bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl px-3 py-2">
           <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Repayment</p>
           <p className="text-xs font-bold text-stone-800 dark:text-white">{loan.repaymentForecast}%</p>
         </div>
-        <div className="flex-1 bg-stone-50 dark:bg-white/4 rounded-xl px-3 py-2">
+        <div className="flex-1 bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl px-3 py-2">
           <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Term</p>
           <p className="text-xs font-bold text-stone-800 dark:text-white">{loan.repaymentMonths}mo</p>
         </div>
@@ -97,10 +97,10 @@ function LoanCard({ loan }: { loan: Loan }) {
       )}
 
       {/* AI recommendation */}
-      <div className="bg-[#E8461E]/5 dark:bg-[#E8461E]/8 border border-[#E8461E]/12 rounded-xl px-3 py-2.5 mb-4">
+      <div className="bg-[#6393C4]/5 dark:bg-[#6393C4]/8 border border-[#6393C4]/12 rounded-xl px-3 py-2.5 mb-4">
         <div className="flex items-center gap-1.5 mb-1">
-          <Sparkles className="w-3 h-3 text-[#E8461E]" />
-          <span className="text-[10px] font-semibold text-[#E8461E] uppercase tracking-wide">Nexa Recommendation</span>
+          <Sparkles className="w-3 h-3 text-[#6393C4]" />
+          <span className="text-[10px] font-semibold text-[#6393C4] uppercase tracking-wide">Nexa Recommendation</span>
         </div>
         <p className="text-xs text-stone-600 dark:text-white/60 leading-relaxed">{loan.aiRecommendation}</p>
       </div>
@@ -151,12 +151,12 @@ export default function Loans() {
         {/* Stats */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Pending Review', value: DEMO_LOANS.filter(l => l.status === 'pending').length, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
+            { label: 'Pending Review', value: DEMO_LOANS.filter(l => l.status === 'pending').length, color: 'text-[#6393C4]', bg: 'bg-[#6393C4]/8 dark:bg-[#6393C4]/10' },
             { label: 'Active Loans', value: DEMO_LOANS.filter(l => l.status === 'active').length, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
             { label: 'Total Disbursed', value: formatCurrency(DEMO_LOANS.reduce((s, l) => s + (l.approvedAmount ?? 0), 0)), color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' },
-            { label: 'Repayment Rate', value: '94.2%', color: 'text-[#E8461E]', bg: 'bg-[#E8461E]/5 dark:bg-[#E8461E]/10' },
+            { label: 'Repayment Rate', value: '94.2%', color: 'text-[#6393C4]', bg: 'bg-[#6393C4]/5 dark:bg-[#6393C4]/10' },
           ].map(({ label, value, color, bg }) => (
-            <div key={label} className={cn('rounded-2xl p-4 border border-stone-100 dark:border-white/6', bg)}>
+            <div key={label} className={cn('rounded-2xl p-4 border border-stone-100 dark:border-[#1A2A3A]', bg)}>
               <p className="text-xs text-stone-400 dark:text-white/40 mb-1">{label}</p>
               <p className={cn('text-xl font-display font-bold', color)}>{value}</p>
             </div>
@@ -164,7 +164,7 @@ export default function Loans() {
         </motion.div>
 
         {/* Tabs */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="flex gap-1 mb-6 bg-stone-100 dark:bg-white/5 rounded-xl p-1 w-fit">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="flex gap-1 mb-6 bg-stone-100 dark:bg-[#2E3B4B]/40 rounded-xl p-1 w-fit">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -178,7 +178,7 @@ export default function Loans() {
             >
               {t.label}
               {t.count > 0 && (
-                <span className={cn('ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full', tab === t.key ? 'bg-[#E8461E]/10 text-[#E8461E]' : 'bg-stone-200 dark:bg-white/10 text-stone-500 dark:text-white/40')}>
+                <span className={cn('ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full', tab === t.key ? 'bg-[#6393C4]/10 text-[#6393C4]' : 'bg-stone-200 dark:bg-white/10 text-stone-500 dark:text-white/40')}>
                   {t.count}
                 </span>
               )}

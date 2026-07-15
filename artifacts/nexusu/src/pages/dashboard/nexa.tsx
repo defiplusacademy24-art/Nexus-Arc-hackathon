@@ -14,8 +14,8 @@ const AGENTS = [
   { agent: LoanAgent, icon: Zap, color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10' },
   { agent: GovernanceAgent, icon: ShieldCheck, color: 'text-purple-500 bg-purple-50 dark:bg-purple-500/10' },
   { agent: FraudDetectionAgent, icon: ShieldCheck, color: 'text-red-500 bg-red-50 dark:bg-red-500/10' },
-  { agent: NotificationAgent, icon: Bot, color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10' },
-  { agent: ReportingAgent, icon: FileText, color: 'text-[#E8461E] bg-[#E8461E]/5 dark:bg-[#E8461E]/10' },
+  { agent: NotificationAgent, icon: Bot, color: 'text-[#6393C4] bg-[#6393C4]/8 dark:bg-[#6393C4]/10' },
+  { agent: ReportingAgent, icon: FileText, color: 'text-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/10' },
 ];
 
 const CAPABILITIES = [
@@ -34,8 +34,8 @@ export default function NexaPage() {
         {/* Chat area — takes most space */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-stone-100 dark:border-white/6 bg-white dark:bg-stone-950 flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center shadow-sm shadow-orange-200 dark:shadow-orange-500/20">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center shadow-sm shadow-[#6393C4]/20 dark:shadow-[#6393C4]/25">
               <Sparkles className="w-4.5 h-4.5 text-white" style={{ width: '1.125rem', height: '1.125rem' }} />
             </div>
             <div>
@@ -51,7 +51,7 @@ export default function NexaPage() {
         </div>
 
         {/* Right panel — agents & capabilities */}
-        <aside className="hidden xl:flex flex-col w-72 border-l border-stone-100 dark:border-white/6 bg-white dark:bg-stone-950 overflow-y-auto flex-shrink-0">
+        <aside className="hidden xl:flex flex-col w-72 border-l border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] overflow-y-auto flex-shrink-0">
           <div className="p-5">
             {/* Autonomous Agents */}
             <h2 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-3">
@@ -80,9 +80,9 @@ export default function NexaPage() {
             </h2>
             <div className="space-y-2">
               {CAPABILITIES.map(({ icon: Icon, title, desc }) => (
-                <div key={title} className="p-3 rounded-xl border border-stone-100 dark:border-white/6 hover:border-[#E8461E]/20 dark:hover:border-[#E8461E]/20 transition-colors group">
+                <div key={title} className="p-3 rounded-xl border border-stone-100 dark:border-[#1A2A3A] hover:border-[#6393C4]/20 dark:hover:border-[#6393C4]/20 transition-colors group">
                   <div className="flex items-center gap-2 mb-1">
-                    <Icon className="w-3.5 h-3.5 text-[#E8461E]" />
+                    <Icon className="w-3.5 h-3.5 text-[#6393C4]" />
                     <p className="text-xs font-semibold text-stone-700 dark:text-white/80">{title}</p>
                   </div>
                   <p className="text-[11px] text-stone-400 dark:text-white/35 leading-relaxed">{desc}</p>
@@ -91,7 +91,7 @@ export default function NexaPage() {
             </div>
 
             {/* Footer */}
-            <div className="mt-6 bg-stone-50 dark:bg-white/4 rounded-xl p-3 text-center">
+            <div className="mt-6 bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-3 text-center">
               <p className="text-[10px] text-stone-400 dark:text-white/30 leading-relaxed">
                 Nexa analyses your cooperative data to provide intelligent recommendations. AI advice is advisory only.
               </p>

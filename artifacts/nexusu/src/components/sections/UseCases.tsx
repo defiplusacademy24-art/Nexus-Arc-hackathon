@@ -15,12 +15,12 @@ export function UseCases() {
   ];
 
   return (
-    <section id="use-cases" className="py-32 bg-white dark:bg-[#201E1C] relative">
+    <section id="use-cases" className="py-32 bg-white dark:bg-[#030F1F] relative">
       <div className="container mx-auto px-6 max-w-7xl">
         <div className="text-center mb-14">
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-[#1B1917] dark:text-white mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold text-[#030F1F] dark:text-white mb-4">
             Built for Every{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E8461E] to-[#F97316]">Community Finance Model</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6393C4] to-[#77A6DB]">Community Finance Model</span>
           </h2>
         </div>
 
@@ -29,13 +29,13 @@ export function UseCases() {
             <motion.div
               key={i}
               whileHover={{ y: -4, scale: 1.02 }}
-              className="bg-[#F9EDE3] dark:bg-white/5 rounded-2xl p-6 border border-orange-100 dark:border-white/10 flex flex-col items-center justify-center text-center group transition-all hover:shadow-md dark:hover:shadow-none hover:border-[#E8461E]/30 dark:hover:border-[#E8461E]/40 cursor-pointer"
+              className="bg-[#EEF2F6] dark:bg-[#2E3B4B]/40 rounded-2xl p-6 border border-[#1A2A3A]/15 dark:border-white/10 flex flex-col items-center justify-center text-center group transition-all hover:shadow-md dark:hover:shadow-none hover:border-[#6393C4]/30 dark:hover:border-[#6393C4]/40 cursor-pointer"
             >
-              <div className="w-11 h-11 rounded-full bg-white dark:bg-white/10 shadow-sm flex items-center justify-center mb-3 text-stone-500 dark:text-white group-hover:text-[#E8461E] transition-colors">
+              <div className="w-11 h-11 rounded-full bg-white dark:bg-white/10 shadow-sm flex items-center justify-center mb-3 text-stone-500 dark:text-white group-hover:text-[#6393C4] transition-colors">
                 <c.icon className="w-5 h-5" />
               </div>
-              <h3 className="font-display font-semibold text-[#1B1917] dark:text-white text-sm mb-1">{c.name}</h3>
-              <span className="text-xs font-mono text-stone-400 dark:text-white/50 bg-orange-50 dark:bg-white/10 px-2 py-0.5 rounded-full">{c.region}</span>
+              <h3 className="font-display font-semibold text-[#030F1F] dark:text-white text-sm mb-1">{c.name}</h3>
+              <span className="text-xs font-mono text-stone-400 dark:text-white/50 bg-[#6393C4]/10 dark:bg-white/10 px-2 py-0.5 rounded-full">{c.region}</span>
             </motion.div>
           ))}
         </div>

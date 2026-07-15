@@ -3,7 +3,7 @@ import { useLocation, Link } from 'wouter';
 import { Menu, Bell, Search, Sun, Moon, ShieldCheck } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { useUnicity } from '@/providers/UnicityProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import { DEMO_NOTIFICATIONS } from '@/lib/demo-data';
 import { truncateWallet } from '@/utils/format';
 
@@ -30,18 +30,18 @@ interface TopNavProps {
 export function TopNav({ onMenuClick }: TopNavProps) {
   const [location] = useLocation();
   const { resolvedTheme, setTheme } = useTheme();
-  const { identity, walletAddress } = useUnicity();
+  const { identity, walletAddress } = useWallet();
   const [searchOpen, setSearchOpen] = useState(false);
 
   const title = PAGE_TITLES[location] ?? 'Dashboard';
   const unreadCount = DEMO_NOTIFICATIONS.filter((n) => !n.read).length;
 
   return (
-    <header className="h-14 border-b border-stone-100 dark:border-white/6 bg-white dark:bg-stone-950 flex items-center px-4 gap-3 sticky top-0 z-30 flex-shrink-0">
+    <header className="h-14 border-b border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] flex items-center px-4 gap-3 sticky top-0 z-30 flex-shrink-0">
       {/* Mobile menu button */}
       <button
         onClick={onMenuClick}
-        className="lg:hidden p-2 rounded-xl text-stone-400 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-white/6 transition-colors flex-shrink-0"
+        className="lg:hidden p-2 rounded-xl text-stone-400 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60 transition-colors flex-shrink-0"
         aria-label="Open menu"
       >
         <Menu className="w-5 h-5" />
@@ -54,8 +54,8 @@ export function TopNav({ onMenuClick }: TopNavProps) {
 
       {/* Desktop: search */}
       <div className={cn(
-        'hidden lg:flex flex-1 max-w-sm items-center gap-2 bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/8 rounded-xl px-3 py-2 transition-all',
-        searchOpen && 'ring-2 ring-[#E8461E]/30',
+        'hidden lg:flex flex-1 max-w-sm items-center gap-2 bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] rounded-xl px-3 py-2 transition-all',
+        searchOpen && 'ring-2 ring-[#6393C4]/30',
       )}>
         <Search className="w-4 h-4 text-stone-400 dark:text-white/30 flex-shrink-0" />
         <input
@@ -71,7 +71,7 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         {/* Theme toggle */}
         <button
           onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-          className="p-2 rounded-xl text-stone-400 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-white/6 transition-colors"
+          className="p-2 rounded-xl text-stone-400 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60 transition-colors"
           aria-label="Toggle theme"
         >
           {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -80,11 +80,11 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         {/* Notifications */}
         <Link
           href="/dashboard/notifications"
-          className="relative p-2 rounded-xl text-stone-400 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-white/6 transition-colors"
+          className="relative p-2 rounded-xl text-stone-400 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60 transition-colors"
         >
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#E8461E]" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#6393C4]" />
           )}
         </Link>
 
@@ -102,7 +102,7 @@ export function TopNav({ onMenuClick }: TopNavProps) {
 
         {/* Avatar → Profile */}
         <Link href="/dashboard/profile">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-transparent hover:ring-[#E8461E]/30">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-transparent hover:ring-[#6393C4]/30">
             <span className="text-white text-xs font-bold">
               {identity?.displayName?.replace(/^@/, '').slice(0, 2).toUpperCase() ?? 'ME'}
             </span>

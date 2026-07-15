@@ -41,7 +41,7 @@ function CopyField({
       <button
         onClick={handleCopy}
         aria-label={`Copy ${label}`}
-        className="mt-5 flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-stone-300 dark:text-white/20 hover:text-[#E8461E] hover:bg-[#E8461E]/8 transition-colors"
+        className="mt-5 flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-stone-300 dark:text-white/20 hover:text-[#6393C4] hover:bg-[#6393C4]/8 transition-colors"
       >
         {copied ? (
           <Check className="w-3.5 h-3.5 text-emerald-500" />
@@ -64,12 +64,12 @@ export function IdentityCard({ identity, delay = 0 }: IdentityCardProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
     >
       {/* Card header */}
-      <div className="px-5 py-4 border-b border-stone-100 dark:border-white/6 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Globe className="w-4 h-4 text-[#E8461E]" />
+          <Globe className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">
             Wallet Identity
           </span>
@@ -77,7 +77,7 @@ export function IdentityCard({ identity, delay = 0 }: IdentityCardProps) {
         <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-1 rounded-full">
           <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
           <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
-            Verified by Unicity
+            Connected on Arc Testnet
           </span>
         </div>
       </div>
@@ -118,9 +118,9 @@ export function IdentityCard({ identity, delay = 0 }: IdentityCardProps) {
           </div>
           <p className="text-[9px] text-stone-400 dark:text-white/30 uppercase tracking-wide">Connection</p>
         </div>
-        <div className="text-center border-x border-stone-100 dark:border-white/6">
+        <div className="text-center border-x border-stone-100 dark:border-[#1A2A3A]">
           <div className="flex items-center justify-center gap-1 mb-0.5">
-            <Key className="w-3 h-3 text-[#E8461E]" />
+            <Key className="w-3 h-3 text-[#6393C4]" />
             <span className="text-[10px] font-semibold text-stone-700 dark:text-white/70">Non-custodial</span>
           </div>
           <p className="text-[9px] text-stone-400 dark:text-white/30 uppercase tracking-wide">Key model</p>

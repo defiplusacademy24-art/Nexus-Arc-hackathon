@@ -47,7 +47,6 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@unicitylabs/sphere-sdk": "^0.11.0",
     "@vitejs/plugin-react": "catalog:",
     "@workspace/api-client-react": "workspace:*",
     "class-variance-authority": "catalog:",
@@ -76,7 +75,11 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@reown/appkit": "^1.8.22",
+    "@reown/appkit-adapter-wagmi": "^1.8.22",
     "qrcode.react": "^4.2.0",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "viem": "^2.55.1",
+    "wagmi": "^3.7.1"
   }
 }

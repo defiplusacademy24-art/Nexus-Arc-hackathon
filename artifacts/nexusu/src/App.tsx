@@ -3,7 +3,7 @@ import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { UnicityProvider } from '@/providers/UnicityProvider';
+import { WalletProvider } from '@/providers/WalletProvider';
 import { CooperativeProvider } from '@/providers/CooperativeProvider';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 
@@ -67,11 +67,11 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-              <UnicityProvider>
+              <WalletProvider>
                 <CooperativeProvider>
                   <Router />
                 </CooperativeProvider>
-              </UnicityProvider>
+              </WalletProvider>
             </WouterRouter>
             <Toaster />
           </TooltipProvider>

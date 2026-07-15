@@ -25,14 +25,14 @@ export function SecurityCard({ session, onDisconnect, onReconnect, delay = 0 }: 
       icon: ShieldCheck,
       label: 'Authentication',
       value: session.authMethod,
-      description: 'Sphere wallet',
+      description: 'EVM wallet',
       status: 'ok' as const,
     },
     {
       icon: Wifi,
       label: 'Network',
       value: session.network,
-      description: 'Unicity Sphere',
+      description: 'Arc Testnet',
       status: 'ok' as const,
     },
     {
@@ -63,12 +63,12 @@ export function SecurityCard({ session, onDisconnect, onReconnect, delay = 0 }: 
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
     >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-stone-100 dark:border-white/6 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <ShieldCheck className="w-4 h-4 text-[#E8461E]" />
+          <ShieldCheck className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">Security</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -82,18 +82,18 @@ export function SecurityCard({ session, onDisconnect, onReconnect, delay = 0 }: 
         {securityItems.map(({ icon: Icon, label, value, description, status }) => (
           <div
             key={label}
-            className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 dark:bg-white/3"
+            className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/30"
           >
             <div
               className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                 status === 'warn'
-                  ? 'bg-amber-50 dark:bg-amber-500/10'
+                  ? 'bg-[#6393C4]/8 dark:bg-[#6393C4]/10'
                   : 'bg-emerald-50 dark:bg-emerald-500/8'
               }`}
             >
               <Icon
                 className={`w-4 h-4 ${
-                  status === 'warn' ? 'text-amber-500' : 'text-emerald-500'
+                  status === 'warn' ? 'text-[#6393C4]' : 'text-emerald-500'
                 }`}
               />
             </div>
@@ -109,10 +109,10 @@ export function SecurityCard({ session, onDisconnect, onReconnect, delay = 0 }: 
       </div>
 
       {/* Warning: never expose keys */}
-      <div className="mx-5 mb-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/15 flex items-start gap-2">
-        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-          Private keys and recovery phrases are never accessible through Nexusu. Manage them only in your Sphere wallet.
+      <div className="mx-5 mb-4 p-3 rounded-xl bg-[#6393C4]/8 dark:bg-[#6393C4]/10 border border-[#6393C4]/20 dark:border-[#6393C4]/15 flex items-start gap-2">
+        <AlertTriangle className="w-3.5 h-3.5 text-[#6393C4] flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-[#5289B8] dark:text-[#77A6DB] leading-relaxed">
+          Private keys and recovery phrases are never accessible through Nexusu. Manage them only in your connected wallet.
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export function SecurityCard({ session, onDisconnect, onReconnect, delay = 0 }: 
       <div className="px-5 pb-5 flex flex-col gap-2">
         <button
           onClick={() => void onReconnect()}
-          className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-medium text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-white/5 transition-colors"
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-medium text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Reconnect Wallet
@@ -141,7 +141,7 @@ export function SecurityCard({ session, onDisconnect, onReconnect, delay = 0 }: 
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirming(false)}
-                className="flex-1 py-2 rounded-lg text-xs font-medium text-stone-500 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-white/6 transition-colors"
+                className="flex-1 py-2 rounded-lg text-xs font-medium text-stone-500 dark:text-white/40 hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60 transition-colors"
               >
                 Cancel
               </button>

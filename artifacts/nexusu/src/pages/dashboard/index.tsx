@@ -7,7 +7,7 @@ import {
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { useCountUp } from '@/hooks/useCountUp';
-import { useUnicity } from '@/providers/UnicityProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import { formatCurrency, formatPercent, formatRelative, scoreColor } from '@/utils/format';
 import { DEMO_COOPERATIVE, DEMO_NOTIFICATIONS, DEMO_LOANS } from '@/lib/demo-data';
 import { CASH_FLOW_HISTORY } from '@/services/treasury';
@@ -33,7 +33,7 @@ interface StatCardProps {
 
 function StatCard({
   label, value, format = 'currency', suffix = '', prefix = '',
-  change, changeLabel, icon: Icon, iconColor = 'text-[#E8461E]',
+  change, changeLabel, icon: Icon, iconColor = 'text-[#6393C4]',
   href, delay = 0,
 }: StatCardProps) {
   const count = useCountUp(value);
@@ -50,10 +50,10 @@ function StatCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all cursor-pointer group"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all cursor-pointer group"
     >
       <div className="flex items-start justify-between mb-4">
-        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center bg-stone-50 dark:bg-white/5 border border-stone-100 dark:border-white/6')}>
+        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-100 dark:border-[#1A2A3A]')}>
           <Icon className={cn('w-4.5 h-4.5', iconColor)} style={{ width: '1.125rem', height: '1.125rem' }} />
         </div>
         {change !== undefined && (
@@ -91,15 +91,15 @@ function ActivityItem({ notif }: { notif: typeof DEMO_NOTIFICATIONS[0] }) {
     loan: <Banknote className="w-3.5 h-3.5 text-blue-500" />,
     proposal: <Scale className="w-3.5 h-3.5 text-purple-500" />,
     vote: <Scale className="w-3.5 h-3.5 text-purple-500" />,
-    member: <Users className="w-3.5 h-3.5 text-orange-500" />,
-    ai: <Sparkles className="w-3.5 h-3.5 text-[#E8461E]" />,
+    member: <Users className="w-3.5 h-3.5 text-[#6393C4]" />,
+    ai: <Sparkles className="w-3.5 h-3.5 text-[#6393C4]" />,
     treasury: <Vault className="w-3.5 h-3.5 text-teal-500" />,
-    warning: <AlertCircle className="w-3.5 h-3.5 text-amber-500" />,
+    warning: <AlertCircle className="w-3.5 h-3.5 text-[#6393C4]" />,
   };
 
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-stone-50 dark:border-white/4 last:border-0">
-      <div className="w-6 h-6 rounded-full bg-stone-50 dark:bg-white/5 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-6 h-6 rounded-full bg-stone-50 dark:bg-[#2E3B4B]/40 flex items-center justify-center flex-shrink-0 mt-0.5">
         {icons[notif.type]}
       </div>
       <div className="flex-1 min-w-0">
@@ -116,7 +116,7 @@ function ActivityItem({ notif }: { notif: typeof DEMO_NOTIFICATIONS[0] }) {
 // ── Overview Page ──────────────────────────────────────────────────────────────
 
 export default function Overview() {
-  const { identity } = useUnicity();
+  const { identity } = useWallet();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const displayName = identity?.nametag ? `@${identity.nametag}` : identity?.displayName ?? 'there';
@@ -153,7 +153,7 @@ export default function Overview() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard label="Repayment Rate" value={94} format="percent" change={2.1} changeLabel="up 2.1%" icon={TrendingUp} iconColor="text-emerald-500" delay={0.2} />
           <StatCard label="Governance Score" value={87} format="score" icon={Scale} iconColor="text-purple-500" href="/dashboard/governance" delay={0.25} />
-          <StatCard label="AI Health Score" value={92} format="score" icon={Sparkles} iconColor="text-[#E8461E]" delay={0.3} />
+          <StatCard label="AI Health Score" value={92} format="score" icon={Sparkles} iconColor="text-[#6393C4]" delay={0.3} />
           <StatCard label="Monthly Growth" value={8} format="percent" change={2.2} changeLabel="from 6.1%" icon={Activity} iconColor="text-teal-500" delay={0.35} />
         </div>
 
@@ -164,14 +164,14 @@ export default function Overview() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="lg:col-span-2 bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5"
+            className="lg:col-span-2 bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5"
           >
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Treasury Growth</h2>
                 <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">12-month cash flow overview</p>
               </div>
-              <Link href="/dashboard/treasury" className="text-xs text-[#E8461E] font-semibold flex items-center gap-1 hover:underline">
+              <Link href="/dashboard/treasury" className="text-xs text-[#6393C4] font-semibold flex items-center gap-1 hover:underline">
                 View all <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
@@ -179,7 +179,7 @@ export default function Overview() {
               data={CASH_FLOW_HISTORY}
               xKey="month"
               areas={[
-                { key: 'balance', label: 'Balance', color: '#E8461E' },
+                { key: 'balance', label: 'Balance', color: '#6393C4' },
                 { key: 'inflow', label: 'Inflow', color: '#10b981' },
               ]}
               height={220}
@@ -192,11 +192,11 @@ export default function Overview() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.45 }}
-            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5"
+            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5"
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Recent Activity</h2>
-              <Link href="/dashboard/notifications" className="text-xs text-[#E8461E] font-semibold hover:underline">See all</Link>
+              <Link href="/dashboard/notifications" className="text-xs text-[#6393C4] font-semibold hover:underline">See all</Link>
             </div>
             <div>
               {DEMO_NOTIFICATIONS.slice(0, 6).map((n) => (
@@ -214,19 +214,19 @@ export default function Overview() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="bg-amber-50 dark:bg-amber-500/6 border border-amber-200 dark:border-amber-500/20 rounded-2xl p-5"
+              className="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 border border-[#6393C4]/20 dark:border-[#6393C4]/20 rounded-2xl p-5"
             >
               <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-amber-500" />
-                <h2 className="text-sm font-semibold text-amber-800 dark:text-amber-300">Pending Review</h2>
-                <span className="ml-auto text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">{pending}</span>
+                <Clock className="w-4 h-4 text-[#6393C4]" />
+                <h2 className="text-sm font-semibold text-[#5289B8] dark:text-[#77A6DB]">Pending Review</h2>
+                <span className="ml-auto text-xs font-bold text-[#6393C4] dark:text-[#77A6DB] bg-[#6393C4]/15 dark:bg-[#6393C4]/15 px-2 py-0.5 rounded-full">{pending}</span>
               </div>
-              <p className="text-xs text-amber-700 dark:text-amber-400/80 mb-4">
+              <p className="text-xs text-[#5289B8] dark:text-[#77A6DB]/80 mb-4">
                 {pending} loan application{pending > 1 ? 's' : ''} {pending > 1 ? 'are' : 'is'} awaiting your review.
               </p>
               <Link
                 href="/dashboard/loans"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5289B8] dark:text-[#77A6DB] hover:text-[#6393C4] dark:hover:text-[#77A6DB]"
               >
                 Review applications <ArrowRight className="w-3 h-3" />
               </Link>
@@ -238,26 +238,26 @@ export default function Overview() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55 }}
-            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5"
+            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5"
           >
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-[#E8461E]" />
+              <Sparkles className="w-4 h-4 text-[#6393C4]" />
               <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Nexa AI Insights</h2>
-              <Link href="/dashboard/nexa" className="ml-auto text-xs text-[#E8461E] font-semibold hover:underline">Ask Nexa</Link>
+              <Link href="/dashboard/nexa" className="ml-auto text-xs text-[#6393C4] font-semibold hover:underline">Ask Nexa</Link>
             </div>
             <div className="space-y-3">
               {AI_INSIGHTS.slice(0, 3).map((insight) => (
                 <div key={insight.id} className={cn(
                   'flex items-start gap-3 p-3 rounded-xl border text-xs',
                   insight.severity === 'success' && 'bg-emerald-50 dark:bg-emerald-500/6 border-emerald-100 dark:border-emerald-500/15',
-                  insight.severity === 'warning' && 'bg-amber-50 dark:bg-amber-500/6 border-amber-100 dark:border-amber-500/15',
+                  insight.severity === 'warning' && 'bg-[#6393C4]/8 dark:bg-[#6393C4]/10 border-[#6393C4]/15 dark:border-[#6393C4]/15',
                   insight.severity === 'info' && 'bg-blue-50 dark:bg-blue-500/6 border-blue-100 dark:border-blue-500/15',
                   insight.severity === 'alert' && 'bg-red-50 dark:bg-red-500/6 border-red-100 dark:border-red-500/15',
                 )}>
                   <div className={cn(
                     'w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1',
                     insight.severity === 'success' && 'bg-emerald-400',
-                    insight.severity === 'warning' && 'bg-amber-400',
+                    insight.severity === 'warning' && 'bg-[#77A6DB]',
                     insight.severity === 'info' && 'bg-blue-400',
                     insight.severity === 'alert' && 'bg-red-400',
                   )} />

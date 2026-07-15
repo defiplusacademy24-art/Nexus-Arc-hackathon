@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { ShieldCheck, Building2, Crown } from 'lucide-react';
-import { AVATAR_COLORS } from '@/services/unicity/profile';
+import { AVATAR_COLORS } from '@/services/profile';
+import type { ProfilePrefs } from '@/services/profile';
 import type { IdentityDetails } from '@/hooks/useIdentity';
-import type { ProfilePrefs } from '@/services/unicity/profile';
 import { DEMO_COOPERATIVE } from '@/lib/demo-data';
 
 interface ProfileHeaderProps {
@@ -28,10 +28,10 @@ export function ProfileHeader({ identity, prefs }: ProfileHeaderProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative overflow-hidden rounded-2xl bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 p-6 mb-6"
+      className="relative overflow-hidden rounded-2xl bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] p-6 mb-6"
     >
       {/* Subtle background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#E8461E]/4 via-transparent to-[#F97316]/3 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#6393C4]/4 via-transparent to-[#77A6DB]/3 pointer-events-none" />
 
       <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
         {/* Avatar */}
@@ -58,7 +58,7 @@ export function ProfileHeader({ identity, prefs }: ProfileHeaderProps) {
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
               <ShieldCheck className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
               <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
-                Verified by Unicity
+                Connected on Arc
               </span>
             </span>
           </div>
@@ -71,7 +71,7 @@ export function ProfileHeader({ identity, prefs }: ProfileHeaderProps) {
 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <Crown className="w-3.5 h-3.5 text-[#E8461E]" />
+              <Crown className="w-3.5 h-3.5 text-[#6393C4]" />
               <span className="text-sm text-stone-600 dark:text-white/65 font-medium">
                 Founder
               </span>
@@ -88,7 +88,7 @@ export function ProfileHeader({ identity, prefs }: ProfileHeaderProps) {
 
         {/* Short address chip */}
         <div className="flex-shrink-0 hidden md:block">
-          <div className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-white/4 border border-stone-200 dark:border-white/8">
+          <div className="px-3 py-2 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-200 dark:border-[#1A2A3A]">
             <p className="text-[9px] font-semibold text-stone-400 dark:text-white/25 uppercase tracking-widest mb-0.5">
               Wallet
             </p>

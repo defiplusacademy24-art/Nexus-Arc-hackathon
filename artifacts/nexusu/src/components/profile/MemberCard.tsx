@@ -21,12 +21,12 @@ export function MemberCard({ delay = 0 }: MemberCardProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
     >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-stone-100 dark:border-white/6 flex items-center justify-between">
+      <div className="px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Building2 className="w-4 h-4 text-[#E8461E]" />
+          <Building2 className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">
             Cooperative Membership
           </span>
@@ -38,9 +38,9 @@ export function MemberCard({ delay = 0 }: MemberCardProps) {
       </div>
 
       {/* Cooperative banner */}
-      <div className="mx-5 mt-4 p-4 rounded-xl bg-gradient-to-r from-[#E8461E]/8 to-[#F97316]/5 border border-[#E8461E]/12">
+      <div className="mx-5 mt-4 p-4 rounded-xl bg-gradient-to-r from-[#6393C4]/8 to-[#77A6DB]/5 border border-[#6393C4]/12">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-bold">SS</span>
           </div>
           <div>
@@ -59,7 +59,7 @@ export function MemberCard({ delay = 0 }: MemberCardProps) {
             key={label}
             className="py-3 border-b border-stone-100 dark:border-white/5 last:border-0 flex items-center gap-3"
           >
-            <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-white/5 flex items-center justify-center flex-shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-[#2E3B4B]/40 flex items-center justify-center flex-shrink-0">
               <Icon className="w-3.5 h-3.5 text-stone-400 dark:text-white/35" />
             </div>
             <div className="flex-1 flex items-center justify-between gap-2">
@@ -73,8 +73,8 @@ export function MemberCard({ delay = 0 }: MemberCardProps) {
       </div>
 
       {/* Treasury access */}
-      <div className="mx-5 mb-5 mt-2 p-3 rounded-xl bg-stone-50 dark:bg-white/3 border border-stone-100 dark:border-white/6 flex items-center gap-2">
-        <Shield className="w-3.5 h-3.5 text-[#E8461E] flex-shrink-0" />
+      <div className="mx-5 mb-5 mt-2 p-3 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/30 border border-stone-100 dark:border-[#1A2A3A] flex items-center gap-2">
+        <Shield className="w-3.5 h-3.5 text-[#6393C4] flex-shrink-0" />
         <p className="text-xs text-stone-500 dark:text-white/45">
           <span className="font-semibold text-stone-700 dark:text-white/70">Treasury access</span>
           {' '}· Read + propose disbursements

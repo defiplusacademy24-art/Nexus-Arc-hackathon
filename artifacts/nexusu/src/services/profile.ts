@@ -36,7 +36,7 @@ export interface ProfilePrefs {
 
 const DEFAULT_PREFS: ProfilePrefs = {
   displayNameOverride: '',
-  avatarColor: 'orange',
+  avatarColor: 'sky',
   avatarEmoji: '',
   language: 'en',
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -82,8 +82,8 @@ export function updateProfilePref<K extends keyof ProfilePrefs>(
 }
 
 export const AVATAR_COLORS: Record<AvatarColor, { bg: string; text: string; label: string }> = {
-  orange:  { bg: 'from-[#E8461E] to-[#F97316]', text: 'text-white', label: 'Nexusu' },
-  amber:   { bg: 'from-amber-400 to-orange-400', text: 'text-white', label: 'Amber' },
+  orange:  { bg: 'from-[#6393C4] to-[#77A6DB]', text: 'text-white', label: 'Nexusu' },
+  amber:   { bg: 'from-[#5289B8] to-[#77A6DB]', text: 'text-white', label: 'Steel' },
   emerald: { bg: 'from-emerald-500 to-teal-400', text: 'text-white', label: 'Emerald' },
   sky:     { bg: 'from-sky-400 to-blue-500',     text: 'text-white', label: 'Sky' },
   purple:  { bg: 'from-purple-500 to-violet-500', text: 'text-white', label: 'Purple' },

@@ -17,7 +17,7 @@ function TreasuryCard({ label, value, description, color, icon: Icon, delay = 0 
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5"
     >
       <div className="flex items-center gap-3 mb-3">
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
@@ -54,7 +54,7 @@ export default function Treasury() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-gradient-to-br from-[#E8461E] to-[#F97316] rounded-2xl p-7 mb-6 text-white relative overflow-hidden"
+          className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-7 mb-6 text-white relative overflow-hidden"
         >
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
           <p className="text-sm font-medium text-white/70 mb-2">Total Treasury Balance</p>
@@ -89,7 +89,7 @@ export default function Treasury() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <TreasuryCard label="Available Balance" value={snap.availableBalance} description="Ready to deploy" color="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" icon={Vault} delay={0.1} />
           <TreasuryCard label="Loan Pool" value={snap.loanPool} description="67% utilised" color="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" icon={TrendingUp} delay={0.15} />
-          <TreasuryCard label="Emergency Reserve" value={snap.emergencyReserve} description="10.6% of treasury" color="bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400" icon={TrendingDown} delay={0.2} />
+          <TreasuryCard label="Emergency Reserve" value={snap.emergencyReserve} description="10.6% of treasury" color="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB]" icon={TrendingDown} delay={0.2} />
           <TreasuryCard label="Reserved Funds" value={snap.reservedFunds} description="Committed expenses" color="bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400" icon={Vault} delay={0.25} />
         </div>
 
@@ -100,7 +100,7 @@ export default function Treasury() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="lg:col-span-2 bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5"
+            className="lg:col-span-2 bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5"
           >
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Cash Flow — 12 Months</h2>
@@ -110,7 +110,7 @@ export default function Treasury() {
               data={CASH_FLOW_HISTORY}
               xKey="month"
               areas={[
-                { key: 'balance', label: 'Balance', color: '#E8461E' },
+                { key: 'balance', label: 'Balance', color: '#6393C4' },
                 { key: 'inflow', label: 'Inflow', color: '#10b981' },
                 { key: 'outflow', label: 'Outflow', color: '#f59e0b' },
               ]}
@@ -124,7 +124,7 @@ export default function Treasury() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35 }}
-            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5"
+            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5"
           >
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Contribution Trend</h2>
@@ -133,7 +133,7 @@ export default function Treasury() {
             <BarChart
               data={CONTRIBUTION_TREND}
               xKey="label"
-              bars={[{ key: 'value', color: '#E8461E', label: 'Contributions' }]}
+              bars={[{ key: 'value', color: '#6393C4', label: 'Contributions' }]}
               height={260}
               formatY={(v) => `$${(v / 1000).toFixed(1)}K`}
             />
@@ -145,9 +145,9 @@ export default function Treasury() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="mt-6 bg-[#E8461E]/5 dark:bg-[#E8461E]/8 border border-[#E8461E]/15 rounded-2xl p-5"
+          className="mt-6 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 border border-[#6393C4]/15 rounded-2xl p-5"
         >
-          <p className="text-xs font-semibold text-[#E8461E] uppercase tracking-wide mb-2">✦ Nexa AI Insight</p>
+          <p className="text-xs font-semibold text-[#6393C4] uppercase tracking-wide mb-2">✦ Nexa AI Insight</p>
           <p className="text-sm text-stone-700 dark:text-white/75 leading-relaxed">
             At the current growth rate of <strong>8.3% monthly</strong>, your treasury will reach <strong>$60,000 by Q3 2026</strong>.
             The emergency reserve is below the recommended 15% threshold — consider increasing monthly top-ups by $200 to close the gap.

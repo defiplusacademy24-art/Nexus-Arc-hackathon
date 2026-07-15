@@ -12,17 +12,17 @@ const ROLE_BADGE: Record<string, string> = {
   admin: 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-500/20',
   treasurer: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/20',
   secretary: 'bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-500/20',
-  member: 'bg-stone-50 dark:bg-white/5 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10',
+  member: 'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10',
 };
 
 const STATUS_BADGE: Record<string, string> = {
   active: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
-  inactive: 'bg-stone-50 dark:bg-white/5 text-stone-500 dark:text-white/35 border-stone-200 dark:border-white/10',
+  inactive: 'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-500 dark:text-white/35 border-stone-200 dark:border-white/10',
   suspended: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20',
 };
 
 function Avatar({ initials, size = 'md' }: { initials: string; size?: 'sm' | 'md' }) {
-  const colours = ['from-[#E8461E] to-[#F97316]', 'from-purple-500 to-pink-500', 'from-blue-500 to-cyan-500', 'from-teal-500 to-emerald-500', 'from-amber-500 to-yellow-500'];
+  const colours = ['from-[#6393C4] to-[#77A6DB]', 'from-purple-500 to-pink-500', 'from-blue-500 to-cyan-500', 'from-teal-500 to-emerald-500', 'from-[#5289B8] to-[#6393C4]'];
   const idx = initials.charCodeAt(0) % colours.length;
   return (
     <div className={cn(
@@ -60,7 +60,7 @@ function MemberDrawer({ member, onClose }: { member: Member; onClose: () => void
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="w-full max-w-sm bg-white dark:bg-stone-950 border-l border-stone-100 dark:border-white/6 overflow-y-auto"
+        className="w-full max-w-sm bg-white dark:bg-[#081827] border-l border-stone-100 dark:border-[#1A2A3A] overflow-y-auto"
       >
         <div className="p-6">
           <div className="flex items-center gap-4 mb-6">
@@ -73,7 +73,7 @@ function MemberDrawer({ member, onClose }: { member: Member; onClose: () => void
           </div>
 
           <div className="space-y-4">
-            <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4 space-y-3">
+            <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4 space-y-3">
               <h3 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest">Scores</h3>
               <div>
                 <div className="flex justify-between text-xs mb-1">
@@ -86,19 +86,19 @@ function MemberDrawer({ member, onClose }: { member: Member; onClose: () => void
                   <span className="text-stone-500 dark:text-white/50">Risk Score</span>
                   <span className={riskColor(member.riskScore)}>{riskLabel(member.riskScore)}</span>
                 </div>
-                <ScoreBar value={member.riskScore} color={member.riskScore <= 30 ? 'bg-emerald-400' : member.riskScore <= 60 ? 'bg-amber-400' : 'bg-red-400'} />
+                <ScoreBar value={member.riskScore} color={member.riskScore <= 30 ? 'bg-emerald-400' : member.riskScore <= 60 ? 'bg-[#77A6DB]' : 'bg-red-400'} />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-stone-500 dark:text-white/50">Reputation</span>
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <Star key={s} className={cn('w-3 h-3', s <= member.reputation ? 'text-amber-400 fill-amber-400' : 'text-stone-200 dark:text-white/10')} />
+                    <Star key={s} className={cn('w-3 h-3', s <= member.reputation ? 'text-[#6393C4] fill-[#6393C4]' : 'text-stone-200 dark:text-white/10')} />
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4 space-y-2">
+            <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4 space-y-2">
               <h3 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-3">Financials</h3>
               {[
                 { l: 'Total Contributed', v: formatCurrency(member.totalContributed) },
@@ -113,7 +113,7 @@ function MemberDrawer({ member, onClose }: { member: Member; onClose: () => void
               ))}
             </div>
 
-            <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4">
+            <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4">
               <h3 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-3">Wallet Identity</h3>
               <p className="font-mono text-xs text-stone-600 dark:text-white/60 break-all">{member.walletIdentity}</p>
             </div>
@@ -167,14 +167,14 @@ export default function Members() {
               {activeCooperative.name} · {members.length} total · {members.filter(m => m.status === 'active').length} active
             </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] transition-colors">
+          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
             <UserPlus className="w-4 h-4" /> Invite Member
           </button>
         </motion.div>
 
         {/* Search + filters */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="flex-1 min-w-48 flex items-center gap-2 bg-white dark:bg-stone-900/60 border border-stone-200 dark:border-white/8 rounded-xl px-3 py-2">
+          <div className="flex-1 min-w-48 flex items-center gap-2 bg-white dark:bg-stone-900/60 border border-stone-200 dark:border-[#1A2A3A] rounded-xl px-3 py-2">
             <Search className="w-4 h-4 text-stone-400 dark:text-white/30 flex-shrink-0" />
             <input
               value={search}
@@ -191,7 +191,7 @@ export default function Members() {
                 className={cn(
                   'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors border',
                   filter === f
-                    ? 'bg-[#E8461E] text-white border-[#E8461E]'
+                    ? 'bg-[#6393C4] text-white border-[#6393C4]'
                     : 'text-stone-400 dark:text-white/40 border-stone-200 dark:border-white/10 hover:border-stone-300 dark:hover:border-white/20',
                 )}
               >
@@ -206,12 +206,12 @@ export default function Members() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl overflow-hidden"
+          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-stone-100 dark:border-white/6">
+                <tr className="border-b border-stone-100 dark:border-[#1A2A3A]">
                   {['Member', 'Role', 'Contribution Score', 'Risk', 'Status', 'Contributed', 'Joined'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wide whitespace-nowrap">
                       {h}
@@ -244,7 +244,7 @@ export default function Members() {
                       </span>
                     </td>
                     <td className="px-4 py-3 min-w-[140px]">
-                      <ScoreBar value={member.contributionScore} color={member.contributionScore >= 80 ? 'bg-emerald-400' : member.contributionScore >= 60 ? 'bg-amber-400' : 'bg-red-400'} />
+                      <ScoreBar value={member.contributionScore} color={member.contributionScore >= 80 ? 'bg-emerald-400' : member.contributionScore >= 60 ? 'bg-[#77A6DB]' : 'bg-red-400'} />
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn('text-[11px] font-semibold', riskColor(member.riskScore))}>

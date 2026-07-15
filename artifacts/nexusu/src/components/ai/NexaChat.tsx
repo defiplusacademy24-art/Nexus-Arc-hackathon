@@ -31,7 +31,7 @@ function MessageBubble({ msg }: { msg: AIMessage }) {
       <div className={cn(
         'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
         isNexa
-          ? 'bg-gradient-to-br from-[#E8461E] to-[#F97316] shadow-sm'
+          ? 'bg-gradient-to-br from-[#6393C4] to-[#77A6DB] shadow-sm'
           : 'bg-stone-200 dark:bg-white/10',
       )}>
         {isNexa ? <Sparkles className="w-3.5 h-3.5 text-white" /> : <User className="w-3.5 h-3.5 text-stone-500 dark:text-white/60" />}
@@ -41,8 +41,8 @@ function MessageBubble({ msg }: { msg: AIMessage }) {
       <div className={cn(
         'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
         isNexa
-          ? 'bg-white dark:bg-white/6 border border-stone-100 dark:border-white/8 text-stone-700 dark:text-white/85'
-          : 'bg-[#E8461E] text-white',
+          ? 'bg-white dark:bg-white/6 border border-stone-100 dark:border-[#1A2A3A] text-stone-700 dark:text-white/85'
+          : 'bg-[#6393C4] text-white',
       )}>
         {isNexa ? (
           <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-headings:my-1 prose-table:text-xs">
@@ -62,16 +62,16 @@ function MessageBubble({ msg }: { msg: AIMessage }) {
 function TypingIndicator() {
   return (
     <div className="flex gap-3 items-start">
-      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center flex-shrink-0">
+      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0">
         <Sparkles className="w-3.5 h-3.5 text-white" />
       </div>
-      <div className="bg-white dark:bg-white/6 border border-stone-100 dark:border-white/8 rounded-2xl px-4 py-3 flex items-center gap-1.5">
+      <div className="bg-white dark:bg-white/6 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl px-4 py-3 flex items-center gap-1.5">
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
             animate={{ opacity: [0.3, 1, 0.3] }}
             transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-            className="w-1.5 h-1.5 rounded-full bg-stone-400 dark:bg-white/40"
+            className="w-1.5 h-1.5 rounded-full bg-stone-400 dark:bg-[#2E3B4B]/350"
           />
         ))}
       </div>
@@ -129,7 +129,7 @@ export function NexaChat({ compact = false }: NexaChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-stone-50 dark:bg-[#111110]">
+    <div className="flex flex-col h-full bg-[#EEF2F6] dark:bg-[#030F1F]">
       {/* Chat messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <AnimatePresence initial={false}>
@@ -154,7 +154,7 @@ export function NexaChat({ compact = false }: NexaChatProps) {
               <button
                 key={p}
                 onClick={() => sendMessage(p)}
-                className="text-left text-xs text-stone-600 dark:text-white/60 bg-white dark:bg-white/5 border border-stone-200 dark:border-white/8 rounded-xl px-3 py-2.5 hover:border-[#E8461E]/40 hover:text-stone-900 dark:hover:text-white transition-all"
+                className="text-left text-xs text-stone-600 dark:text-white/60 bg-white dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] rounded-xl px-3 py-2.5 hover:border-[#6393C4]/40 hover:text-stone-900 dark:hover:text-white transition-all"
               >
                 {p}
               </button>
@@ -164,8 +164,8 @@ export function NexaChat({ compact = false }: NexaChatProps) {
       )}
 
       {/* Input */}
-      <div className="px-4 pb-4 pt-2 border-t border-stone-100 dark:border-white/6">
-        <div className="flex gap-2 items-end bg-white dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-2xl px-4 py-3 focus-within:border-[#E8461E]/40 transition-colors">
+      <div className="px-4 pb-4 pt-2 border-t border-stone-100 dark:border-[#1A2A3A]">
+        <div className="flex gap-2 items-end bg-white dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-2xl px-4 py-3 focus-within:border-[#6393C4]/40 transition-colors">
           <textarea
             ref={inputRef}
             value={input}
@@ -179,7 +179,7 @@ export function NexaChat({ compact = false }: NexaChatProps) {
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || typing}
-            className="p-1.5 rounded-xl bg-[#E8461E] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#D03D18] transition-colors flex-shrink-0"
+            className="p-1.5 rounded-xl bg-[#6393C4] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#5289B8] transition-colors flex-shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>

@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import { ChevronLeft, UserCircle } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
-import { useUnicity } from '@/providers/UnicityProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useWalletAssets } from '@/hooks/useWalletAssets';
 import { useProfile } from '@/hooks/useProfile';
@@ -27,11 +27,11 @@ function NotConnected() {
           No wallet connected
         </h2>
         <p className="text-sm text-stone-400 dark:text-white/40 mb-6 max-w-xs">
-          Connect your Sphere wallet to view your Nexusu identity and profile.
+          Connect your wallet on Arc Testnet to view your Nexusu identity and profile.
         </p>
         <Link
           href="/app"
-          className="px-5 py-2.5 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#d43e1b] transition-colors"
+          className="px-5 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#d43e1b] transition-colors"
         >
           Connect Wallet
         </Link>
@@ -41,7 +41,7 @@ function NotConnected() {
 }
 
 export default function ProfilePage() {
-  const { isConnected, disconnect, reconnect } = useUnicity();
+  const { isConnected, disconnect, reconnect } = useWallet();
   const identity = useIdentity();
   const assets = useWalletAssets();
   const profile = useProfile();
@@ -70,7 +70,7 @@ export default function ProfilePage() {
         >
           <Link
             href="/dashboard"
-            className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:text-stone-700 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-white/6 transition-colors"
+            className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:text-stone-700 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-[#2E3B4B]/60 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
           </Link>

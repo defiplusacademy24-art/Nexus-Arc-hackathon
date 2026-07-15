@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { X, QrCode, Link2, Hash, CheckCircle2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCooperative } from '@/providers/CooperativeProvider';
-import { useUnicity } from '@/providers/UnicityProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import { normaliseCode } from '@/services/cooperative/invitations';
 import type { Cooperative } from '@/types';
 
@@ -15,7 +15,7 @@ type JoinMode = 'code' | 'link';
 
 export function JoinModal({ onClose }: { onClose: () => void }) {
   const { joinCooperative } = useCooperative();
-  const { identity } = useUnicity();
+  const { identity } = useWallet();
   const [mode, setMode] = useState<JoinMode>('code');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,9 +57,9 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="relative w-full max-w-sm bg-white dark:bg-stone-950 border border-stone-200 dark:border-white/8 rounded-2xl p-8 text-center shadow-2xl"
+          className="relative w-full max-w-sm bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl p-8 text-center shadow-2xl"
         >
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/20">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#6393C4]/25">
             <span className="text-white font-bold text-xl">{initials}</span>
           </div>
           <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-3" />
@@ -68,7 +68,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
           <p className="text-stone-400 dark:text-white/30 text-xs mb-6">{joined.type} · {joined.country}</p>
           <button
             onClick={onClose}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors"
           >
             Open Workspace <ArrowRight className="w-4 h-4" />
           </button>
@@ -84,7 +84,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 20 }}
-        className="relative w-full max-w-md bg-white dark:bg-stone-950 border border-stone-200 dark:border-white/8 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-md bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-5">
@@ -99,7 +99,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
 
         <div className="px-6 pb-6 space-y-5">
           {/* Mode toggle */}
-          <div className="flex gap-2 bg-stone-100 dark:bg-white/5 p-1 rounded-xl">
+          <div className="flex gap-2 bg-stone-100 dark:bg-[#2E3B4B]/40 p-1 rounded-xl">
             {modes.map((m) => (
               <button
                 key={m.id}
@@ -125,7 +125,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               placeholder={modes.find((m) => m.id === mode)?.placeholder}
               autoFocus
-              className="w-full bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-mono text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 placeholder:font-sans outline-none focus:border-[#E8461E]/50 focus:ring-2 focus:ring-[#E8461E]/10 transition-all"
+              className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-mono text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 placeholder:font-sans outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
             />
             {error && <p className="text-xs text-red-500 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-red-500 flex-shrink-0" />{error}</p>}
           </div>
@@ -138,7 +138,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* Info box */}
-          <div className="bg-stone-50 dark:bg-white/3 rounded-xl p-4 space-y-1">
+          <div className="bg-stone-50 dark:bg-[#2E3B4B]/30 rounded-xl p-4 space-y-1">
             <p className="text-xs font-semibold text-stone-500 dark:text-white/40">How it works</p>
             <ul className="text-[11px] text-stone-400 dark:text-white/30 space-y-0.5 list-disc list-inside">
               <li>Your Unicity wallet identity will be verified before joining</li>
@@ -150,7 +150,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleJoin}
             disabled={loading || !input.trim()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] disabled:opacity-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-50 transition-colors"
           >
             {loading ? 'Verifying…' : 'Join Cooperative'}
           </button>

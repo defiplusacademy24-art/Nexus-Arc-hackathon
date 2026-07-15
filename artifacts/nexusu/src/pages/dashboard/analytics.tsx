@@ -16,7 +16,7 @@ function ChartCard({ title, subtitle, children, delay = 0, className = '' }: {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className={`bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5 ${className}`}
+      className={`bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 ${className}`}
     >
       <div className="mb-5">
         <h2 className="text-sm font-semibold text-stone-800 dark:text-white">{title}</h2>
@@ -43,10 +43,10 @@ export default function Analytics() {
           {[
             { label: 'Treasury Growth', value: '+8.3%', sub: 'Month-over-month', icon: TrendingUp, color: 'text-emerald-500' },
             { label: 'Member Growth', value: '+4 new', sub: 'This quarter', icon: Users, color: 'text-blue-500' },
-            { label: 'Loan Volume', value: '$7,000', sub: 'Disbursed this month', icon: Banknote, color: 'text-[#E8461E]' },
+            { label: 'Loan Volume', value: '$7,000', sub: 'Disbursed this month', icon: Banknote, color: 'text-[#6393C4]' },
             { label: 'Repayment Rate', value: '94.2%', sub: 'All-time record', icon: BarChart3, color: 'text-purple-500' },
           ].map(({ label, value, sub, icon: Icon, color }) => (
-            <div key={label} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-4">
+            <div key={label} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Icon className={`w-4 h-4 ${color}`} />
                 <p className="text-xs text-stone-400 dark:text-white/40">{label}</p>
@@ -63,7 +63,7 @@ export default function Analytics() {
             <AreaChart
               data={CASH_FLOW_HISTORY}
               xKey="month"
-              areas={[{ key: 'balance', label: 'Balance', color: '#E8461E' }]}
+              areas={[{ key: 'balance', label: 'Balance', color: '#6393C4' }]}
               height={220}
               formatY={(v) => `$${(v / 1000).toFixed(0)}K`}
             />
@@ -98,7 +98,7 @@ export default function Analytics() {
             <BarChart
               data={CONTRIBUTION_TREND}
               xKey="label"
-              bars={[{ key: 'value', color: '#E8461E', label: 'Contributions' }]}
+              bars={[{ key: 'value', color: '#6393C4', label: 'Contributions' }]}
               height={200}
               formatY={(v) => `$${(v / 1000).toFixed(1)}K`}
             />

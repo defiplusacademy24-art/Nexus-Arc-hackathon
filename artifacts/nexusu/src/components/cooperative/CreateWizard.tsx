@@ -8,7 +8,7 @@ import { X, ChevronRight, ChevronLeft, Check, Building2, Sparkles, Copy, QrCode 
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
 import { useCooperative } from '@/providers/CooperativeProvider';
-import { useUnicity } from '@/providers/UnicityProvider';
+import { useWallet } from '@/providers/WalletProvider';
 import { generateInviteCode, generateCoopId, getInviteLink } from '@/services/cooperative/invitations';
 import type { CoopType, ContributionFrequency, CoopPrivacy, VotingModel, LoanApprovalPolicy } from '@/types';
 
@@ -88,14 +88,14 @@ function StepIndicator({ step }: { step: number }) {
             <div className="flex flex-col items-center gap-1">
               <div className={cn(
                 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all',
-                done ? 'bg-[#E8461E] text-white' : active ? 'bg-[#E8461E] text-white ring-4 ring-[#E8461E]/20' : 'bg-stone-100 dark:bg-white/8 text-stone-400 dark:text-white/30',
+                done ? 'bg-[#6393C4] text-white' : active ? 'bg-[#6393C4] text-white ring-4 ring-[#6393C4]/20' : 'bg-stone-100 dark:bg-white/8 text-stone-400 dark:text-white/30',
               )}>
                 {done ? <Check className="w-3.5 h-3.5" /> : n}
               </div>
-              <span className={cn('text-[10px] font-semibold whitespace-nowrap', active ? 'text-[#E8461E]' : 'text-stone-400 dark:text-white/30')}>{label}</span>
+              <span className={cn('text-[10px] font-semibold whitespace-nowrap', active ? 'text-[#6393C4]' : 'text-stone-400 dark:text-white/30')}>{label}</span>
             </div>
             {i < steps.length - 1 && (
-              <div className={cn('flex-1 h-px mx-2 mb-4', done ? 'bg-[#E8461E]' : 'bg-stone-200 dark:bg-white/10')} />
+              <div className={cn('flex-1 h-px mx-2 mb-4', done ? 'bg-[#6393C4]' : 'bg-stone-200 dark:bg-white/10')} />
             )}
           </div>
         );
@@ -110,7 +110,7 @@ function Field({ label, required, children, hint }: { label: string; required?: 
   return (
     <div className="space-y-1.5">
       <label className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide">
-        {label}{required && <span className="text-[#E8461E] ml-0.5">*</span>}
+        {label}{required && <span className="text-[#6393C4] ml-0.5">*</span>}
       </label>
       {children}
       {hint && <p className="text-[11px] text-stone-400 dark:text-white/30">{hint}</p>}
@@ -125,7 +125,7 @@ function Input({ value, onChange, placeholder, type = 'text' }: { value: string;
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#E8461E]/50 focus:ring-2 focus:ring-[#E8461E]/10 transition-all"
+      className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
     />
   );
 }
@@ -135,7 +135,7 @@ function Select({ value, onChange, children }: { value: string; onChange: (v: st
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white outline-none focus:border-[#E8461E]/50 focus:ring-2 focus:ring-[#E8461E]/10 transition-all"
+      className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
     >
       {children}
     </select>
@@ -151,16 +151,16 @@ function RadioCard<T extends string>({ value, current, onChange, label, desc }: 
       className={cn(
         'w-full text-left px-4 py-3 rounded-xl border transition-all',
         active
-          ? 'border-[#E8461E] bg-[#E8461E]/5 dark:bg-[#E8461E]/8'
-          : 'border-stone-200 dark:border-white/10 hover:border-stone-300 dark:hover:border-white/20 bg-stone-50 dark:bg-white/3',
+          ? 'border-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/8'
+          : 'border-stone-200 dark:border-white/10 hover:border-stone-300 dark:hover:border-white/20 bg-stone-50 dark:bg-[#2E3B4B]/30',
       )}
     >
       <div className="flex items-center gap-3">
-        <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center', active ? 'border-[#E8461E]' : 'border-stone-300 dark:border-white/25')}>
-          {active && <div className="w-2 h-2 rounded-full bg-[#E8461E]" />}
+        <div className={cn('w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center', active ? 'border-[#6393C4]' : 'border-stone-300 dark:border-white/25')}>
+          {active && <div className="w-2 h-2 rounded-full bg-[#6393C4]" />}
         </div>
         <div>
-          <p className={cn('text-sm font-semibold', active ? 'text-[#E8461E]' : 'text-stone-700 dark:text-white/80')}>{label}</p>
+          <p className={cn('text-sm font-semibold', active ? 'text-[#6393C4]' : 'text-stone-700 dark:text-white/80')}>{label}</p>
           <p className="text-[11px] text-stone-400 dark:text-white/35">{desc}</p>
         </div>
       </div>
@@ -182,7 +182,7 @@ function Step1({ form, set }: { form: WizardForm; set: (k: keyof WizardForm, v: 
           onChange={(e) => set('description', e.target.value)}
           placeholder="What is the purpose of this cooperative?"
           rows={3}
-          className="w-full bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#E8461E]/50 focus:ring-2 focus:ring-[#E8461E]/10 transition-all resize-none"
+          className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all resize-none"
         />
       </Field>
       <div className="grid grid-cols-2 gap-4">
@@ -254,7 +254,7 @@ function Step3({ form, set, setNum }: { form: WizardForm; set: (k: keyof WizardF
         <input
           type="range" min={50} max={100} step={1} value={form.approvalThreshold}
           onChange={(e) => setNum('approvalThreshold', Number(e.target.value))}
-          className="w-full h-2 bg-stone-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#E8461E]"
+          className="w-full h-2 bg-stone-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#6393C4]"
         />
         <div className="flex justify-between text-[10px] text-stone-400 dark:text-white/30 mt-1">
           <span>50%</span><span>75%</span><span>100%</span>
@@ -272,16 +272,16 @@ function Step3({ form, set, setNum }: { form: WizardForm; set: (k: keyof WizardF
           className={cn(
             'flex items-center gap-3 w-full px-4 py-3 rounded-xl border transition-all',
             form.aiGovernanceEnabled
-              ? 'border-[#E8461E] bg-[#E8461E]/5 dark:bg-[#E8461E]/8'
-              : 'border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-white/3',
+              ? 'border-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/8'
+              : 'border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-[#2E3B4B]/30',
           )}
         >
-          <Sparkles className={cn('w-4 h-4', form.aiGovernanceEnabled ? 'text-[#E8461E]' : 'text-stone-400')} />
+          <Sparkles className={cn('w-4 h-4', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-400')} />
           <div className="flex-1 text-left">
-            <p className={cn('text-sm font-semibold', form.aiGovernanceEnabled ? 'text-[#E8461E]' : 'text-stone-600 dark:text-white/60')}>Nexa AI Assistance</p>
+            <p className={cn('text-sm font-semibold', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-600 dark:text-white/60')}>Nexa AI Assistance</p>
             <p className="text-[11px] text-stone-400 dark:text-white/35">AI-powered insights, risk assessment, and governance recommendations</p>
           </div>
-          <div className={cn('w-10 h-6 rounded-full transition-all flex items-center px-0.5', form.aiGovernanceEnabled ? 'bg-[#E8461E]' : 'bg-stone-200 dark:bg-white/10')}>
+          <div className={cn('w-10 h-6 rounded-full transition-all flex items-center px-0.5', form.aiGovernanceEnabled ? 'bg-[#6393C4]' : 'bg-stone-200 dark:bg-white/10')}>
             <div className={cn('w-5 h-5 rounded-full bg-white shadow-sm transition-all', form.aiGovernanceEnabled ? 'translate-x-4' : 'translate-x-0')} />
           </div>
         </button>
@@ -306,7 +306,7 @@ function Step4({ form, preview, identity }: { form: WizardForm; preview: { invit
   return (
     <div className="space-y-5">
       {/* Cooperative preview */}
-      <div className="bg-gradient-to-r from-[#E8461E] to-[#F97316] rounded-2xl p-5 text-white">
+      <div className="bg-gradient-to-r from-[#6393C4] to-[#77A6DB] rounded-2xl p-5 text-white">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold text-sm">{initials}</div>
           <div>
@@ -319,24 +319,24 @@ function Step4({ form, preview, identity }: { form: WizardForm; preview: { invit
 
       {/* Generated identity */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4">
+        <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4">
           <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-2">Cooperative ID</p>
           <p className="font-mono text-sm font-bold text-stone-800 dark:text-white tracking-widest">{preview.cooperativeId}</p>
-          <button onClick={() => copy(preview.cooperativeId, 'id')} className="mt-2 flex items-center gap-1 text-[10px] text-stone-400 dark:text-white/30 hover:text-[#E8461E] transition-colors">
+          <button onClick={() => copy(preview.cooperativeId, 'id')} className="mt-2 flex items-center gap-1 text-[10px] text-stone-400 dark:text-white/30 hover:text-[#6393C4] transition-colors">
             <Copy className="w-3 h-3" />{copied === 'id' ? 'Copied!' : 'Copy ID'}
           </button>
         </div>
-        <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4">
+        <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4">
           <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-2">Invite Code</p>
           <p className="font-mono text-sm font-bold text-stone-800 dark:text-white tracking-widest">{preview.inviteCode}</p>
-          <button onClick={() => copy(preview.inviteCode, 'code')} className="mt-2 flex items-center gap-1 text-[10px] text-stone-400 dark:text-white/30 hover:text-[#E8461E] transition-colors">
+          <button onClick={() => copy(preview.inviteCode, 'code')} className="mt-2 flex items-center gap-1 text-[10px] text-stone-400 dark:text-white/30 hover:text-[#6393C4] transition-colors">
             <Copy className="w-3 h-3" />{copied === 'code' ? 'Copied!' : 'Copy Code'}
           </button>
         </div>
       </div>
 
       {/* QR Code */}
-      <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4 flex items-center gap-5">
+      <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4 flex items-center gap-5">
         <div className="bg-white rounded-xl p-2 flex-shrink-0">
           <QRCodeSVG value={inviteLink} size={100} fgColor="#1c1917" bgColor="transparent" />
         </div>
@@ -344,14 +344,14 @@ function Step4({ form, preview, identity }: { form: WizardForm; preview: { invit
           <p className="text-xs font-semibold text-stone-700 dark:text-white/80 mb-1">Invitation QR Code</p>
           <p className="text-[11px] text-stone-400 dark:text-white/35 mb-2">Share this QR code to invite new members instantly.</p>
           <p className="font-mono text-[10px] text-stone-500 dark:text-white/40 break-all truncate">{inviteLink}</p>
-          <button onClick={() => copy(inviteLink, 'link')} className="mt-1.5 flex items-center gap-1 text-[10px] text-[#E8461E] hover:underline">
+          <button onClick={() => copy(inviteLink, 'link')} className="mt-1.5 flex items-center gap-1 text-[10px] text-[#6393C4] hover:underline">
             <Copy className="w-3 h-3" />{copied === 'link' ? 'Copied!' : 'Copy Link'}
           </button>
         </div>
       </div>
 
       {/* Wallet association */}
-      <div className="bg-stone-50 dark:bg-white/4 rounded-xl p-4">
+      <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4">
         <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-2">Founder Wallet Identity</p>
         <p className="font-mono text-xs text-stone-600 dark:text-white/60 break-all leading-relaxed">
           {identity || 'No wallet connected — connect your Unicity wallet to associate identity'}
@@ -371,7 +371,7 @@ function Step4({ form, preview, identity }: { form: WizardForm; preview: { invit
 
 export function CreateWizard({ onClose }: { onClose: () => void }) {
   const { createCooperative } = useCooperative();
-  const { identity } = useUnicity();
+  const { identity } = useWallet();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [form, setForm] = useState<WizardForm>(DEFAULTS);
   const [preview] = useState(() => ({
@@ -449,13 +449,13 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 20 }}
-        className="relative w-full max-w-lg max-h-[90vh] bg-white dark:bg-stone-950 border border-stone-200 dark:border-white/8 rounded-2xl flex flex-col shadow-2xl"
+        className="relative w-full max-w-lg max-h-[90vh] bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl flex flex-col shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100 dark:border-white/6 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#E8461E]/10 flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-[#E8461E]" />
+            <div className="w-8 h-8 rounded-lg bg-[#6393C4]/10 flex items-center justify-center">
+              <Building2 className="w-4 h-4 text-[#6393C4]" />
             </div>
             <div>
               <h2 className="font-display font-bold text-stone-900 dark:text-white text-sm">Create Cooperative</h2>
@@ -481,18 +481,18 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 pt-4 border-t border-stone-100 dark:border-white/6 flex-shrink-0">
+        <div className="px-6 pb-6 pt-4 border-t border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
           {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
           <div className="flex gap-3">
             {step > 1 && (
-              <button onClick={back} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-white/5 transition-colors">
+              <button onClick={back} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors">
                 <ChevronLeft className="w-4 h-4" /> Back
               </button>
             )}
             <button
               onClick={step === 4 ? launch : next}
               disabled={creating}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] disabled:opacity-60 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60 transition-colors"
             >
               {creating ? 'Launching…' : step === 4 ? 'Launch Cooperative' : (
                 <><span>Continue</span><ChevronRight className="w-4 h-4" /></>

@@ -43,11 +43,11 @@ export function Testimonials() {
   }, [emblaApi, onSelect]);
 
   return (
-    <section className="py-32 bg-white dark:bg-[#201E1C] relative overflow-hidden">
-      <div className="absolute right-0 top-0 w-[500px] h-[500px] bg-[#E8461E]/5 dark:bg-[#E8461E]/8 blur-[150px] pointer-events-none rounded-full" aria-hidden="true" />
+    <section className="py-32 bg-white dark:bg-[#030F1F] relative overflow-hidden">
+      <div className="absolute right-0 top-0 w-[500px] h-[500px] bg-[#6393C4]/5 dark:bg-[#6393C4]/8 blur-[150px] pointer-events-none rounded-full" aria-hidden="true" />
 
       <div className="container mx-auto px-6 max-w-5xl relative z-10">
-        <h2 className="text-3xl md:text-4xl font-display font-bold text-center text-[#1B1917] dark:text-white mb-14">
+        <h2 className="text-3xl md:text-4xl font-display font-bold text-center text-[#030F1F] dark:text-white mb-14">
           Trusted by Cooperative Leaders
         </h2>
 
@@ -62,17 +62,17 @@ export function Testimonials() {
                   aria-label={`Testimonial ${i + 1} of ${testimonials.length}`}
                   aria-roledescription="slide"
                 >
-                  <div className="bg-white dark:bg-white/4 border border-stone-200 dark:border-white/8 rounded-2xl p-8 md:p-10 text-center max-w-3xl mx-auto relative">
-                    <Quote className="w-10 h-10 text-[#E8461E]/25 mx-auto mb-5" aria-hidden="true" />
-                    <blockquote className="text-lg md:text-xl text-[#1B1917]/80 dark:text-white/90 font-light leading-relaxed mb-7 italic">
+                  <div className="bg-white dark:bg-[#2E3B4B]/35 border border-stone-200 dark:border-[#1A2A3A] rounded-2xl p-8 md:p-10 text-center max-w-3xl mx-auto relative">
+                    <Quote className="w-10 h-10 text-[#6393C4]/25 mx-auto mb-5" aria-hidden="true" />
+                    <blockquote className="text-lg md:text-xl text-[#030F1F]/80 dark:text-white/90 font-light leading-relaxed mb-7 italic">
                       "{t.quote}"
                     </blockquote>
                     <footer className="flex flex-col items-center">
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#E8461E] to-[#F97316] flex items-center justify-center text-white font-bold text-base mb-2 shadow-lg" aria-hidden="true">
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center text-white font-bold text-base mb-2 shadow-lg" aria-hidden="true">
                         {t.initials}
                       </div>
                       <cite className="not-italic">
-                        <div className="font-display font-semibold text-[#1B1917] dark:text-white text-sm">{t.name}</div>
+                        <div className="font-display font-semibold text-[#030F1F] dark:text-white text-sm">{t.name}</div>
                         <div className="text-xs text-stone-400 dark:text-white/50 mt-0.5">{t.role}</div>
                       </cite>
                     </footer>
@@ -85,7 +85,7 @@ export function Testimonials() {
           <button
             onClick={scrollPrev}
             aria-label="Previous testimonial"
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-12 w-10 h-10 rounded-full bg-orange-50 dark:bg-white/10 hover:bg-orange-100 dark:hover:bg-white/20 border border-orange-200 dark:border-white/20 flex items-center justify-center text-[#E8461E] dark:text-white backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E]"
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-12 w-10 h-10 rounded-full bg-[#6393C4]/10 dark:bg-white/10 hover:bg-[#6393C4]/15 dark:hover:bg-white/20 border border-[#6393C4]/25 dark:border-white/20 flex items-center justify-center text-[#6393C4] dark:text-white backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6393C4]"
           >
             <ChevronLeft className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -93,7 +93,7 @@ export function Testimonials() {
           <button
             onClick={scrollNext}
             aria-label="Next testimonial"
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-12 w-10 h-10 rounded-full bg-orange-50 dark:bg-white/10 hover:bg-orange-100 dark:hover:bg-white/20 border border-orange-200 dark:border-white/20 flex items-center justify-center text-[#E8461E] dark:text-white backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E]"
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-12 w-10 h-10 rounded-full bg-[#6393C4]/10 dark:bg-white/10 hover:bg-[#6393C4]/15 dark:hover:bg-white/20 border border-[#6393C4]/25 dark:border-white/20 flex items-center justify-center text-[#6393C4] dark:text-white backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6393C4]"
           >
             <ChevronRight className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -107,8 +107,8 @@ export function Testimonials() {
               aria-selected={i === selectedIndex}
               aria-label={`Go to testimonial ${i + 1}`}
               onClick={() => emblaApi?.scrollTo(i)}
-              className={`h-2 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E] ${
-                i === selectedIndex ? 'w-8 bg-[#E8461E]' : 'w-2 bg-stone-300 dark:bg-white/20'
+              className={`h-2 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6393C4] ${
+                i === selectedIndex ? 'w-8 bg-[#6393C4]' : 'w-2 bg-stone-300 dark:bg-white/20'
               }`}
             />
           ))}

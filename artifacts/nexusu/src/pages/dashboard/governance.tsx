@@ -16,10 +16,10 @@ const TYPE_BADGE: Record<ProposalType, string> = {
 };
 
 const STATUS_CONFIG: Record<ProposalStatus, { label: string; icon: React.ElementType; class: string }> = {
-  active: { label: 'Active', icon: Clock, class: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20' },
+  active: { label: 'Active', icon: Clock, class: 'bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB] border-[#6393C4]/20 dark:border-[#6393C4]/20' },
   passed: { label: 'Passed', icon: CheckCircle2, class: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' },
   rejected: { label: 'Rejected', icon: XCircle, class: 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20' },
-  expired: { label: 'Expired', icon: XCircle, class: 'bg-stone-50 dark:bg-white/5 text-stone-500 dark:text-white/40 border-stone-200 dark:border-white/10' },
+  expired: { label: 'Expired', icon: XCircle, class: 'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-500 dark:text-white/40 border-stone-200 dark:border-white/10' },
 };
 
 function VoteDonut({ votesFor, votesAgainst, abstain }: { votesFor: number; votesAgainst: number; abstain: number }) {
@@ -50,7 +50,7 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-5 hover:shadow-sm dark:hover:border-white/10 transition-all"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-sm dark:hover:border-white/10 transition-all"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -95,10 +95,10 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       </div>
 
       {/* AI Insight */}
-      <div className="bg-[#E8461E]/5 dark:bg-[#E8461E]/8 border border-[#E8461E]/12 rounded-xl px-3 py-2 mb-4">
+      <div className="bg-[#6393C4]/5 dark:bg-[#6393C4]/8 border border-[#6393C4]/12 rounded-xl px-3 py-2 mb-4">
         <div className="flex items-center gap-1 mb-1">
-          <Sparkles className="w-3 h-3 text-[#E8461E]" />
-          <span className="text-[10px] font-semibold text-[#E8461E]">Nexa Insight</span>
+          <Sparkles className="w-3 h-3 text-[#6393C4]" />
+          <span className="text-[10px] font-semibold text-[#6393C4]">Nexa Insight</span>
         </div>
         <p className="text-xs text-stone-600 dark:text-white/60">{proposal.aiInsight}</p>
       </div>
@@ -109,7 +109,7 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
           {[
             { key: 'for' as const, label: 'For', icon: ThumbsUp, active: 'bg-emerald-500 text-white', base: 'border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/8' },
             { key: 'against' as const, label: 'Against', icon: ThumbsDown, active: 'bg-red-500 text-white', base: 'border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/8' },
-            { key: 'abstain' as const, label: 'Abstain', icon: Minus, active: 'bg-stone-400 text-white', base: 'border-stone-200 dark:border-white/10 text-stone-400 dark:text-white/40 hover:bg-stone-50 dark:hover:bg-white/5' },
+            { key: 'abstain' as const, label: 'Abstain', icon: Minus, active: 'bg-stone-400 text-white', base: 'border-stone-200 dark:border-white/10 text-stone-400 dark:text-white/40 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50' },
           ].map(({ key, label, icon: Ic, active, base }) => (
             <button
               key={key}
@@ -156,7 +156,7 @@ export default function Governance() {
               {DEMO_PROPOSALS.filter(p => p.status === 'active').length} active proposals · Score: {govScore}/100
             </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#E8461E] text-white text-sm font-semibold hover:bg-[#D03D18] transition-colors">
+          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
             <Plus className="w-4 h-4" /> New Proposal
           </button>
         </motion.div>
@@ -165,11 +165,11 @@ export default function Governance() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {[
             { l: 'Governance Score', v: `${govScore}/100`, c: 'text-purple-500' },
-            { l: 'Active Proposals', v: String(DEMO_PROPOSALS.filter(p => p.status === 'active').length), c: 'text-amber-500' },
+            { l: 'Active Proposals', v: String(DEMO_PROPOSALS.filter(p => p.status === 'active').length), c: 'text-[#6393C4]' },
             { l: 'Proposals Passed', v: String(DEMO_PROPOSALS.filter(p => p.status === 'passed').length), c: 'text-emerald-500' },
             { l: 'Participation Rate', v: '78%', c: 'text-blue-500' },
           ].map(({ l, v, c }) => (
-            <div key={l} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-white/6 rounded-2xl p-4">
+            <div key={l} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4">
               <p className="text-xs text-stone-400 dark:text-white/40 mb-1">{l}</p>
               <p className={cn('text-xl font-display font-bold', c)}>{v}</p>
             </div>
@@ -177,7 +177,7 @@ export default function Governance() {
         </motion.div>
 
         {/* Filter */}
-        <div className="flex gap-1 mb-6 bg-stone-100 dark:bg-white/5 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-6 bg-stone-100 dark:bg-[#2E3B4B]/40 rounded-xl p-1 w-fit">
           {(['all', 'active', 'passed'] as const).map((f) => (
             <button
               key={f}

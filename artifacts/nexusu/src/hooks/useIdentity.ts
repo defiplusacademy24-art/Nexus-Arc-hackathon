@@ -1,57 +1,48 @@
 /**
- * useIdentity — enriched identity hook.
- * Wraps the raw wallet context with session metadata from storage.
+ * useIdentity — exposes the connected Arc wallet identity with UI metadata.
  */
 
 import { useMemo } from 'react';
-import { useUnicity } from '@/providers/UnicityProvider';
-import { loadIdentity } from '@/services/unicity/session';
-import { truncateAddress } from '@/services/unicity/identity';
+import { useWallet } from '@/providers/WalletProvider';
+import { loadIdentity } from '@/services/wallet/session';
+import { ARC_NETWORK_LABEL } from '@/services/wallet/constants';
 
 export interface IdentityDetails {
   walletAddress: string;
-  shortAddress: string;
   publicKey: string;
-  nametag: string | undefined;
+  nametag?: string;
   displayName: string;
-  connectedAt: Date | null;
-  connectionAgeLabel: string;
-  isVerified: boolean;
+  shortAddress: string;
   network: string;
+  connectionAgeLabel: string;
 }
 
-function formatConnectionAge(connectedAt: number): string {
-  const diff = Date.now() - connectedAt;
-  const minutes = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days = Math.floor(diff / 86_400_000);
-  if (days > 0) return `${days}d ago`;
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  return 'Just now';
+function formatConnectionAge(connectedAt?: number): string {
+  if (!connectedAt) return 'Just now';
+  const mins = Math.floor((Date.now() - connectedAt) / 60_000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 export function useIdentity(): IdentityDetails | null {
-  const { identity, isConnected } = useUnicity();
+  const { identity, isConnected } = useWallet();
 
   return useMemo(() => {
     if (!isConnected || !identity) return null;
 
     const stored = loadIdentity();
-    const connectedAt = stored?.connectedAt ? new Date(stored.connectedAt) : null;
 
     return {
       walletAddress: identity.walletAddress,
-      shortAddress: truncateAddress(identity.walletAddress, 10, 8),
       publicKey: identity.publicKey,
       nametag: identity.nametag,
       displayName: identity.displayName,
-      connectedAt,
-      connectionAgeLabel: stored?.connectedAt
-        ? formatConnectionAge(stored.connectedAt)
-        : 'This session',
-      isVerified: true,
-      network: 'Unicity testnet2',
+      shortAddress: identity.shortAddress,
+      network: ARC_NETWORK_LABEL,
+      connectionAgeLabel: formatConnectionAge(stored?.connectedAt),
     };
   }, [identity, isConnected]);
 }

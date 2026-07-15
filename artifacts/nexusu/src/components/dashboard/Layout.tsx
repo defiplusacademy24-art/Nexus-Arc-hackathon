@@ -28,7 +28,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     href === '/dashboard' ? location === '/dashboard' : location.startsWith(href);
 
   return (
-    <div className="flex h-screen bg-stone-50 dark:bg-[#111110] overflow-hidden">
+    <div className="flex h-screen bg-[#EEF2F6] dark:bg-[#030F1F] overflow-hidden">
       {/* Desktop sidebar */}
       <Sidebar open={false} onClose={() => {}} />
 
@@ -45,7 +45,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-stone-950 border-t border-stone-100 dark:border-white/6 flex">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-[#081827] border-t border-[#1A2A3A]/20 dark:border-[#1A2A3A] flex">
           {MOBILE_NAV.map((item) => {
             const active = mobileIsActive(item.href);
             return (
@@ -55,11 +55,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 className={cn(
                   'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors',
                   active
-                    ? 'text-[#E8461E]'
+                    ? 'text-[#6393C4]'
                     : 'text-stone-400 dark:text-white/40 hover:text-stone-600 dark:hover:text-white/60',
                 )}
               >
-                <item.icon className={cn('w-5 h-5', active && 'text-[#E8461E]')} />
+                <item.icon className={cn('w-5 h-5', active && 'text-[#6393C4]')} />
                 {item.label}
               </Link>
             );

@@ -10,7 +10,7 @@ import {
   type ProfilePrefs,
   type AvatarColor,
   type NotificationPrefs,
-} from '@/services/unicity/profile';
+} from '@/services/profile';
 
 export interface UseProfileState {
   prefs: ProfilePrefs;

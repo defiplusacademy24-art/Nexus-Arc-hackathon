@@ -64,13 +64,13 @@ export function formatTimeAgo(dateStr: string): string {
 
 export function scoreColor(score: number): string {
   if (score >= 80) return 'text-emerald-500';
-  if (score >= 60) return 'text-amber-500';
+  if (score >= 60) return 'text-[#77A6DB]';
   return 'text-red-500';
 }
 
 export function scoreBg(score: number): string {
   if (score >= 80) return 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20';
-  if (score >= 60) return 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20';
+  if (score >= 60) return 'bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB] border-[#6393C4]/20 dark:border-[#6393C4]/20';
   return 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20';
 }
 
@@ -82,7 +82,7 @@ export function riskLabel(score: number): string {
 
 export function riskColor(score: number): string {
   if (score <= 30) return 'text-emerald-500';
-  if (score <= 60) return 'text-amber-500';
+  if (score <= 60) return 'text-[#77A6DB]';
   return 'text-red-500';
 }
 
@@ -110,7 +110,7 @@ export function roleLabel(role: string): string {
 export function roleBadgeClass(role: string): string {
   const map: Record<string, string> = {
     founder:
-      'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-500/20',
+      'bg-[#6393C4]/10 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB] border-[#6393C4]/25 dark:border-[#6393C4]/20',
     admin:
       'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-500/20',
     treasurer:
@@ -120,10 +120,10 @@ export function roleBadgeClass(role: string): string {
     auditor:
       'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/20',
     member:
-      'bg-stone-50 dark:bg-white/5 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10',
+      'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10',
   };
   return (
     map[role] ??
-    'bg-stone-50 dark:bg-white/5 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10'
+    'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-600 dark:text-white/50 border-stone-200 dark:border-white/10'
   );
 }

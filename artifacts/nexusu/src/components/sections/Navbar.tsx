@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ArrowRight, Sun, Moon, BookOpen } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Menu, X, ArrowRight, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { useTheme } from 'next-themes';
@@ -13,8 +13,8 @@ export function Navbar() {
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -22,133 +22,103 @@ export function Navbar() {
 
   const navLinks = [
     { name: 'Features', href: '#features' },
-    { name: 'Architecture', href: '#architecture' },
-    { name: 'Use Cases', href: '#use-cases' },
-    { name: 'Technology', href: '#technology' },
+    { name: 'How it works', href: '#how' },
+    { name: 'Docs', href: '/docs' },
     { name: 'FAQ', href: '#faq' },
   ];
 
   return (
     <header
       role="banner"
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-200 ${
         isScrolled
-          ? 'bg-white/95 dark:bg-[#1B1917]/95 backdrop-blur-md border-b border-orange-100 dark:border-white/8 py-3.5'
-          : 'bg-transparent py-5'
+          ? 'bg-white/95 dark:bg-[#030F1F]/95 backdrop-blur-sm border-b border-stone-200/80 dark:border-[#1A2A3A]'
+          : 'bg-white/80 dark:bg-[#030F1F]/80 backdrop-blur-sm border-b border-transparent'
       }`}
     >
-      <div className="container mx-auto px-6 max-w-7xl flex items-center justify-between">
-
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 z-50 group" aria-label="Nexusu home">
-          <div className="w-8 h-8 rounded-lg overflow-hidden bg-white flex-shrink-0 flex items-center justify-center shadow-sm" aria-hidden="true">
+      <div className="container mx-auto px-5 sm:px-6 max-w-5xl h-14 sm:h-16 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2.5" aria-label="Nexusu home">
+          <div className="w-8 h-8 rounded-md overflow-hidden bg-white border border-stone-200 dark:border-[#1A2A3A] flex items-center justify-center" aria-hidden="true">
             <img src="/logo.png" alt="" className="w-full h-full object-contain" />
           </div>
-          <span className="font-display font-bold text-xl tracking-tight text-[#1B1917] dark:text-white">
-            Nexusu
-          </span>
+          <span className="font-display font-bold text-lg text-[#030F1F] dark:text-white">Nexusu</span>
         </Link>
 
-        {/* Desktop Nav */}
-        <nav aria-label="Main navigation" className="hidden md:flex items-center gap-8">
-          <div className="flex items-center gap-6">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className="text-sm font-medium text-stone-500 dark:text-white/60 hover:text-[#1B1917] dark:hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E] rounded"
-              >
-                {link.name}
-              </a>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2.5">
+        <nav aria-label="Main navigation" className="hidden md:flex items-center gap-6">
+          {navLinks.map((link) => (
             <a
-              href="/docs"
-              className="flex items-center gap-1.5 text-sm font-medium text-stone-500 dark:text-white/60 hover:text-[#1B1917] dark:hover:text-white transition-colors px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E] rounded"
+              key={link.name}
+              href={link.href}
+              className="text-sm text-stone-600 dark:text-white/65 hover:text-[#030F1F] dark:hover:text-white transition-colors"
             >
-              <BookOpen className="w-4 h-4" aria-hidden="true" />
-              Docs
+              {link.name}
             </a>
+          ))}
 
-            {mounted && (
-              <button
-                onClick={() => setTheme(isDark ? 'light' : 'dark')}
-                aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-                className="w-8 h-8 rounded-full flex items-center justify-center border border-orange-200 dark:border-white/15 text-stone-400 dark:text-white/50 hover:text-[#E8461E] dark:hover:text-white hover:border-orange-300 dark:hover:border-white/30 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E]"
-              >
-                {isDark ? <Sun className="w-3.5 h-3.5" aria-hidden="true" /> : <Moon className="w-3.5 h-3.5" aria-hidden="true" />}
-              </button>
-            )}
-
-            <a
-              href="/app"
-              className="bg-[#E8461E] hover:bg-[#D03D18] text-white px-5 py-2 rounded-full text-sm font-semibold transition-colors shadow-[0_2px_12px_rgba(232,70,30,0.30)] flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E] focus-visible:ring-offset-2"
-            >
-              Launch App
-              <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-            </a>
-          </div>
-        </nav>
-
-        {/* Mobile controls */}
-        <div className="md:hidden flex items-center gap-2 z-50">
           {mounted && (
             <button
+              type="button"
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
               aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-              className="w-8 h-8 rounded-full flex items-center justify-center border border-orange-200 dark:border-white/15 text-stone-400 dark:text-white/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E]"
+              className="w-8 h-8 rounded-md flex items-center justify-center border border-stone-200 dark:border-[#1A2A3A] text-stone-500 dark:text-white/50 hover:text-[#6393C4] transition-colors"
             >
-              {isDark ? <Sun className="w-3.5 h-3.5" aria-hidden="true" /> : <Moon className="w-3.5 h-3.5" aria-hidden="true" />}
+              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
+          <a
+            href="/app"
+            className="bg-[#6393C4] hover:bg-[#5289B8] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors inline-flex items-center gap-1.5"
+          >
+            Launch App
+            <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </a>
+        </nav>
+
+        <div className="md:hidden flex items-center gap-2">
+          {mounted && (
+            <button
+              type="button"
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+              className="w-8 h-8 rounded-md flex items-center justify-center border border-stone-200 dark:border-[#1A2A3A] text-stone-500"
+            >
+              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
             </button>
           )}
           <button
-            className="w-8 h-8 flex items-center justify-center text-[#1B1917] dark:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E] rounded"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            type="button"
+            className="w-8 h-8 flex items-center justify-center text-[#030F1F] dark:text-white"
+            onClick={() => setMobileMenuOpen((o) => !o)}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-menu"
           >
-            {mobileMenuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
 
-        {/* Mobile Menu */}
         <AnimatePresence>
           {mobileMenuOpen && (
             <motion.nav
-              id="mobile-menu"
-              aria-label="Mobile navigation"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.18 }}
-              className="absolute top-0 left-0 w-full min-h-screen bg-white dark:bg-[#1B1917] pt-20 px-6 pb-10 flex flex-col"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full left-0 right-0 bg-white dark:bg-[#030F1F] border-b border-stone-200 dark:border-[#1A2A3A] px-5 py-4 flex flex-col gap-1 md:hidden shadow-sm"
             >
-              <div className="flex flex-col gap-1 mb-8">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.name}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="py-3 text-xl font-display font-semibold text-[#1B1917] dark:text-white border-b border-orange-100 dark:border-white/8 focus-visible:outline-none focus-visible:text-[#E8461E]"
-                  >
-                    {link.name}
-                  </a>
-                ))}
+              {navLinks.map((link) => (
                 <a
-                  href="/docs"
+                  key={link.name}
+                  href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-3 text-xl font-display font-semibold text-[#1B1917] dark:text-white border-b border-orange-100 dark:border-white/8 flex items-center gap-2 focus-visible:outline-none focus-visible:text-[#E8461E]"
+                  className="py-2.5 text-sm font-medium text-[#030F1F] dark:text-white"
                 >
-                  <BookOpen className="w-5 h-5" aria-hidden="true" />
-                  Docs
+                  {link.name}
                 </a>
-              </div>
+              ))}
               <a
                 href="/app"
-                className="w-full bg-[#E8461E] hover:bg-[#D03D18] text-white py-4 rounded-2xl text-base font-semibold transition-colors text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8461E] focus-visible:ring-offset-2"
+                className="mt-2 bg-[#6393C4] text-white py-3 rounded-lg text-center text-sm font-semibold"
               >
                 Launch App
               </a>

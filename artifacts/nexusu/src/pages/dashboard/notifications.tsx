@@ -26,10 +26,10 @@ const NOTIF_COLORS: Record<NotifType, string> = {
   loan: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10',
   proposal: 'text-purple-500 bg-purple-50 dark:bg-purple-500/10',
   vote: 'text-purple-500 bg-purple-50 dark:bg-purple-500/10',
-  member: 'text-orange-500 bg-orange-50 dark:bg-orange-500/10',
-  ai: 'text-[#E8461E] bg-[#E8461E]/8 dark:bg-[#E8461E]/12',
+  member: 'text-[#6393C4] bg-[#6393C4]/10 dark:bg-[#6393C4]/10',
+  ai: 'text-[#6393C4] bg-[#6393C4]/8 dark:bg-[#6393C4]/12',
   treasury: 'text-teal-500 bg-teal-50 dark:bg-teal-500/10',
-  warning: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10',
+  warning: 'text-[#6393C4] bg-[#6393C4]/8 dark:bg-[#6393C4]/10',
 };
 
 function NotifItem({ notif, onRead }: { notif: AppNotification; onRead: (id: string) => void }) {
@@ -45,7 +45,7 @@ function NotifItem({ notif, onRead }: { notif: AppNotification; onRead: (id: str
         'flex items-start gap-4 p-4 rounded-2xl border transition-all',
         notif.read
           ? 'bg-white dark:bg-stone-900/40 border-stone-100 dark:border-white/4'
-          : 'bg-[#E8461E]/3 dark:bg-[#E8461E]/5 border-[#E8461E]/15 dark:border-[#E8461E]/12',
+          : 'bg-[#6393C4]/3 dark:bg-[#6393C4]/5 border-[#6393C4]/15 dark:border-[#6393C4]/12',
       )}
     >
       <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', color.split(' ').slice(1).join(' '))}>
@@ -55,14 +55,14 @@ function NotifItem({ notif, onRead }: { notif: AppNotification; onRead: (id: str
         <div className="flex items-center gap-2 mb-0.5">
           <p className="text-sm font-semibold text-stone-800 dark:text-white truncate">{notif.title}</p>
           {!notif.read && (
-            <span className="w-2 h-2 rounded-full bg-[#E8461E] flex-shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-[#6393C4] flex-shrink-0" />
           )}
         </div>
         <p className="text-xs text-stone-500 dark:text-white/50 leading-relaxed">{notif.description}</p>
         <div className="flex items-center gap-3 mt-2">
           <span className="text-[11px] text-stone-300 dark:text-white/25">{formatRelative(notif.timestamp)}</span>
           {notif.actionLabel && (
-            <a href={notif.actionHref ?? '#'} className="text-[11px] font-semibold text-[#E8461E] hover:underline">
+            <a href={notif.actionHref ?? '#'} className="text-[11px] font-semibold text-[#6393C4] hover:underline">
               {notif.actionLabel}
             </a>
           )}
@@ -117,7 +117,7 @@ export default function Notifications() {
         </motion.div>
 
         {/* Filter */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex gap-1 mb-5 bg-stone-100 dark:bg-white/5 rounded-xl p-1 w-fit">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex gap-1 mb-5 bg-stone-100 dark:bg-[#2E3B4B]/40 rounded-xl p-1 w-fit">
           {(['all', 'unread'] as const).map((f) => (
             <button
               key={f}
