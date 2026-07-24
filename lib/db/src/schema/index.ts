@@ -139,8 +139,29 @@ export const onchainTransfersTable = pgTable(
   ],
 );
 
+/**
+ * Hosted autonomous agents (treasury, lending, governance, risk, etc.).
+ * Empty until agent hosting is provisioned; landing page counts status=running.
+ */
+export const agentsTable = pgTable(
+  "platform_agents",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    status: text("status").notNull().default("running"),
+    coopId: text("coop_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("platform_agents_status_idx").on(t.status),
+    index("platform_agents_coop_idx").on(t.coopId),
+  ],
+);
+
 export type CooperativeRow = typeof cooperativesTable.$inferSelect;
 export type MemberRow = typeof membersTable.$inferSelect;
 export type TransactionRow = typeof transactionsTable.$inferSelect;
 export type NotificationRow = typeof notificationsTable.$inferSelect;
 export type OnchainTransferRow = typeof onchainTransfersTable.$inferSelect;
+export type AgentRow = typeof agentsTable.$inferSelect;

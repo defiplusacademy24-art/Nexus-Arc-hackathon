@@ -12,6 +12,7 @@ import {
   transactionsTable,
   notificationsTable,
   onchainTransfersTable,
+  agentsTable,
   type CooperativeRow,
   type MemberRow,
   type TransactionRow,
@@ -22,6 +23,7 @@ import type {
   CreateCoopInput,
   CreateNotificationInput,
   IngestOnchainInput,
+  PlatformStats,
   StoredCooperative,
   StoredMember,
   StoredNotification,
@@ -996,4 +998,44 @@ export async function hydrateForWallet(wallet: string): Promise<{
     membersByCoop[c.id] = await getMembers(c.id);
   }
   return { cooperatives, membersByCoop };
+}
+
+/** Public platform metrics for the landing page (no auth). */
+export async function getPlatformStats(): Promise<PlatformStats> {
+  const db = await readyDb();
+
+  const [coopCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(cooperativesTable);
+  const [activeCoopCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(cooperativesTable)
+    .where(
+      sql`lower(${cooperativesTable.status}) IN ('open', 'active', 'draft', 'pending')`,
+    );
+  const [memberCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(membersTable)
+    .where(eq(membersTable.status, "active"));
+  const [txCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(transactionsTable);
+  const [agentsRunning] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(agentsTable)
+    .where(eq(agentsTable.status, "running"));
+  const [agentsTotal] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(agentsTable);
+
+  return {
+    cooperatives: coopCount?.c ?? 0,
+    activeCooperatives: activeCoopCount?.c ?? 0,
+    members: memberCount?.c ?? 0,
+    agentsRunning: agentsRunning?.c ?? 0,
+    agentsTotal: agentsTotal?.c ?? 0,
+    transactions: txCount?.c ?? 0,
+    storage: "postgres",
+    updatedAt: new Date().toISOString(),
+  };
 }

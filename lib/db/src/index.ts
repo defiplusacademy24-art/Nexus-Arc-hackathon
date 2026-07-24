@@ -156,6 +156,17 @@ CREATE TABLE IF NOT EXISTS onchain_transfers (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS onchain_transfers_key_uidx ON onchain_transfers (key);
 CREATE INDEX IF NOT EXISTS onchain_transfers_wallet_idx ON onchain_transfers (wallet);
+
+CREATE TABLE IF NOT EXISTS platform_agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'running',
+  coop_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS platform_agents_status_idx ON platform_agents (status);
+CREATE INDEX IF NOT EXISTS platform_agents_coop_idx ON platform_agents (coop_id);
 `);
     })().catch((err) => {
       schemaReady = null;

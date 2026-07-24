@@ -11,6 +11,7 @@ import type {
   CreateCoopInput,
   CreateNotificationInput,
   IngestOnchainInput,
+  PlatformStats,
   StoredCooperative,
   StoredMember,
   StoredNotification,
@@ -34,6 +35,9 @@ export type {
   CreateCoopInput,
   JoinCoopInput,
   IngestOnchainInput,
+  PlatformStats,
+  StoredAgent,
+  AgentStatus,
 } from "./store-types";
 
 export { DEFAULT_ROTATION_MODE } from "./store-types";
@@ -219,4 +223,10 @@ export async function listOnchainTransfers(
 ): Promise<StoredOnchainTransfer[]> {
   if (usePg()) return pg.listOnchainTransfers(wallet, limit);
   return file.listOnchainTransfers(wallet, limit);
+}
+
+/** Public platform metrics for landing page (no auth). */
+export async function getPlatformStats(): Promise<PlatformStats> {
+  if (usePg()) return pg.getPlatformStats();
+  return file.getPlatformStats();
 }

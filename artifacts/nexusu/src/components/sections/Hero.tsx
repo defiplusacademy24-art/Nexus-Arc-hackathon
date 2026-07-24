@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen } from 'lucide-react';
+import { ArrowRight, Activity } from 'lucide-react';
 
 export function Hero() {
   return (
@@ -37,11 +37,11 @@ export function Hero() {
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </a>
           <a
-            href="/docs"
+            href="#network"
             className="px-7 py-3.5 rounded-lg text-sm font-semibold text-stone-700 dark:text-white/85 border border-stone-200 dark:border-[#1A2A3A] hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/40 transition-colors inline-flex items-center justify-center gap-2 bg-white dark:bg-transparent"
           >
-            <BookOpen className="w-4 h-4" aria-hidden="true" />
-            Read Docs
+            <Activity className="w-4 h-4" aria-hidden="true" />
+            View live network
           </a>
         </div>
       </div>

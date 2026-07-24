@@ -161,6 +161,8 @@ interface StoreData {
   transactions: StoredTransaction[];
   notifications: StoredNotification[];
   onchainTransfers: StoredOnchainTransfer[];
+  /** Hosted agents — empty until agent hosting is provisioned. */
+  agents: import("./store-types").StoredAgent[];
 }
 
 // ── Persistence ────────────────────────────────────────────────────────────────
@@ -172,6 +174,7 @@ function emptyStore(): StoreData {
     transactions: [],
     notifications: [],
     onchainTransfers: [],
+    agents: [],
   };
 }
 
@@ -186,6 +189,7 @@ function load(): StoreData {
       transactions: parsed.transactions ?? [],
       notifications: parsed.notifications ?? [],
       onchainTransfers: parsed.onchainTransfers ?? [],
+      agents: parsed.agents ?? [],
     };
   } catch {
     return emptyStore();
@@ -954,4 +958,30 @@ export function listOnchainTransfers(
   return getStore()
     .onchainTransfers.filter((t) => t.wallet.toLowerCase() === w)
     .slice(0, limit);
+}
+
+/** Public platform metrics for the landing page (no auth). */
+export function getPlatformStats(): import("./store-types").PlatformStats {
+  const data = getStore();
+  const activeStatuses = new Set(["open", "active", "draft", "pending"]);
+  const activeCooperatives = data.cooperatives.filter((c) =>
+    activeStatuses.has((c.status || "").toLowerCase()),
+  ).length;
+  const activeMembers = data.members.filter(
+    (m) => (m.status || "").toLowerCase() === "active",
+  ).length;
+  const agentsRunning = data.agents.filter(
+    (a) => (a.status || "").toLowerCase() === "running",
+  ).length;
+
+  return {
+    cooperatives: data.cooperatives.length,
+    activeCooperatives,
+    members: activeMembers,
+    agentsRunning,
+    agentsTotal: data.agents.length,
+    transactions: data.transactions.length,
+    storage: "file",
+    updatedAt: new Date().toISOString(),
+  };
 }

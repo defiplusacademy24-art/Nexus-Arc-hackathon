@@ -166,3 +166,27 @@ export type IngestOnchainInput = {
   explorerUrl?: string;
   timestamp?: string;
 };
+
+/** Hosted autonomous agents (treasury, lending, governance, etc.). */
+export type AgentStatus = "running" | "stopped" | "provisioning";
+
+export interface StoredAgent {
+  id: string;
+  name: string;
+  type: string;
+  status: AgentStatus;
+  coopId?: string | null;
+  createdAt: string;
+}
+
+/** Public landing-page metrics (no auth). */
+export interface PlatformStats {
+  cooperatives: number;
+  activeCooperatives: number;
+  members: number;
+  agentsRunning: number;
+  agentsTotal: number;
+  transactions: number;
+  storage: "postgres" | "file";
+  updatedAt: string;
+}
