@@ -1,8 +1,9 @@
 /**
- * Vercel serverless entry for the Express API.
+ * Legacy monorepo-root Vercel entry (kept for local/import paths).
+ *
+ * Production Vercel deploy uses Root Directory `artifacts/nexusu` and
+ * `artifacts/nexusu/api/index.mjs` instead (see that file + vercel.json there).
  *
  * build:vercel compiles artifacts/api-server → dist/app.mjs first.
- * vercel.json rewrites /api/* here so Express (mounted at /api) handles routes
- * the same way as local `pnpm --filter @workspace/api-server run dev`.
  */
 export { default } from "../artifacts/api-server/dist/app.mjs";

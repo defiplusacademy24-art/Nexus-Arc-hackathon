@@ -14,8 +14,9 @@ Nexusu is a Cooperative OS — a web app that empowers savings groups to operate
 
 ## Deploy (Vercel)
 
-- Root `vercel.json` builds the SPA (`artifacts/nexusu/dist/public`) and Express as `/api` serverless (`api/index.mjs` → prebuilt `dist/app.mjs`)
-- Import the Git repo in Vercel; Root Directory = repo root; Framework = Other (config is in `vercel.json`)
+- Config lives in `artifacts/nexusu/vercel.json` (installs the monorepo, builds API + SPA, serves Express at `/api`)
+- Import the Git repo in Vercel and set **Root Directory** to `artifacts/nexusu` (do not leave it empty or set `artifacts/api-server`)
+- Framework / Application Preset: **Other** (commands come from `vercel.json`)
 - Env vars (Project → Settings → Environment Variables):
   - Build: `VITE_WALLETCONNECT_PROJECT_ID`, `VITE_CIRCLE_UC_APP_ID` (optional)
   - Runtime: `CIRCLE_UC_API_KEY` (and optional `CIRCLE_UC_BLOCKCHAIN`, `CIRCLE_UC_ACCOUNT_TYPE`, `CORS_ORIGIN`)

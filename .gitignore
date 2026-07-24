@@ -61,6 +61,8 @@ artifacts/data/
 
 # Vercel
 .vercel
+# API bundle copied here during `pnpm run build:vercel` (not committed)
+artifacts/nexusu/.vercel-api/
 
 # Foundry (contracts/)
 contracts/cache/
