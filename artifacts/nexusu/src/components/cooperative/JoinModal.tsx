@@ -1,5 +1,6 @@
 /**
- * JoinModal — Join an existing cooperative via invite code, link, or QR scan.
+ * JoinModal — Member registration + join via invite code or link.
+ * Assigns a permanent join-order payout position on success.
  */
 
 import { useState } from 'react';
@@ -9,33 +10,63 @@ import { cn } from '@/lib/utils';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { useWallet } from '@/providers/WalletProvider';
 import { normaliseCode } from '@/services/cooperative/invitations';
-import type { Cooperative } from '@/types';
+import type { Cooperative, Member } from '@/types';
 
 type JoinMode = 'code' | 'link';
+
+interface JoinSuccess {
+  coop: Cooperative;
+  joinPosition: number;
+  member?: Member;
+}
 
 export function JoinModal({ onClose }: { onClose: () => void }) {
   const { joinCooperative } = useCooperative();
   const { identity } = useWallet();
   const [mode, setMode] = useState<JoinMode>('code');
   const [input, setInput] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [joined, setJoined] = useState<Cooperative | null>(null);
+  const [joined, setJoined] = useState<JoinSuccess | null>(null);
 
   const handleJoin = async () => {
     setError('');
-    if (!input.trim()) { setError('Please enter an invite code or link.'); return; }
+    if (!input.trim()) {
+      setError('Please enter an invite code or link.');
+      return;
+    }
+    if (!displayName.trim()) {
+      setError('Display name is required.');
+      return;
+    }
+    if (!email.trim()) {
+      setError('Email is required to register as a member.');
+      return;
+    }
+    if (!identity?.walletAddress) {
+      setError('Connect a wallet before joining a cooperative.');
+      return;
+    }
 
     setLoading(true);
     try {
       let code = input.trim();
-      // Extract code from a link like /join/AAA-BBB-CCC
       if (code.includes('/join/')) {
         code = code.split('/join/').pop() ?? code;
       }
-      const result = joinCooperative(normaliseCode(code), identity?.walletAddress);
+      const result = await joinCooperative(normaliseCode(code), identity.walletAddress, {
+        walletAddress: identity.walletAddress,
+        displayName: displayName.trim(),
+        email: email.trim(),
+      });
       if (result.ok && result.coop) {
-        setJoined(result.coop);
+        setJoined({
+          coop: result.coop,
+          joinPosition: result.joinPosition ?? result.member?.joinPosition ?? 0,
+          member: result.member,
+        });
       } else {
         setError(result.error ?? 'Could not join cooperative.');
       }
@@ -50,10 +81,21 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
   ];
 
   if (joined) {
-    const initials = joined.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+    const { coop, joinPosition } = joined;
+    const initials = coop.name
+      .split(' ')
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase();
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        />
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -63,9 +105,26 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
             <span className="text-white font-bold text-xl">{initials}</span>
           </div>
           <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-3" />
-          <h3 className="font-display font-bold text-stone-900 dark:text-white text-lg mb-1">You've joined!</h3>
-          <p className="text-stone-500 dark:text-white/50 text-sm mb-1">{joined.name}</p>
-          <p className="text-stone-400 dark:text-white/30 text-xs mb-6">{joined.type} · {joined.country}</p>
+          <h3 className="font-display font-bold text-stone-900 dark:text-white text-lg mb-1">
+            🎉 Welcome to the cooperative!
+          </h3>
+          <p className="text-stone-500 dark:text-white/50 text-sm mb-1">{coop.name}</p>
+          <p className="text-stone-400 dark:text-white/30 text-xs mb-5">
+            {coop.type} · {coop.country}
+          </p>
+
+          <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4 mb-6 text-left space-y-2">
+            <p className="text-xs text-stone-500 dark:text-white/50">You have been assigned:</p>
+            <p className="text-lg font-display font-bold text-[#6393C4]">
+              Payout Position #{joinPosition || '—'}
+            </p>
+            {joinPosition > 0 && (
+              <p className="text-[11px] text-stone-400 dark:text-white/35 leading-relaxed">
+                You will receive the pooled contribution during Cycle {joinPosition}.
+              </p>
+            )}
+          </div>
+
           <button
             onClick={onClose}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors"
@@ -79,31 +138,48 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 20 }}
-        className="relative w-full max-w-md bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-md bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-5">
+        <div className="flex items-center justify-between px-6 pt-6 pb-5 flex-shrink-0">
           <div>
-            <h2 className="font-display font-bold text-stone-900 dark:text-white">Join a Cooperative</h2>
-            <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">Enter an invite code or paste a link</p>
+            <h2 className="font-display font-bold text-stone-900 dark:text-white">
+              Join a Cooperative
+            </h2>
+            <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
+              Register and claim your payout position
+            </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:bg-stone-100 dark:hover:bg-white/8 transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:bg-stone-100 dark:hover:bg-white/8 transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-6 pb-6 space-y-5">
+        <div className="px-6 pb-6 space-y-5 overflow-y-auto">
           {/* Mode toggle */}
           <div className="flex gap-2 bg-stone-100 dark:bg-[#2E3B4B]/40 p-1 rounded-xl">
             {modes.map((m) => (
               <button
                 key={m.id}
-                onClick={() => { setMode(m.id); setInput(''); setError(''); }}
+                onClick={() => {
+                  setMode(m.id);
+                  setInput('');
+                  setError('');
+                }}
                 className={cn(
                   'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all',
                   mode === m.id
@@ -117,33 +193,90 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          {/* Input */}
+          {/* Invite input */}
           <div className="space-y-2">
+            <label className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide">
+              {mode === 'code' ? 'Invite Code' : 'Invite Link'}
+            </label>
             <input
               value={input}
-              onChange={(e) => { setInput(e.target.value); setError(''); }}
+              onChange={(e) => {
+                setInput(e.target.value);
+                setError('');
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               placeholder={modes.find((m) => m.id === mode)?.placeholder}
               autoFocus
               className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-mono text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 placeholder:font-sans outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
             />
-            {error && <p className="text-xs text-red-500 flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-red-500 flex-shrink-0" />{error}</p>}
           </div>
+
+          {/* Registration fields */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide">
+                Display Name <span className="text-[#6393C4]">*</span>
+              </label>
+              <input
+                value={displayName}
+                onChange={(e) => {
+                  setDisplayName(e.target.value);
+                  setError('');
+                }}
+                placeholder="e.g. Mary Okonkwo"
+                className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide">
+                Email <span className="text-[#6393C4]">*</span>
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError('');
+                }}
+                placeholder="you@example.com"
+                className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
+              />
+            </div>
+            {identity?.walletAddress && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide">
+                  Wallet
+                </label>
+                <p className="font-mono text-[11px] text-stone-500 dark:text-white/40 break-all bg-stone-50 dark:bg-[#2E3B4B]/30 rounded-xl px-4 py-2.5">
+                  {identity.walletAddress}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <p className="text-xs text-red-500 flex items-center gap-1.5">
+              <span className="w-1 h-1 rounded-full bg-red-500 flex-shrink-0" />
+              {error}
+            </p>
+          )}
 
           {/* QR placeholder */}
           <div className="border-2 border-dashed border-stone-200 dark:border-white/10 rounded-xl p-5 text-center">
             <QrCode className="w-6 h-6 text-stone-300 dark:text-white/20 mx-auto mb-2" />
             <p className="text-xs text-stone-400 dark:text-white/30 font-semibold">QR Code Scan</p>
-            <p className="text-[11px] text-stone-300 dark:text-white/20 mt-0.5">Camera QR scanning coming soon via Sphere Messaging</p>
+            <p className="text-[11px] text-stone-300 dark:text-white/20 mt-0.5">
+              Camera QR scanning coming soon via Sphere Messaging
+            </p>
           </div>
 
           {/* Info box */}
           <div className="bg-stone-50 dark:bg-[#2E3B4B]/30 rounded-xl p-4 space-y-1">
             <p className="text-xs font-semibold text-stone-500 dark:text-white/40">How it works</p>
             <ul className="text-[11px] text-stone-400 dark:text-white/30 space-y-0.5 list-disc list-inside">
-              <li>Your Unicity wallet identity will be verified before joining</li>
-              <li>The cooperative admin will be notified of your membership</li>
-              <li>You can leave a cooperative at any time from settings</li>
+              <li>Your wallet and email must be unique in the cooperative</li>
+              <li>You receive a permanent payout position based on join order</li>
+              <li>The cooperative admin is notified when you join</li>
             </ul>
           </div>
 
@@ -152,7 +285,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
             disabled={loading || !input.trim()}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-50 transition-colors"
           >
-            {loading ? 'Verifying…' : 'Join Cooperative'}
+            {loading ? 'Registering…' : 'Join Cooperative'}
           </button>
         </div>
       </motion.div>

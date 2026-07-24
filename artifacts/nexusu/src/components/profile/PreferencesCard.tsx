@@ -2,7 +2,13 @@ import { motion } from 'framer-motion';
 import { Settings, Globe, Clock, Bell, Check, Save } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import type { UseProfileState } from '@/hooks/useProfile';
-import { AVATAR_COLORS, LANGUAGES, type AvatarColor } from '@/services/profile';
+import {
+  AVATAR_COLORS,
+  LANGUAGES,
+  loadProfilePrefs,
+  saveProfilePrefs,
+  type AvatarColor,
+} from '@/services/profile';
 
 interface PreferencesCardProps {
   profile: UseProfileState;
@@ -88,11 +94,19 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
             type="text"
             value={prefs.displayNameOverride}
             onChange={(e) => update('displayNameOverride', e.target.value)}
-            placeholder="Leave blank to use wallet identity"
+            onBlur={() => {
+              // Persist name immediately so Overview greeting updates without an extra Save click
+              const next = {
+                ...loadProfilePrefs(),
+                displayNameOverride: prefs.displayNameOverride.trim(),
+              };
+              saveProfilePrefs(next);
+            }}
+            placeholder="e.g. Rita"
             className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] text-sm text-stone-700 dark:text-white placeholder:text-stone-300 dark:placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-[#6393C4]/30 transition-all"
           />
           <p className="text-[10px] text-stone-400 dark:text-white/25 mt-1">
-            This is a local preference — it doesn't change your on-chain identity.
+            Shown on Overview (e.g. “Good afternoon, Rita”). Does not change your on-chain identity.
           </p>
         </div>
 

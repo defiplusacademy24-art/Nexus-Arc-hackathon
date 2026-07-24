@@ -17,9 +17,14 @@ import { CreateWizard } from '@/components/cooperative/CreateWizard';
 import { JoinModal } from '@/components/cooperative/JoinModal';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { useWallet } from '@/providers/WalletProvider';
-import { loadCoopMembers, updateMemberRole, removeMember, updateMemberStatus } from '@/services/cooperative/members';
+import { loadMembersInPayoutOrder, updateMemberRole, removeMember, updateMemberStatus } from '@/services/cooperative/members';
 import { updateCooperative } from '@/services/cooperative/cooperative';
 import { getInviteLink } from '@/services/cooperative/invitations';
+import {
+  buildCooperativeSummary,
+  contributionStatusLabel,
+  ROTATION_MODE_LABELS,
+} from '@/services/cooperative/rotation';
 import { formatCurrency, formatDate, roleLabel, roleBadgeClass } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import type { Cooperative, Member, MemberRole, CoopPrivacy, VotingModel, LoanApprovalPolicy, ContributionFrequency } from '@/types';
@@ -136,6 +141,11 @@ function MemberRow({
   return (
     <tr className="border-b border-stone-50 dark:border-white/4 last:border-0 hover:bg-stone-50/50 dark:hover:bg-white/2 transition-colors">
       <td className="px-4 py-3">
+        <span className="inline-flex items-center justify-center min-w-[2rem] h-7 px-2 rounded-lg bg-[#6393C4] text-white text-xs font-bold">
+          #{member.joinPosition ?? '—'}
+        </span>
+      </td>
+      <td className="px-4 py-3">
         <div className="flex items-center gap-2.5">
           <MemberAvatar initials={member.initials} />
           <div>
@@ -150,6 +160,11 @@ function MemberRow({
         <span className={cn('inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border', roleBadgeClass(member.role))}>
           <RoleIcon className="w-2.5 h-2.5" />
           {roleLabel(member.role)}
+        </span>
+      </td>
+      <td className="px-4 py-3">
+        <span className="text-[11px] font-semibold text-stone-500 dark:text-white/50">
+          {contributionStatusLabel(member.contributionStatus)}
         </span>
       </td>
       <td className="px-4 py-3">
@@ -525,7 +540,13 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Cooperatives() {
-  const { cooperatives, activeCooperative, setActiveCooperative, refresh } = useCooperative();
+  const {
+    cooperatives,
+    activeCooperative,
+    setActiveCooperative,
+    refresh,
+    activateCooperative,
+  } = useCooperative();
   const { identity } = useWallet();
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -533,16 +554,29 @@ export default function Cooperatives() {
   const [members, setMembers] = useState<Member[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
   const [membersExpanded, setMembersExpanded] = useState(false);
+  const [activating, setActivating] = useState(false);
 
-  // Reload members whenever the active cooperative changes
+  // Reload members in payout order whenever the active cooperative changes
   useEffect(() => {
-    setMembers(activeCooperative ? loadCoopMembers(activeCooperative.id) : []);
+    setMembers(activeCooperative ? loadMembersInPayoutOrder(activeCooperative.id) : []);
     setMembersExpanded(false);
   }, [activeCooperative?.id]);
 
+  // Live contribution updates from treasury deposits
+  useEffect(() => {
+    const onMembersUpdated = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ cooperativeId?: string }>).detail;
+      if (!activeCooperative) return;
+      if (detail?.cooperativeId && detail.cooperativeId !== activeCooperative.id) return;
+      setMembers(loadMembersInPayoutOrder(activeCooperative.id));
+    };
+    window.addEventListener('nexusu:members-updated', onMembersUpdated);
+    return () => window.removeEventListener('nexusu:members-updated', onMembersUpdated);
+  }, [activeCooperative]);
+
   const reloadMembers = () => {
     if (!activeCooperative) return;
-    const updated = loadCoopMembers(activeCooperative.id);
+    const updated = loadMembersInPayoutOrder(activeCooperative.id);
     setMembers(updated);
     // Keep memberCount in sync with actual stored members
     updateCooperative(activeCooperative.id, { memberCount: updated.length });
@@ -551,7 +585,18 @@ export default function Cooperatives() {
 
   const switchCoop = (id: string) => {
     setActiveCooperative(id);
-    setMembers(loadCoopMembers(id));
+    setMembers(loadMembersInPayoutOrder(id));
+  };
+
+  const handleStartCooperative = async () => {
+    if (!activeCooperative) return;
+    setActivating(true);
+    try {
+      await activateCooperative(activeCooperative.id, identity?.walletAddress ?? '');
+      refresh();
+    } finally {
+      setActivating(false);
+    }
   };
 
   // isManager is true only when the connected wallet is a founder or admin of this cooperative,
@@ -575,6 +620,18 @@ export default function Cooperatives() {
   const inviteLink = getInviteLink(inviteCode);
 
   const displayedMembers = membersExpanded ? members : members.slice(0, 8);
+  const summary = activeCooperative
+    ? buildCooperativeSummary(activeCooperative, members)
+    : null;
+  const canStart =
+    isManager &&
+    activeCooperative &&
+    (activeCooperative.status === 'open' ||
+      activeCooperative.status === 'draft' ||
+      activeCooperative.status === 'pending');
+  const statusDisplay = activeCooperative
+    ? activeCooperative.status.charAt(0).toUpperCase() + activeCooperative.status.slice(1)
+    : '';
 
   if (!activeCooperative) {
     return (
@@ -677,14 +734,19 @@ export default function Cooperatives() {
                   {activeCooperative.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">{activeCooperative.type}</span>
                     {activeCooperative.privacy && (
                       <span className="text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">{PRIVACY_LABELS[activeCooperative.privacy] ?? activeCooperative.privacy}</span>
                     )}
                     <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="w-3 h-3" /> Active
+                      <CheckCircle2 className="w-3 h-3" /> {statusDisplay}
                     </span>
+                    {summary?.joiningClosed && (
+                      <span className="text-[11px] font-semibold bg-white/25 px-2 py-0.5 rounded-full">
+                        Joining Closed
+                      </span>
+                    )}
                   </div>
                   <h2 className="text-2xl font-display font-bold">{activeCooperative.name}</h2>
                   <div className="flex items-center gap-1.5 mt-0.5 text-white/70 text-sm">
@@ -708,11 +770,63 @@ export default function Cooperatives() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <Stat label="Members" value={activeCooperative.memberCount} icon={Users} />
+              <Stat
+                label="Members"
+                value={
+                  summary
+                    ? `${summary.memberCount}${summary.maxMembers != null ? ` / ${summary.maxMembers}` : ''}`
+                    : activeCooperative.memberCount
+                }
+                icon={Users}
+              />
               <Stat label="Treasury" value={formatCurrency(activeCooperative.treasuryBalance)} icon={Vault} />
               <Stat label="Governance Score" value={`${activeCooperative.governanceScore}/100`} icon={CheckCircle2} />
               <Stat label="AI Health Score" value={`${activeCooperative.aiHealthScore}/100`} icon={Sparkles} />
             </div>
+
+            {/* Cooperative summary (payout / cycle) */}
+            {summary && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {[
+                  { l: 'Current Recipient', v: `Position #${summary.currentRecipientPosition}` },
+                  {
+                    l: 'Next Recipient',
+                    v: summary.nextRecipientPosition != null
+                      ? `Position #${summary.nextRecipientPosition}`
+                      : '—',
+                  },
+                  {
+                    l: 'Payout Strategy',
+                    v: ROTATION_MODE_LABELS[summary.rotationMode] ?? 'Join Order',
+                  },
+                  { l: 'Status', v: statusDisplay },
+                ].map(({ l, v }) => (
+                  <div key={l} className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-3">
+                    <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-1">{l}</p>
+                    <p className="text-sm font-semibold text-stone-800 dark:text-white">{v}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Start cooperative (owner) */}
+            {canStart && (
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#6393C4]/25 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-stone-800 dark:text-white">Ready to begin cycles?</p>
+                  <p className="text-[11px] text-stone-500 dark:text-white/40 mt-0.5">
+                    Starting closes joining permanently and locks the payout order.
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartCooperative}
+                  disabled={activating}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60 transition-colors"
+                >
+                  {activating ? 'Starting…' : 'Start Cooperative'}
+                </button>
+              </div>
+            )}
 
             {/* Rules + Governance + Invite */}
             <div className="grid lg:grid-cols-3 gap-5">
@@ -724,6 +838,10 @@ export default function Cooperatives() {
                   { l: 'Frequency', v: activeCooperative.contributionFrequency.charAt(0).toUpperCase() + activeCooperative.contributionFrequency.slice(1) },
                   { l: 'Currency', v: activeCooperative.currency },
                   { l: 'Max Members', v: activeCooperative.maxMembers ? String(activeCooperative.maxMembers) : 'Unlimited' },
+                  {
+                    l: 'Payout Strategy',
+                    v: ROTATION_MODE_LABELS[activeCooperative.rotationMode ?? 'JOIN_ORDER'] ?? 'Join Order',
+                  },
                   { l: 'Founded', v: formatDate(activeCooperative.createdAt) },
                 ].map(({ l, v }) => (
                   <div key={l} className="flex justify-between items-center py-2 border-b border-stone-50 dark:border-white/4 last:border-0">
@@ -818,7 +936,7 @@ export default function Cooperatives() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-50 dark:border-white/4">
-                  {['Member', 'Role', 'Status', 'Contributed', 'Joined', ''].map((h) => (
+                  {['Pos', 'Member', 'Role', 'Contribution', 'Status', 'Contributed', 'Joined', ''].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wide whitespace-nowrap">
                       {h}
                     </th>

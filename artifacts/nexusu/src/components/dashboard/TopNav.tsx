@@ -4,7 +4,8 @@ import { Menu, Bell, Search, Sun, Moon, ShieldCheck } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { useWallet } from '@/providers/WalletProvider';
-import { DEMO_NOTIFICATIONS } from '@/lib/demo-data';
+import { useNotifications } from '@/hooks/useNotifications';
+import { UserAvatar } from '@/components/profile/UserAvatar';
 import { truncateWallet } from '@/utils/format';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -34,7 +35,7 @@ export function TopNav({ onMenuClick }: TopNavProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const title = PAGE_TITLES[location] ?? 'Dashboard';
-  const unreadCount = DEMO_NOTIFICATIONS.filter((n) => !n.read).length;
+  const { unreadCount } = useNotifications();
 
   return (
     <header className="h-14 border-b border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] flex items-center px-4 gap-3 sticky top-0 z-30 flex-shrink-0">
@@ -101,12 +102,16 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         </Link>
 
         {/* Avatar → Profile */}
-        <Link href="/dashboard/profile">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-transparent hover:ring-[#6393C4]/30">
-            <span className="text-white text-xs font-bold">
-              {identity?.displayName?.replace(/^@/, '').slice(0, 2).toUpperCase() ?? 'ME'}
-            </span>
-          </div>
+        <Link
+          href="/dashboard/profile"
+          className="flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity ring-2 ring-transparent hover:ring-[#6393C4]/30 rounded-full"
+          aria-label="Open profile"
+        >
+          <UserAvatar
+            displayName={identity?.displayName ?? 'ME'}
+            size="md"
+            rounded="full"
+          />
         </Link>
       </div>
     </header>

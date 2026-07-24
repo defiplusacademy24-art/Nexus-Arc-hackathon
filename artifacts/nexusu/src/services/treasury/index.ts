@@ -1,61 +1,130 @@
 /**
- * Treasury service — abstraction for all treasury operations.
- * Designed to connect to Unicity on-chain treasury management in the future.
+ * Treasury service — real cooperative balances + transaction-derived series.
+ * No mock snapshots or fake 12-month histories.
+ * Future: Arc treasury contracts, Circle UC wallets, automated contribution tracking.
  */
 
 import type { TreasurySnapshot, CashFlowPoint } from '@/types';
 
-// ── Snapshot ───────────────────────────────────────────────────────────────────
-
-export const TREASURY_SNAPSHOT: TreasurySnapshot = {
-  availableBalance: 28_500,
-  reservedFunds: 4_780,
-  loanPool: 12_000,
-  emergencyReserve: 4_780,
-  pendingContributions: 1_750,
-  monthlyInflow: 8_750,
-  monthlyOutflow: 2_550,
-  netFlow: 6_200,
+export type TreasuryTxn = {
+  type: string;
+  amount: number;
+  createdAt: string;
 };
 
-// ── Cash flow history (12 months) ─────────────────────────────────────────────
+/** Empty snapshot — use buildSnapshotFromBalance / real API instead. */
+export const TREASURY_SNAPSHOT: TreasurySnapshot = {
+  availableBalance: 0,
+  reservedFunds: 0,
+  loanPool: 0,
+  emergencyReserve: 0,
+  pendingContributions: 0,
+  monthlyInflow: 0,
+  monthlyOutflow: 0,
+  netFlow: 0,
+};
 
-export const CASH_FLOW_HISTORY: CashFlowPoint[] = [
-  { month: 'Aug', inflow: 5_200, outflow: 1_800, balance: 22_400 },
-  { month: 'Sep', inflow: 5_800, outflow: 2_100, balance: 26_100 },
-  { month: 'Oct', inflow: 6_200, outflow: 1_950, balance: 30_350 },
-  { month: 'Nov', inflow: 6_800, outflow: 2_800, balance: 34_350 },
-  { month: 'Dec', inflow: 7_200, outflow: 3_200, balance: 38_350 },
-  { month: 'Jan', inflow: 7_500, outflow: 2_200, balance: 43_650 },
-  { month: 'Feb', inflow: 7_800, outflow: 2_400, balance: 49_050 },
-  { month: 'Mar', inflow: 8_000, outflow: 2_300, balance: 54_750 },
-  { month: 'Apr', inflow: 8_200, outflow: 2_450, balance: 60_500 },
-  { month: 'May', inflow: 8_500, outflow: 2_500, balance: 66_500 },
-  { month: 'Jun', inflow: 8_750, outflow: 2_550, balance: 72_700 },
-  { month: 'Jul', inflow: 9_100, outflow: 2_600, balance: 79_200 },
-];
+/** Empty — charts must be built from real transactions. */
+export const CASH_FLOW_HISTORY: CashFlowPoint[] = [];
+export const CONTRIBUTION_TREND: Array<{ label: string; value: number }> = [];
 
-// ── Contribution trend ─────────────────────────────────────────────────────────
+export function buildSnapshotFromBalance(
+  totalBalance: number,
+  monthlyInflow = 0,
+  monthlyOutflow = 0,
+): TreasurySnapshot {
+  const available = Math.round(Math.max(0, totalBalance) * 0.6 * 100) / 100;
+  const loanPool = Math.round(Math.max(0, totalBalance) * 0.3 * 100) / 100;
+  const reserved = Math.round((Math.max(0, totalBalance) - available - loanPool) * 100) / 100;
+  return {
+    availableBalance: available,
+    reservedFunds: reserved,
+    loanPool,
+    emergencyReserve: reserved,
+    pendingContributions: 0,
+    monthlyInflow,
+    monthlyOutflow,
+    netFlow: monthlyInflow - monthlyOutflow,
+  };
+}
 
-export const CONTRIBUTION_TREND = CASH_FLOW_HISTORY.map((p) => ({
-  label: p.month,
-  value: p.inflow,
-}));
+export function buildCashFlowFromTransactions(
+  txns: TreasuryTxn[],
+  currentBalance: number,
+): CashFlowPoint[] {
+  if (!txns.length) {
+    if (currentBalance <= 0) return [];
+    const month = new Date().toLocaleDateString('en-US', { month: 'short' });
+    return [{ month, inflow: 0, outflow: 0, balance: currentBalance }];
+  }
 
-// ── Service stubs ──────────────────────────────────────────────────────────────
+  type Bucket = { label: string; inflow: number; outflow: number };
+  const byMonth = new Map<string, Bucket>();
+
+  for (const t of txns) {
+    const d = new Date(t.createdAt);
+    if (Number.isNaN(d.getTime())) continue;
+    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('en-US', { month: 'short' });
+    const entry = byMonth.get(key) ?? { label, inflow: 0, outflow: 0 };
+    if (t.type === 'withdrawal') entry.outflow += t.amount;
+    else entry.inflow += t.amount;
+    byMonth.set(key, entry);
+  }
+
+  const sorted = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  let running = currentBalance;
+  const points: CashFlowPoint[] = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const [, v] = sorted[i];
+    points.unshift({
+      month: v.label,
+      inflow: Math.round(v.inflow * 100) / 100,
+      outflow: Math.round(v.outflow * 100) / 100,
+      balance: Math.round(running * 100) / 100,
+    });
+    running = running - v.inflow + v.outflow;
+  }
+  return points;
+}
+
+export function buildContributionTrend(
+  txns: TreasuryTxn[],
+): Array<{ label: string; value: number }> {
+  return buildCashFlowFromTransactions(txns, 0).map((p) => ({
+    label: p.month,
+    value: p.inflow,
+  }));
+}
+
+export function sumMonthlyFlows(txns: TreasuryTxn[]): {
+  monthlyInflow: number;
+  monthlyOutflow: number;
+} {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  let monthlyInflow = 0;
+  let monthlyOutflow = 0;
+  for (const t of txns) {
+    if (new Date(t.createdAt).getTime() < monthStart) continue;
+    if (t.type === 'withdrawal') monthlyOutflow += t.amount;
+    else monthlyInflow += t.amount;
+  }
+  return { monthlyInflow, monthlyOutflow };
+}
 
 export async function getSnapshot(): Promise<TreasurySnapshot> {
-  return TREASURY_SNAPSHOT;
+  return { ...TREASURY_SNAPSHOT };
 }
 
 export async function getCashFlow(): Promise<CashFlowPoint[]> {
-  return CASH_FLOW_HISTORY;
+  return [];
 }
 
 export async function recordContribution(_memberId: string, _amount: number): Promise<void> {
-  // Future: write to Unicity on-chain ledger
+  // Future: Arc treasury / contribution contract
 }
 
 export async function disburseLoan(_loanId: string, _amount: number): Promise<void> {
-  // Future: trigger Unicity asset transfer
+  // Future: on-chain loan disbursement
 }

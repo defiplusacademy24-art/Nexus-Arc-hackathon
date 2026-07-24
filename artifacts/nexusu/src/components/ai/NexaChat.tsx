@@ -1,21 +1,28 @@
 /**
  * Nexa AI chat interface — used both in the full /dashboard/nexa page
  * and the floating sidebar panel.
+ * Answers only from live cooperative / treasury context (no mock numbers).
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, Bot, User } from 'lucide-react';
+import { Send, Sparkles, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
-import { getNexaResponse, AI_INSIGHTS } from '@/services/ai/nexa';
-import { INITIAL_AI_MESSAGES } from '@/lib/demo-data';
-import type { AIMessage } from '@/types';
+import { getNexaResponse, buildLiveInsights, type NexaContext } from '@/services/ai/nexa';
+import { useCooperative } from '@/providers/CooperativeProvider';
+import { useWallet } from '@/providers/WalletProvider';
+import { loadMembersInPayoutOrder } from '@/services/cooperative/members';
+import { loadLoans, outstandingLoansTotal } from '@/services/cooperative/loans';
+import { loadProposals } from '@/services/cooperative/proposals';
+import { apiListTransactions } from '@/services/notifications/api';
+import { sumMonthlyFlows } from '@/services/treasury';
+import type { AIMessage, Member } from '@/types';
 
 const QUICK_PROMPTS = [
   'How healthy is our treasury?',
   'Who has missed contributions?',
-  'Should we approve Amina\'s loan?',
+  'Loan portfolio summary',
   'What should we improve this month?',
 ];
 
@@ -27,7 +34,6 @@ function MessageBubble({ msg }: { msg: AIMessage }) {
       animate={{ opacity: 1, y: 0 }}
       className={cn('flex gap-3', isNexa ? 'items-start' : 'items-start flex-row-reverse')}
     >
-      {/* Avatar */}
       <div className={cn(
         'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
         isNexa
@@ -37,7 +43,6 @@ function MessageBubble({ msg }: { msg: AIMessage }) {
         {isNexa ? <Sparkles className="w-3.5 h-3.5 text-white" /> : <User className="w-3.5 h-3.5 text-stone-500 dark:text-white/60" />}
       </div>
 
-      {/* Bubble */}
       <div className={cn(
         'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
         isNexa
@@ -79,16 +84,104 @@ function TypingIndicator() {
   );
 }
 
+function welcomeMessage(coopName?: string): AIMessage {
+  return {
+    id: 'nexa-welcome',
+    role: 'nexa',
+    content: coopName
+      ? `Hello — I'm **Nexa**, your cooperative AI assistant for **${coopName}**.\n\nI only use **live treasury, member, and activity data** (no mock figures). Ask about health, contributions, loans, or governance.`
+      : `Hello — I'm **Nexa**, your cooperative AI assistant.\n\nCreate or join a cooperative first. I'll answer only from **real** balances and activity — everything else stays at zero until you have data.`,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 interface NexaChatProps {
   compact?: boolean;
 }
 
 export function NexaChat({ compact = false }: NexaChatProps) {
-  const [messages, setMessages] = useState<AIMessage[]>(INITIAL_AI_MESSAGES);
+  const { activeCooperative } = useCooperative();
+  const { walletAddress } = useWallet();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [monthlyInflow, setMonthlyInflow] = useState(0);
+  const [monthlyOutflow, setMonthlyOutflow] = useState(0);
+  const [loanMeta, setLoanMeta] = useState({ count: 0, outstanding: 0 });
+  const [proposalMeta, setProposalMeta] = useState({ count: 0, active: 0 });
+
+  const [messages, setMessages] = useState<AIMessage[]>(() => [
+    welcomeMessage(activeCooperative?.name),
+  ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setMessages([welcomeMessage(activeCooperative?.name)]);
+  }, [activeCooperative?.id, activeCooperative?.name]);
+
+  useEffect(() => {
+    if (!activeCooperative) {
+      setMembers([]);
+      setLoanMeta({ count: 0, outstanding: 0 });
+      setProposalMeta({ count: 0, active: 0 });
+      return;
+    }
+    const m = loadMembersInPayoutOrder(activeCooperative.id);
+    setMembers(m);
+    const loans = loadLoans(activeCooperative.id);
+    setLoanMeta({ count: loans.length, outstanding: outstandingLoansTotal(loans) });
+    const proposals = loadProposals(activeCooperative.id);
+    setProposalMeta({
+      count: proposals.length,
+      active: proposals.filter((p) => p.status === 'active').length,
+    });
+  }, [activeCooperative?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFlows() {
+      if (!walletAddress || !activeCooperative) {
+        setMonthlyInflow(0);
+        setMonthlyOutflow(0);
+        return;
+      }
+      try {
+        const res = await apiListTransactions(walletAddress, {
+          coopId: activeCooperative.id,
+          limit: 100,
+        });
+        if (cancelled) return;
+        const flows = sumMonthlyFlows(res.transactions ?? []);
+        setMonthlyInflow(flows.monthlyInflow);
+        setMonthlyOutflow(flows.monthlyOutflow);
+      } catch {
+        if (!cancelled) {
+          setMonthlyInflow(0);
+          setMonthlyOutflow(0);
+        }
+      }
+    }
+    void loadFlows();
+    return () => { cancelled = true; };
+  }, [walletAddress, activeCooperative?.id]);
+
+  const nexaCtx: NexaContext = useMemo(
+    () => ({
+      cooperative: activeCooperative,
+      members,
+      treasuryBalance: activeCooperative?.treasuryBalance ?? 0,
+      monthlyInflow,
+      monthlyOutflow,
+      loanCount: loanMeta.count,
+      loansOutstanding: loanMeta.outstanding,
+      proposalCount: proposalMeta.count,
+      activeProposalCount: proposalMeta.active,
+    }),
+    [activeCooperative, members, monthlyInflow, monthlyOutflow, loanMeta, proposalMeta],
+  );
+
+  const liveInsights = useMemo(() => buildLiveInsights(nexaCtx), [nexaCtx]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -106,11 +199,9 @@ export function NexaChat({ compact = false }: NexaChatProps) {
     setInput('');
     setTyping(true);
 
-    // Simulate AI thinking time
-    const delay = 800 + Math.random() * 1200;
-    await new Promise((r) => setTimeout(r, delay));
+    await new Promise((r) => setTimeout(r, 400));
 
-    const response = getNexaResponse(text);
+    const response = getNexaResponse(text, nexaCtx);
     const nexaMsg: AIMessage = {
       id: `nexa-${Date.now()}`,
       role: 'nexa',
@@ -121,71 +212,71 @@ export function NexaChat({ compact = false }: NexaChatProps) {
     setTyping(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
-  };
-
   return (
-    <div className="flex flex-col h-full bg-[#EEF2F6] dark:bg-[#030F1F]">
-      {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+    <div className={cn('flex flex-col h-full min-h-0', compact ? '' : '')}>
+      {!compact && liveInsights.length > 0 && (
+        <div className="px-4 pt-3 pb-2 flex gap-2 overflow-x-auto flex-shrink-0">
+          {liveInsights.slice(0, 3).map((insight) => (
+            <div
+              key={insight.id}
+              className="flex-shrink-0 max-w-[220px] rounded-xl border border-stone-100 dark:border-[#1A2A3A] bg-stone-50 dark:bg-[#2E3B4B]/30 px-3 py-2"
+            >
+              <p className="text-[10px] font-semibold text-[#6393C4] uppercase tracking-wide">{insight.category}</p>
+              <p className="text-xs font-semibold text-stone-700 dark:text-white/80 mt-0.5 line-clamp-2">{insight.title}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}
-          {typing && (
-            <motion.div key="typing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <TypingIndicator />
-            </motion.div>
-          )}
         </AnimatePresence>
+        {typing && <TypingIndicator />}
         <div ref={endRef} />
       </div>
 
-      {/* Quick prompts */}
-      {!compact && messages.length <= 1 && (
-        <div className="px-4 pb-2">
-          <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-2">Try asking</p>
-          <div className="grid grid-cols-2 gap-2">
-            {QUICK_PROMPTS.map((p) => (
-              <button
-                key={p}
-                onClick={() => sendMessage(p)}
-                className="text-left text-xs text-stone-600 dark:text-white/60 bg-white dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] rounded-xl px-3 py-2.5 hover:border-[#6393C4]/40 hover:text-stone-900 dark:hover:text-white transition-all"
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+      <div className="flex-shrink-0 border-t border-stone-100 dark:border-[#1A2A3A] px-3 py-3 space-y-2">
+        <div className="flex gap-1.5 flex-wrap">
+          {QUICK_PROMPTS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => void sendMessage(p)}
+              className="text-[10px] font-semibold px-2.5 py-1 rounded-full border border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/45 hover:border-[#6393C4]/40 hover:text-[#6393C4] transition-colors"
+            >
+              {p}
+            </button>
+          ))}
         </div>
-      )}
-
-      {/* Input */}
-      <div className="px-4 pb-4 pt-2 border-t border-stone-100 dark:border-[#1A2A3A]">
-        <div className="flex gap-2 items-end bg-white dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-2xl px-4 py-3 focus-within:border-[#6393C4]/40 transition-colors">
+        <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask Nexa anything about your cooperative…"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void sendMessage(input);
+              }
+            }}
             rows={1}
-            className="flex-1 bg-transparent text-sm text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/30 outline-none resize-none max-h-32"
-            style={{ scrollbarWidth: 'none' }}
+            placeholder="Ask Nexa anything about your cooperative…"
+            className="flex-1 resize-none bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10"
           />
           <button
-            onClick={() => sendMessage(input)}
+            type="button"
+            onClick={() => void sendMessage(input)}
             disabled={!input.trim() || typing}
-            className="p-1.5 rounded-xl bg-[#6393C4] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#5289B8] transition-colors flex-shrink-0"
+            className="p-2.5 rounded-xl bg-[#6393C4] text-white disabled:opacity-40 hover:bg-[#5289B8] transition-colors"
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-[10px] text-stone-300 dark:text-white/20 text-center mt-2">
-          Nexa uses your cooperative data. AI responses are advisory only.
+        <p className="text-[10px] text-stone-400 dark:text-white/30 text-center">
+          Nexa uses your live cooperative data. AI responses are advisory only.
         </p>
       </div>
     </div>

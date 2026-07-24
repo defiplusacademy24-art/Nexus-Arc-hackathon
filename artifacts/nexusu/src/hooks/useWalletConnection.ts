@@ -33,11 +33,17 @@ export interface UseWallet extends WalletState {
   connectViaPopup: () => Promise<void>;
   connectWithWallet: (wallet: DiscoveredWallet) => Promise<void>;
   connectWithProvider: (provider: EIP1193Provider, name?: string) => Promise<void>;
+  /** Circle user-controlled wallet: email OTP → PIN → Arc SCA */
+  connectWithEmail: (email: string) => Promise<void>;
   disconnect: () => Promise<void>;
   reconnect: () => Promise<void>;
   isAutoConnecting: boolean;
   extensionInstalled: boolean;
   walletConnectEnabled: boolean;
+  /** True when VITE_CIRCLE_UC_APP_ID is set (email login available). */
+  circleEmailEnabled: boolean;
+  /** Last email used for Circle OTP login (localStorage). */
+  lastUcEmail: string | null;
   isMobileBrowser: boolean;
   isWalletInAppBrowser: boolean;
   walletAddress: string | null;
@@ -45,6 +51,8 @@ export interface UseWallet extends WalletState {
   session: string | null;
   chainId: number | null;
   isOnArcTestnet: boolean;
+  /** True when the active session is a Circle email/PIN wallet. */
+  isCircleEmailWallet: boolean;
 }
 
 function formatConnectError(err: unknown): string {
@@ -167,11 +175,16 @@ export function useWalletConnection(openModal?: () => Promise<void>): UseWallet 
       connectViaPopup: connect,
       connectWithWallet,
       connectWithProvider,
+      connectWithEmail: async () => {
+        throw new Error('Circle email wallet is provided by WalletContextBridge');
+      },
       disconnect,
       reconnect: connect,
       isAutoConnecting: isReconnecting,
       extensionInstalled: hasInjectedWallet(),
       walletConnectEnabled: hasWalletConnectProjectId(),
+      circleEmailEnabled: false,
+      lastUcEmail: null,
       isMobileBrowser: isMobileBrowser(),
       isWalletInAppBrowser: isWalletInAppBrowser(),
       walletAddress: address ?? null,
@@ -179,6 +192,7 @@ export function useWalletConnection(openModal?: () => Promise<void>): UseWallet 
       session: null,
       chainId: chainId ?? null,
       isOnArcTestnet: chainId === ARC_TESTNET_CHAIN_ID,
+      isCircleEmailWallet: false,
     }),
     [
       isConnected,

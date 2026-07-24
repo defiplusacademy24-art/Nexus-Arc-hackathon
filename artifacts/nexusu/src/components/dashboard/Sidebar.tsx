@@ -1,36 +1,45 @@
-import { useState } from 'react';
+import { useState, type ElementType, lazy, Suspense } from 'react';
 import { useLocation, Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Building2, Users, Vault, PiggyBank,
   Banknote, Sparkles, Scale, BarChart3, Bell, Settings,
-  X, Wallet, LogOut, UserCircle,
+  X, LogOut, UserCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWallet } from '@/providers/WalletProvider';
+import { useNotifications } from '@/hooks/useNotifications';
+import { NexusuLogo } from '@/components/NexusuLogo';
 import { WorkspaceSwitcher } from '@/components/cooperative/WorkspaceSwitcher';
-import { CreateWizard } from '@/components/cooperative/CreateWizard';
-import { JoinModal } from '@/components/cooperative/JoinModal';
+import { UserAvatar } from '@/components/profile/UserAvatar';
+
+// Lazy-load heavy modals (QR / wizard) so a bad import cannot crash the whole dashboard shell.
+const CreateWizard = lazy(() =>
+  import('@/components/cooperative/CreateWizard').then((m) => ({ default: m.CreateWizard })),
+);
+const JoinModal = lazy(() =>
+  import('@/components/cooperative/JoinModal').then((m) => ({ default: m.JoinModal })),
+);
 
 interface NavItem {
   label: string;
   href: string;
-  icon: React.ElementType;
+  icon: ElementType;
   badge?: string | number;
   section?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const BASE_NAV_ITEMS: Omit<NavItem, 'badge'>[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Cooperatives', href: '/dashboard/cooperatives', icon: Building2, section: 'Organisation' },
   { label: 'Members', href: '/dashboard/members', icon: Users },
   { label: 'Treasury', href: '/dashboard/treasury', icon: Vault, section: 'Finance' },
   { label: 'Savings', href: '/dashboard/savings', icon: PiggyBank },
-  { label: 'Loans', href: '/dashboard/loans', icon: Banknote, badge: 2 },
+  { label: 'Loans', href: '/dashboard/loans', icon: Banknote },
   { label: 'Nexa AI', href: '/dashboard/nexa', icon: Sparkles, section: 'Intelligence' },
-  { label: 'Governance', href: '/dashboard/governance', icon: Scale, badge: 2 },
+  { label: 'Governance', href: '/dashboard/governance', icon: Scale },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell, badge: 5, section: 'Account' },
+  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell, section: 'Account' },
   { label: 'Profile', href: '/dashboard/profile', icon: UserCircle },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
@@ -70,6 +79,7 @@ function NavLink({ item, active, onClick }: { item: NavItem; active: boolean; on
 export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
   const [location] = useLocation();
   const { identity, disconnect } = useWallet();
+  const { unreadCount } = useNotifications();
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
 
@@ -81,6 +91,12 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
     window.location.href = '/';
   };
 
+  const navItems: NavItem[] = BASE_NAV_ITEMS.map((item) =>
+    item.href === '/dashboard/notifications' && unreadCount > 0
+      ? { ...item, badge: unreadCount }
+      : { ...item },
+  );
+
   let lastSection = '';
 
   const content = (
@@ -88,9 +104,7 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
       {/* Logo + close */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-stone-100 dark:border-[#1A2A3A]">
         <Link href="/dashboard" className="flex items-center gap-2.5" onClick={mobile ? onClose : undefined}>
-          <div className="w-8 h-8 rounded-lg overflow-hidden bg-white flex-shrink-0 shadow-sm border border-[#1A2A3A]/15 dark:border-white/10">
-            <img src="/logo.png" alt="Nexusu" className="w-full h-full object-contain" />
-          </div>
+          <NexusuLogo size="md" decorative={false} />
           <span className="font-display font-bold text-base text-stone-900 dark:text-white tracking-tight">Nexusu</span>
         </Link>
         {mobile && (
@@ -110,7 +124,7 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 scrollbar-thin">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const showSection = item.section && item.section !== lastSection;
           if (item.section) lastSection = item.section;
           return (
@@ -136,9 +150,11 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
             isActive('/dashboard/profile') ? 'bg-[#6393C4] text-white' : 'text-stone-500 dark:text-white/50',
           )}
         >
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center flex-shrink-0">
-            <Wallet className="w-3.5 h-3.5 text-white" />
-          </div>
+          <UserAvatar
+            displayName={identity?.displayName ?? 'My Wallet'}
+            size="sm"
+            rounded="full"
+          />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold truncate text-stone-800 dark:text-white">{identity?.displayName ?? 'My Wallet'}</p>
             <div className="flex items-center gap-1">
@@ -157,10 +173,18 @@ export function Sidebar({ open, onClose, mobile = false }: SidebarProps) {
         </button>
       </div>
 
-      {/* Cooperative modals (rendered inside sidebar so they overlay the full page) */}
+      {/* Cooperative modals (lazy — only load when opened) */}
       <AnimatePresence>
-        {showCreate && <CreateWizard onClose={() => setShowCreate(false)} />}
-        {showJoin && <JoinModal onClose={() => setShowJoin(false)} />}
+        {showCreate && (
+          <Suspense fallback={null}>
+            <CreateWizard onClose={() => setShowCreate(false)} />
+          </Suspense>
+        )}
+        {showJoin && (
+          <Suspense fallback={null}>
+            <JoinModal onClose={() => setShowJoin(false)} />
+          </Suspense>
+        )}
       </AnimatePresence>
     </div>
   );

@@ -10,7 +10,14 @@ import { cn } from '@/lib/utils';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { useWallet } from '@/providers/WalletProvider';
 import { generateInviteCode, generateCoopId, getInviteLink } from '@/services/cooperative/invitations';
-import type { CoopType, ContributionFrequency, CoopPrivacy, VotingModel, LoanApprovalPolicy } from '@/types';
+import {
+  ROTATION_MODE_DESCRIPTIONS,
+  ROTATION_MODE_LABELS,
+  isRotationModeImplemented,
+} from '@/services/cooperative/rotation';
+import type {
+  CoopType, ContributionFrequency, CoopPrivacy, VotingModel, LoanApprovalPolicy, RotationMode,
+} from '@/types';
 
 // ── Form state ────────────────────────────────────────────────────────────────
 
@@ -18,6 +25,7 @@ interface WizardForm {
   name: string; description: string; country: string; currency: string; type: CoopType;
   contributionFrequency: ContributionFrequency; contributionAmount: string;
   maxMembers: string; privacy: CoopPrivacy;
+  rotationMode: RotationMode;
   votingModel: VotingModel; approvalThreshold: number;
   loanApprovalPolicy: LoanApprovalPolicy; aiGovernanceEnabled: boolean;
 }
@@ -25,9 +33,17 @@ interface WizardForm {
 const DEFAULTS: WizardForm = {
   name: '', description: '', country: '', currency: 'USD', type: 'Stokvel',
   contributionFrequency: 'monthly', contributionAmount: '', maxMembers: '',
-  privacy: 'invite-only', votingModel: 'simple-majority', approvalThreshold: 60,
+  privacy: 'invite-only', rotationMode: 'JOIN_ORDER',
+  votingModel: 'simple-majority', approvalThreshold: 60,
   loanApprovalPolicy: 'hybrid', aiGovernanceEnabled: true,
 };
+
+const ROTATION_OPTIONS: RotationMode[] = [
+  'JOIN_ORDER',
+  'RANDOM',
+  'ORGANIZER_ASSIGNED',
+  'GOVERNANCE_VOTE',
+];
 
 // ── Options ───────────────────────────────────────────────────────────────────
 
@@ -174,7 +190,7 @@ function Step1({ form, set }: { form: WizardForm; set: (k: keyof WizardForm, v: 
   return (
     <div className="space-y-4">
       <Field label="Cooperative Name" required>
-        <Input value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Sunshine Savings Cooperative" />
+        <Input value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Community Savers Cooperative" />
       </Field>
       <Field label="Description" required>
         <textarea
@@ -232,6 +248,59 @@ function Step2({ form, set }: { form: WizardForm; set: (k: keyof WizardForm, v: 
       </Field>
       <Field label="Maximum Members" hint="Leave blank for unlimited">
         <Input value={form.maxMembers} onChange={(v) => set('maxMembers', v)} type="number" placeholder="e.g. 30" />
+      </Field>
+      <Field
+        label="Payout Strategy"
+        required
+        hint="Only Join Order is available for MVP. Other strategies are prepared for a later release."
+      >
+        <div className="space-y-2">
+          {ROTATION_OPTIONS.map((mode) => {
+            const implemented = isRotationModeImplemented(mode);
+            const active = form.rotationMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                disabled={!implemented}
+                onClick={() => implemented && set('rotationMode', mode)}
+                className={cn(
+                  'w-full text-left px-4 py-3 rounded-xl border transition-all',
+                  active
+                    ? 'border-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/8'
+                    : implemented
+                      ? 'border-stone-200 dark:border-white/10 hover:border-stone-300 dark:hover:border-white/20 bg-stone-50 dark:bg-[#2E3B4B]/30'
+                      : 'border-stone-100 dark:border-white/5 bg-stone-50/60 dark:bg-[#2E3B4B]/15 opacity-70 cursor-not-allowed',
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    'w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
+                    active ? 'border-[#6393C4]' : 'border-stone-300 dark:border-white/25',
+                  )}>
+                    {active && <div className="w-2 h-2 rounded-full bg-[#6393C4]" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className={cn('text-sm font-semibold', active ? 'text-[#6393C4]' : 'text-stone-700 dark:text-white/80')}>
+                        {ROTATION_MODE_LABELS[mode]}
+                        {mode === 'JOIN_ORDER' ? ' (Recommended)' : ''}
+                      </p>
+                      {!implemented && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-stone-200/80 dark:bg-white/10 text-stone-500 dark:text-white/40">
+                          Coming Soon
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-stone-400 dark:text-white/35 mt-0.5">
+                      {ROTATION_MODE_DESCRIPTIONS[mode]}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </Field>
       <Field label="Privacy" required>
         <div className="space-y-2">
@@ -354,7 +423,7 @@ function Step4({ form, preview, identity }: { form: WizardForm; preview: { invit
       <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4">
         <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-2">Founder Wallet Identity</p>
         <p className="font-mono text-xs text-stone-600 dark:text-white/60 break-all leading-relaxed">
-          {identity || 'No wallet connected — connect your Unicity wallet to associate identity'}
+          {identity || 'Not signed in — sign in with email to associate identity'}
         </p>
         {identity && (
           <div className="flex items-center gap-1.5 mt-2">
@@ -426,6 +495,8 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
         contributionAmount: Number(form.contributionAmount),
         maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
         privacy: form.privacy,
+        rotationMode: form.rotationMode,
+        status: 'open',
         votingModel: form.votingModel,
         approvalThreshold: form.approvalThreshold,
         loanApprovalPolicy: form.loanApprovalPolicy,

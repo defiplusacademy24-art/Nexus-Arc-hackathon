@@ -45,7 +45,7 @@ export function useSession(): SessionInfo {
       network: ARC_NETWORK_LABEL,
       chainId,
       isOnArcTestnet,
-      authMethod: extensionInstalled ? 'Browser Wallet' : 'WalletConnect',
+      authMethod: 'Circle Email',
       deviceLabel: typeof navigator !== 'undefined' ? navigator.platform || 'This device' : 'This device',
       connectedAtLabel: formatConnectedAt(stored?.connectedAt),
       isSecure,

@@ -17,6 +17,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useWallet } from '@/providers/WalletProvider';
+import { NexusuLogo } from '@/components/NexusuLogo';
 import { truncateAddress } from '@/services/wallet';
 import { useToast } from '@/hooks/use-toast';
 
@@ -95,9 +96,7 @@ export default function Onboarding() {
       <header className="border-b border-[#1A2A3A]/15 dark:border-[#1A2A3A] bg-white/80 dark:bg-[#030F1F]/80 backdrop-blur-md">
         <div className="container mx-auto px-6 max-w-5xl h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2.5" aria-label="Nexusu home">
-            <div className="w-8 h-8 rounded-lg overflow-hidden bg-white flex-shrink-0 shadow-sm border border-[#1A2A3A]/15 dark:border-white/10">
-              <img src="/logo.png" alt="" className="w-full h-full object-contain" aria-hidden="true" />
-            </div>
+            <NexusuLogo size="md" />
             <span className="font-display font-bold text-lg tracking-tight text-[#030F1F] dark:text-white">Nexusu</span>
           </a>
 

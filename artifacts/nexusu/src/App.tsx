@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { WalletProvider } from '@/providers/WalletProvider';
 import { CooperativeProvider } from '@/providers/CooperativeProvider';
+import { OnChainWatcher } from '@/components/OnChainWatcher';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 
 // Pages
@@ -69,6 +70,7 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <WalletProvider>
                 <CooperativeProvider>
+                  <OnChainWatcher />
                   <Router />
                 </CooperativeProvider>
               </WalletProvider>

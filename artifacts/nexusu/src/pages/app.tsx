@@ -1,7 +1,6 @@
 /**
- * /app — Entry point after clicking "Launch App".
- * Shows the Connect Wallet screen when unauthenticated,
- * auto-redirects to /dashboard when the wallet is connected.
+ * /app — Entry after "Launch App".
+ * Circle email login modal; shell follows app light/dark theme.
  */
 
 import { useEffect } from 'react';
@@ -16,34 +15,42 @@ export default function AppPage() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    if (wallet.isConnected) {
+    if (!wallet.isConnected) return;
+    // Give Circle's OTP/PIN UI a tick to unmount cleanly before routing.
+    const t = window.setTimeout(() => {
       navigate('/dashboard', { replace: true });
-    }
+    }, 50);
+    return () => window.clearTimeout(t);
   }, [wallet.isConnected, navigate]);
 
-  if (wallet.isAutoConnecting) {
+  if (wallet.isAutoConnecting || wallet.isConnected) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#030F1F] flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#030F1F]">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="flex flex-col items-center gap-4"
         >
-          <div className="w-14 h-14 rounded-2xl bg-white dark:bg-white/10 shadow-md border border-[#1A2A3A]/15 dark:border-white/10 flex items-center justify-center overflow-hidden">
-            <img src="/logo.png" alt="Nexusu" className="w-10 h-10 object-contain" />
-          </div>
-          <div className="flex items-center gap-2 text-stone-400 dark:text-white/40 text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-            <span>Checking wallet connection…</span>
-          </div>
+          <Loader2
+            className="h-5 w-5 animate-spin text-stone-400 dark:text-white/40"
+            aria-hidden="true"
+          />
+          <span className="text-sm text-stone-400 dark:text-white/40">
+            {wallet.isConnected ? 'Opening your dashboard…' : 'Checking session…'}
+          </span>
         </motion.div>
       </div>
     );
   }
 
-  if (wallet.isConnected) {
-    return null;
-  }
-
-  return <ConnectWalletButton />;
+  return (
+    <>
+      {/* Theme-aware shell behind the modal */}
+      <div
+        className="min-h-screen bg-stone-100 dark:bg-[#030F1F]"
+        aria-hidden="true"
+      />
+      <ConnectWalletButton />
+    </>
+  );
 }

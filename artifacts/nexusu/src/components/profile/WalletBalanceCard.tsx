@@ -17,7 +17,6 @@ import {
   Clock,
   Wallet,
   AlertCircle,
-  CheckCircle2,
 } from 'lucide-react';
 import type { UseWalletAssetsState } from '@/hooks/useWalletAssets';
 import type { WalletAsset } from '@/services/wallet/assets';
@@ -76,9 +75,28 @@ function AssetRow({ asset, index }: { asset: WalletAsset; index: number }) {
       className="flex items-center gap-3 p-3.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/5"
     >
       {/* Icon */}
-      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6393C4]/18 to-[#77A6DB]/12 dark:from-[#6393C4]/20 dark:to-[#77A6DB]/14 flex items-center justify-center flex-shrink-0 shadow-sm">
+      <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/10 flex items-center justify-center flex-shrink-0 shadow-sm overflow-hidden border border-stone-100 dark:border-white/10">
         {asset.iconUrl ? (
-          <img src={asset.iconUrl} alt={asset.symbol} className="w-6 h-6 rounded-full" />
+          <img
+            src={asset.iconUrl}
+            alt={`${asset.symbol} logo`}
+            className="w-7 h-7 rounded-full object-contain"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              // Fall back to ticker if CDN image fails
+              const el = e.currentTarget;
+              el.style.display = 'none';
+              const parent = el.parentElement;
+              if (parent && !parent.querySelector('[data-fallback]')) {
+                const span = document.createElement('span');
+                span.dataset.fallback = '1';
+                span.className = 'text-[11px] font-bold text-[#6393C4]';
+                span.textContent = ticker;
+                parent.appendChild(span);
+              }
+            }}
+          />
         ) : (
           <span className="text-[11px] font-bold text-[#6393C4]">{ticker}</span>
         )}
@@ -92,6 +110,9 @@ function AssetRow({ asset, index }: { asset: WalletAsset; index: number }) {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] text-stone-400 dark:text-white/35 font-mono uppercase">{asset.symbol}</span>
+          {asset.subtitle && (
+            <span className="text-[10px] text-stone-400 dark:text-white/30">{asset.subtitle}</span>
+          )}
           {hasPending && (
             <span className="inline-flex items-center gap-0.5 text-[10px] text-[#6393C4] dark:text-[#77A6DB]">
               <Clock className="w-2.5 h-2.5" />
@@ -123,16 +144,6 @@ function AssetRow({ asset, index }: { asset: WalletAsset; index: number }) {
         ) : null}
       </div>
     </motion.div>
-  );
-}
-
-// ── Confirmed badge ───────────────────────────────────────────────────────────
-function ConfirmedBadge({ count }: { count: number }) {
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-      <CheckCircle2 className="w-3 h-3" />
-      {count} token{count !== 1 ? 's' : ''} confirmed
-    </span>
   );
 }
 
@@ -176,7 +187,6 @@ export function WalletBalanceCard({ assets, delay = 0 }: WalletBalanceCardProps)
 
   const hasAssets = !isLoading && data?.supported && data.assets.length > 0;
   const isEmpty = !isLoading && (!data?.supported || data.assets.length === 0);
-  const totalConfirmedTokens = data?.assets.reduce((s, a) => s + a.tokenCount, 0) ?? 0;
 
   return (
     <motion.div
@@ -192,7 +202,6 @@ export function WalletBalanceCard({ assets, delay = 0 }: WalletBalanceCardProps)
           <span className="text-sm font-semibold text-stone-800 dark:text-white">Wallet Assets</span>
         </div>
         <div className="flex items-center gap-3">
-          {hasAssets && <ConfirmedBadge count={totalConfirmedTokens} />}
           {data?.lastUpdated && !isLoading && (
             <span className="text-[10px] text-stone-400 dark:text-white/25 tabular-nums">
               {data.lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}

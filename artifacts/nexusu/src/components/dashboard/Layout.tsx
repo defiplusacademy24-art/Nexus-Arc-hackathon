@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
-  LayoutDashboard, Building2, Users, Vault,
-  PiggyBank, Banknote, Sparkles, Scale, BarChart3, Bell,
+  LayoutDashboard, Users, Vault,
+  Banknote, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './Sidebar';
 import { TopNav } from './TopNav';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const MOBILE_NAV = [
   { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
@@ -17,7 +18,7 @@ const MOBILE_NAV = [
 ];
 
 interface DashboardLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -41,7 +42,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Scrollable content */}
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-8">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
 
         {/* Mobile bottom nav */}

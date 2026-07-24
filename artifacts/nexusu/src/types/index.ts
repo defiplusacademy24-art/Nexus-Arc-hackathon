@@ -1,11 +1,25 @@
 // ── Cooperative ────────────────────────────────────────────────────────────────
 
 export type CoopType = 'Esusu' | 'Ajo' | 'Chama' | 'Stokvel' | 'Susu' | 'ROSCA' | 'SACCO' | 'General' | 'Other';
-export type CoopStatus = 'active' | 'inactive' | 'pending';
+/** Lifecycle: draft → open → active → completed. Legacy 'inactive'/'pending' still accepted. */
+export type CoopStatus = 'draft' | 'open' | 'active' | 'completed' | 'inactive' | 'pending';
 export type ContributionFrequency = 'weekly' | 'bi-weekly' | 'monthly';
 export type CoopPrivacy = 'public' | 'private' | 'invite-only';
 export type VotingModel = 'simple-majority' | 'supermajority' | 'unanimous';
 export type LoanApprovalPolicy = 'admin-only' | 'member-vote' | 'ai-recommended' | 'hybrid';
+
+/**
+ * Payout rotation strategy.
+ * Only JOIN_ORDER is implemented for MVP.
+ * RANDOM, ORGANIZER_ASSIGNED, GOVERNANCE_VOTE are reserved for later.
+ */
+export type RotationMode =
+  | 'JOIN_ORDER'
+  | 'RANDOM'
+  | 'ORGANIZER_ASSIGNED'
+  | 'GOVERNANCE_VOTE';
+
+export const DEFAULT_ROTATION_MODE: RotationMode = 'JOIN_ORDER';
 
 export interface Cooperative {
   id: string;
@@ -30,9 +44,17 @@ export interface Cooperative {
   loanApprovalPolicy?: LoanApprovalPolicy;
   aiGovernanceEnabled?: boolean;
   maxMembers?: number;
+  /** Payout strategy — default JOIN_ORDER */
+  rotationMode?: RotationMode;
+  /** Current cycle recipient join position (1-based). Set on activation. */
+  currentRecipientPosition?: number;
+  /** Contribution cycle counter (1-based). Advances with payouts. */
+  currentCycle?: number;
   // Identity
   inviteCode?: string;
   cooperativeId?: string;
+  /** Server-side cooperative id (may differ from local `id` when dual-stored). */
+  backendId?: string;
   founderWalletIdentity?: string;
 }
 
@@ -40,6 +62,13 @@ export interface Cooperative {
 
 export type MemberRole = 'founder' | 'admin' | 'treasurer' | 'secretary' | 'auditor' | 'member';
 export type MemberStatus = 'active' | 'inactive' | 'suspended';
+/** Per-cycle contribution state for ROSCA-style groups */
+export type ContributionStatus =
+  | 'waiting'
+  | 'pending'
+  | 'paid'
+  | 'overdue'
+  | 'exempt';
 
 export interface Member {
   id: string;
@@ -57,6 +86,14 @@ export interface Member {
   totalContributed: number;
   missedContributions: number;
   activeLoans: number;
+  /** Permanent payout order position (1-based). Never reordered after assignment. */
+  joinPosition?: number;
+  /** Current contribution cycle status */
+  contributionStatus?: ContributionStatus;
+  /** Whether this member has already received their pooled payout */
+  hasReceivedPayout?: boolean;
+  /** Placeholder credit score (0–100) for future AI lending agents */
+  creditScore?: number;
 }
 
 export interface MemberActivity {
@@ -108,7 +145,47 @@ export interface SavingsPool {
 
 // ── Loans ──────────────────────────────────────────────────────────────────────
 
-export type LoanStatus = 'pending' | 'approved' | 'rejected' | 'active' | 'completed' | 'defaulted';
+export type LoanStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'active'
+  | 'completed'
+  | 'defaulted';
+
+/** AI Lending Agent underwriting decision */
+export type AiLoanDecision = 'APPROVED' | 'REQUIRES_GOVERNANCE_REVIEW' | 'DECLINED';
+
+export type LoanPurposeCategory =
+  | 'Business'
+  | 'Education'
+  | 'Emergency'
+  | 'Medical'
+  | 'Agriculture'
+  | 'Personal'
+  | 'Other';
+
+export type ContributionHistoryGrade = 'Excellent' | 'Good' | 'Average' | 'Poor';
+export type TreasuryHealthLabel = 'Healthy' | 'Moderate' | 'Low';
+export type LiquidityLabel = 'Enough liquidity' | 'Limited liquidity';
+export type RiskLevelLabel = 'Low' | 'Medium' | 'High';
+
+export interface AiLoanAssessment {
+  contributionHistory: ContributionHistoryGrade;
+  memberReputation: number; // 0–100
+  treasuryHealth: TreasuryHealthLabel;
+  loanPoolLiquidity: LiquidityLabel;
+  outstandingLoansLabel: string;
+  outstandingBalance: number;
+  requestedAmount: number;
+  riskLevel: RiskLevelLabel;
+  riskScore: number; // 0–100 higher = riskier
+  decision: AiLoanDecision;
+  explanation: string;
+  repaymentForecast: number;
+  maxAllowedAmount: number;
+  loanPoolAvailable: number;
+}
 
 export interface Loan {
   id: string;
@@ -116,19 +193,36 @@ export interface Loan {
   borrowerName: string;
   borrowerAvatar: string;
   borrowerInitials: string;
+  borrowerWallet?: string;
   requestedAmount: number;
   approvedAmount?: number;
   purpose: string;
+  purposeCategory?: LoanPurposeCategory;
+  reason?: string;
   riskScore: number;
+  riskLevel?: RiskLevelLabel;
   repaymentMonths: number;
   monthlyPayment: number;
   status: LoanStatus;
+  /** pending = governance review; approved = AI approved; rejected = declined */
+  aiDecision?: AiLoanDecision;
   aiRecommendation: string;
+  aiAssessment?: AiLoanAssessment;
   repaymentForecast: number; // % likely to repay
   requestedAt: string;
   disbursedAt?: string;
   dueDate?: string;
   paidAmount?: number;
+  approvedByAi?: boolean;
+  disbursementReady?: boolean;
+  /**
+   * True only when principal was deducted from cooperative cash on disbursement.
+   * Repayments restore cash only if this is true — prevents double-counting when
+   * older loans never reduced treasury.
+   */
+  cashDisbursedFromTreasury?: boolean;
+  /** How much principal has already been restored to cash via repayments. */
+  cashReturnedToTreasury?: number;
 }
 
 // ── Governance ─────────────────────────────────────────────────────────────────
@@ -159,6 +253,8 @@ export interface Proposal {
 
 export type NotifType =
   | 'contribution'
+  | 'deposit'
+  | 'withdrawal'
   | 'loan'
   | 'proposal'
   | 'vote'
@@ -176,6 +272,8 @@ export interface AppNotification {
   read: boolean;
   actionLabel?: string;
   actionHref?: string;
+  coopId?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 // ── AI ─────────────────────────────────────────────────────────────────────────

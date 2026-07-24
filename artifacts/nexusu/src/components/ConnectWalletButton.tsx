@@ -1,207 +1,291 @@
 /**
- * ConnectWalletButton — Arc Testnet wallet onboarding screen.
- * Supports wallet picker, WalletConnect (mobile), and browser extensions.
+ * Polaris-style Circle login modal — email only.
+ * Uses Nexusu brand palette and follows the app light/dark theme.
  */
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useLocation } from 'wouter';
 import {
-  ShieldCheck,
-  ExternalLink,
+  Mail,
+  X,
+  ArrowLeft,
+  ChevronRight,
   AlertCircle,
   Loader2,
-  CheckCircle2,
-  Wallet,
-  Smartphone,
 } from 'lucide-react';
-import { WalletPickerModal } from '@/components/WalletPickerModal';
 import { useWallet } from '@/providers/WalletProvider';
-import { WALLET_INSTALL_URL, ARC_FAUCET_URL, ARC_NETWORK_LABEL } from '@/services/wallet/constants';
+import { NexusuLogo } from '@/components/NexusuLogo';
 
-function Spinner() {
-  return <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />;
+function cn(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(' ');
 }
-
-const trustPoints = [
-  { icon: ShieldCheck, text: 'Non-custodial — you control your keys' },
-  { icon: CheckCircle2, text: `Built on ${ARC_NETWORK_LABEL} with USDC gas` },
-  { icon: Wallet, text: 'One wallet for all Nexusu features' },
-];
 
 export function ConnectWalletButton() {
   const wallet = useWallet();
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [, navigate] = useLocation();
+  const [view, setView] = useState<'options' | 'email'>('options');
+  const [email, setEmail] = useState(wallet.lastUcEmail ?? '');
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  const handleChooseWallet = async () => {
-    if (wallet.isConnecting) return;
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
-    if (wallet.walletConnectEnabled) {
-      await wallet.connect();
+  const error = localError ?? wallet.error;
+  const isBusy = busy || wallet.isConnecting;
+
+  const close = () => navigate('/');
+
+  const goEmail = async () => {
+    const trimmed = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
+      setLocalError('Enter a valid email address');
       return;
     }
-
-    if (wallet.isWalletInAppBrowser) {
-      await wallet.connectViaExtension();
+    if (!wallet.circleEmailEnabled) {
+      setLocalError(
+        'Circle email login is not configured. Set VITE_CIRCLE_UC_APP_ID and CIRCLE_UC_API_KEY.',
+      );
       return;
     }
-
-    setPickerOpen(true);
+    setLocalError(null);
+    setBusy(true);
+    try {
+      await wallet.connectWithEmail(trimmed);
+      // Soft hand-off: leave OTP/PIN UI, then route. Parent /app also redirects.
+      navigate('/dashboard', { replace: true });
+    } catch {
+      // error on wallet state
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleOpenWalletConnect = async () => {
-    setPickerOpen(false);
-    await wallet.connect();
-  };
+  const headings = {
+    options: {
+      title: 'Log in to Nexusu',
+      sub: 'Connect a wallet to manage cooperatives and settle in USDC.',
+    },
+    email: {
+      title: 'Continue with email',
+      sub: "We'll send a one-time code to verify it's you.",
+    },
+  } as const;
 
-  const handleSelectWallet = async (selected: Parameters<typeof wallet.connectWithWallet>[0]) => {
-    await wallet.connectWithWallet(selected);
-    setPickerOpen(false);
-  };
-
-  return (
-    <>
-      <div className="min-h-screen bg-white dark:bg-[#030F1F] flex items-center justify-center p-6">
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#6393C4]/8 dark:bg-[#6393C4]/12 blur-[160px] rounded-full pointer-events-none"
-          aria-hidden="true"
-        />
-
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="relative z-10 w-full max-w-md"
-        >
-          <div className="flex justify-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-white dark:bg-white/10 shadow-md border border-[#1A2A3A]/15 dark:border-white/10 flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="Nexusu" className="w-12 h-12 object-contain" />
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-3xl p-8 shadow-xl dark:shadow-none backdrop-blur-sm">
-            <h1 className="text-2xl font-display font-bold text-[#030F1F] dark:text-white text-center mb-2">
-              Connect your Wallet on Arc
-            </h1>
-            <p className="text-stone-500 dark:text-white/55 text-sm text-center leading-relaxed mb-8">
-              Choose any EVM wallet — MetaMask, Rainbow, Trust, Coinbase, and more.
-              Works from mobile Chrome or Safari via WalletConnect.
-            </p>
-
-            <ul className="space-y-3 mb-8" aria-label="Security features">
-              {trustPoints.map(({ icon: Icon, text }, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-[#6393C4]/8 border border-[#6393C4]/15 flex items-center justify-center flex-shrink-0" aria-hidden="true">
-                    <Icon className="w-4 h-4 text-[#6393C4]" />
-                  </div>
-                  <span className="text-sm text-stone-600 dark:text-white/70">{text}</span>
-                </li>
-              ))}
-            </ul>
-
-            {wallet.isMobileBrowser && !wallet.isWalletInAppBrowser && (
-              <div className="mb-4 flex items-start gap-2.5 p-3 rounded-2xl bg-[#6393C4]/8 border border-[#6393C4]/15">
-                <Smartphone className="w-4 h-4 text-[#6393C4] flex-shrink-0 mt-0.5" aria-hidden="true" />
-                <p className="text-xs text-stone-600 dark:text-white/65 leading-relaxed">
-                  On mobile, pick your wallet and approve in the app — you stay in your browser.
-                </p>
-              </div>
-            )}
-
-            <button
-              onClick={() => void handleChooseWallet()}
-              disabled={wallet.isConnecting}
-              aria-busy={wallet.isConnecting}
-              className="w-full bg-[#6393C4] hover:bg-[#5289B8] disabled:opacity-70 disabled:cursor-not-allowed text-white py-4 rounded-2xl text-base font-semibold transition-colors shadow-[0_4px_24px_rgba(99,147,196,0.30)] flex items-center justify-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6393C4] focus-visible:ring-offset-2"
-            >
-              {wallet.isConnecting ? (
-                <>
-                  <Spinner />
-                  <span>Connecting to Arc…</span>
-                </>
-              ) : (
-                <>
-                  <Wallet className="w-5 h-5" aria-hidden="true" />
-                  <span>Choose Wallet</span>
-                </>
-              )}
-            </button>
-
-            <div className="border-t border-stone-100 dark:border-[#1A2A3A] pt-3 mt-3 space-y-2">
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                disabled={wallet.isConnecting}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-stone-200 dark:border-white/15 text-sm font-medium text-stone-600 dark:text-white/70 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 hover:border-stone-300 dark:hover:border-white/25 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6393C4] disabled:opacity-60"
-              >
-                Browse all wallet options
-              </button>
-
-              {!wallet.extensionInstalled && !wallet.isMobileBrowser && (
-                <a
-                  href={WALLET_INSTALL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-stone-200 dark:border-white/15 text-sm font-medium text-stone-600 dark:text-white/70 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 hover:border-stone-300 dark:hover:border-white/25 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6393C4]"
-                >
-                  <ExternalLink className="w-4 h-4" aria-hidden="true" />
-                  Install MetaMask
-                </a>
-              )}
-
-              <a
-                href={ARC_FAUCET_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-xs font-medium text-[#6393C4] hover:text-[#5289B8] transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-                Get testnet USDC from Circle Faucet
-              </a>
-            </div>
-
-            <AnimatePresence>
-              {wallet.error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                  exit={{ opacity: 0, y: -8, height: 0 }}
-                  className="mt-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-4 flex items-start gap-3"
-                  role="alert"
-                >
-                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
-                  <p className="text-sm text-red-600 dark:text-red-400 leading-relaxed">{wallet.error}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {wallet.isConnecting && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="mt-4 text-xs text-stone-400 dark:text-white/40 text-center"
-                >
-                  Approve the connection in your wallet app, then return to this tab
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <p className="text-center text-xs text-stone-400 dark:text-white/30 mt-6">
-            Powered by Circle&apos;s Arc network · Chain ID 5042002
-          </p>
-        </motion.div>
+  const modal = (
+    <div
+      className={cn(
+        'fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-md transition-opacity duration-200',
+        'bg-stone-900/40 dark:bg-black/70',
+        mounted ? 'opacity-100' : 'opacity-0',
+      )}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="nexusu-login-title"
+    >
+      {/* Soft brand glow */}
+      <div
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        aria-hidden="true"
+      >
+        <div className="absolute left-1/2 top-[38%] h-44 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6393C4]/20 blur-[90px] dark:bg-[#6393C4]/25" />
       </div>
 
-      <WalletPickerModal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelectWallet={handleSelectWallet}
-        onOpenWalletConnect={wallet.walletConnectEnabled ? handleOpenWalletConnect : undefined}
-        isConnecting={wallet.isConnecting}
-        error={wallet.error}
+      <div
+        className={cn(
+          'relative w-full max-w-[400px] overflow-hidden rounded-2xl border transition-all duration-200',
+          'border-stone-200 bg-white shadow-[0_24px_80px_rgba(3,15,31,0.14)]',
+          'dark:border-[#1A2A3A] dark:bg-[#081827] dark:shadow-[0_24px_80px_rgba(0,0,0,0.55)]',
+          mounted ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-2 scale-[0.98] opacity-0',
+        )}
+      >
+        <button
+          type="button"
+          onClick={close}
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 dark:text-white/40 dark:hover:bg-white/5 dark:hover:text-white"
+          aria-label="Close"
+        >
+          <X size={17} />
+        </button>
+
+        {/* Brand header */}
+        <div className="flex flex-col items-center px-7 pb-2 pt-9 text-center">
+          <NexusuMark />
+          <h3
+            id="nexusu-login-title"
+            className="mt-4 font-display text-xl font-semibold tracking-tight text-[#030F1F] dark:text-white"
+          >
+            {headings[view].title}
+          </h3>
+          <p className="mt-1.5 max-w-[280px] text-sm leading-relaxed text-stone-500 dark:text-white/50">
+            {headings[view].sub}
+          </p>
+        </div>
+
+        <div className="px-7 pb-7 pt-5">
+          {!wallet.circleEmailEnabled ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/5 dark:text-amber-100/80">
+              Email login needs{' '}
+              <span className="font-mono">VITE_CIRCLE_UC_APP_ID</span> and the API key{' '}
+              <span className="font-mono">CIRCLE_UC_API_KEY</span>, then restart.
+            </div>
+          ) : view === 'options' ? (
+            <div className="flex flex-col gap-2.5">
+              <MethodButton
+                icon={<Mail size={18} strokeWidth={1.75} />}
+                title="Email"
+                desc="One-time code to your inbox. Gasless, no seed phrase."
+                disabled={isBusy}
+                onClick={() => {
+                  setLocalError(null);
+                  setView('email');
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <input
+                autoFocus
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                disabled={isBusy}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setLocalError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void goEmail();
+                }}
+                className={cn(
+                  'w-full rounded-xl border px-4 py-3.5 text-sm outline-none transition-colors',
+                  'border-stone-200 bg-stone-50 text-[#030F1F] placeholder:text-stone-400',
+                  'focus:border-[#6393C4] focus:ring-2 focus:ring-[#6393C4]/25',
+                  'dark:border-[#1A2A3A] dark:bg-[#030F1F]/80 dark:text-white dark:placeholder:text-white/30',
+                  'dark:focus:border-[#6393C4]/60 dark:focus:ring-[#6393C4]/30',
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => void goEmail()}
+                disabled={isBusy || !email.trim()}
+                className={cn(
+                  'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold text-white transition-colors',
+                  'bg-[#6393C4] hover:bg-[#5289B8]',
+                  'shadow-[0_4px_20px_rgba(99,147,196,0.28)]',
+                  'disabled:cursor-not-allowed disabled:opacity-60',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6393C4] focus-visible:ring-offset-2',
+                  'dark:focus-visible:ring-offset-[#081827]',
+                )}
+              >
+                {isBusy ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Check your email &amp; follow the steps…
+                  </>
+                ) : (
+                  'Continue'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLocalError(null);
+                  setView('options');
+                }}
+                disabled={isBusy}
+                className="inline-flex items-center justify-center gap-1.5 font-mono text-xs text-stone-400 hover:text-stone-600 dark:text-white/40 dark:hover:text-white/70"
+              >
+                <ArrowLeft size={13} /> All options
+              </button>
+            </div>
+          )}
+
+          {error && (
+            <div
+              className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-500/25 dark:bg-red-500/10"
+              role="alert"
+            >
+              <AlertCircle
+                className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500 dark:text-red-400"
+                aria-hidden="true"
+              />
+              <p className="text-xs leading-relaxed text-red-600 dark:text-red-300">{error}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer trust line */}
+        <div className="border-t border-stone-100 bg-stone-50/80 px-7 py-3.5 text-center dark:border-[#1A2A3A] dark:bg-[#030F1F]/40">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-stone-400 dark:text-white/35">
+            Gasless on Arc · secured by Circle
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modal, document.body);
+}
+
+function NexusuMark() {
+  return <NexusuLogo size="lg" />;
+}
+
+function MethodButton({
+  icon,
+  title,
+  desc,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'group flex w-full items-center gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-colors',
+        'border-stone-200 bg-stone-50 hover:border-stone-300 hover:bg-stone-100',
+        'dark:border-[#1A2A3A] dark:bg-[#030F1F]/70 dark:hover:border-[#2E3B4B] dark:hover:bg-[#0c1a2b]',
+        'disabled:cursor-not-allowed disabled:opacity-60',
+      )}
+    >
+      <span
+        className={cn(
+          'grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg border',
+          'border-stone-200 bg-white text-[#6393C4]',
+          'dark:border-[#1A2A3A] dark:bg-[#081827] dark:text-[#77A6DB]',
+        )}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-[#030F1F] dark:text-white">
+          {title}
+        </span>
+        <span className="mt-0.5 block truncate text-xs leading-snug text-stone-500 dark:text-white/40">
+          {desc}
+        </span>
+      </span>
+      <ChevronRight
+        size={16}
+        className="flex-shrink-0 text-stone-300 transition-colors group-hover:text-stone-500 dark:text-white/25 dark:group-hover:text-white/50"
+        aria-hidden="true"
       />
-    </>
+    </button>
   );
 }

@@ -1,12 +1,12 @@
 /**
- * useWalletAssets — reads USDC balances on Arc Testnet via viem/wagmi.
+ * useWalletAssets — reads USDC balances on Arc Testnet via viem public client.
+ * Does not depend on wagmi (Circle email wallets are not injected connectors).
  */
 
-import { useMemo } from 'react';
-import { erc20Abi } from 'viem';
-import { useBalance, useReadContract } from 'wagmi';
+import { useCallback, useEffect, useState } from 'react';
+import { createPublicClient, erc20Abi, http } from 'viem';
 import { useWallet } from '@/providers/WalletProvider';
-import { ARC_USDC_ERC20_ADDRESS } from '@/config/arc';
+import { ARC_RPC_URL, ARC_USDC_ERC20_ADDRESS, arcTestnet } from '@/config/arc';
 import {
   buildErc20UsdcAsset,
   buildNativeUsdcAsset,
@@ -22,56 +22,67 @@ export interface UseWalletAssetsState {
   refresh: () => void;
 }
 
+const publicClient = createPublicClient({
+  chain: arcTestnet,
+  transport: http(ARC_RPC_URL),
+});
+
 export function useWalletAssets(): UseWalletAssetsState {
   const { isConnected, walletAddress } = useWallet();
+  const [data, setData] = useState<WalletAssetsResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
-  const {
-    data: nativeBalance,
-    isLoading: nativeLoading,
-    error: nativeError,
-    refetch: refetchNative,
-  } = useBalance({
-    address: walletAddress as `0x${string}` | undefined,
-    query: { enabled: isConnected && Boolean(walletAddress) },
-  });
+  const refresh = useCallback(() => setTick((t) => t + 1), []);
 
-  const {
-    data: erc20Balance,
-    isLoading: erc20Loading,
-    error: erc20Error,
-    refetch: refetchErc20,
-  } = useReadContract({
-    address: ARC_USDC_ERC20_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: walletAddress ? [walletAddress as `0x${string}`] : undefined,
-    query: { enabled: isConnected && Boolean(walletAddress) },
-  });
+  useEffect(() => {
+    if (!isConnected || !walletAddress) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
 
-  const data = useMemo<WalletAssetsResult | null>(() => {
-    if (!isConnected) return null;
+    let cancelled = false;
+    const address = walletAddress as `0x${string}`;
 
-    const nativeAsset =
-      nativeBalance?.value !== undefined
-        ? buildNativeUsdcAsset(nativeBalance.value)
-        : null;
+    (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [native, erc20] = await Promise.all([
+          publicClient.getBalance({ address }),
+          publicClient.readContract({
+            address: ARC_USDC_ERC20_ADDRESS,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [address],
+          }) as Promise<bigint>,
+        ]);
 
-    const erc20Asset =
-      erc20Balance !== undefined ? buildErc20UsdcAsset(erc20Balance as bigint) : null;
+        if (cancelled) return;
+        setData(
+          mergeAssets(buildNativeUsdcAsset(native), buildErc20UsdcAsset(erc20)),
+        );
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Failed to load balances');
+        setData(EMPTY_ASSETS);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
 
-    return mergeAssets(nativeAsset, erc20Asset);
-  }, [isConnected, nativeBalance?.value, erc20Balance]);
-
-  const error =
-    nativeError?.message ?? erc20Error?.message ?? null;
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected, walletAddress, tick]);
 
   return {
     data: data ?? (isConnected ? EMPTY_ASSETS : null),
-    isLoading: nativeLoading || erc20Loading,
+    isLoading,
     error,
-    refresh: () => {
-      void refetchNative();
-      void refetchErc20();
-    },
+    refresh,
   };
 }

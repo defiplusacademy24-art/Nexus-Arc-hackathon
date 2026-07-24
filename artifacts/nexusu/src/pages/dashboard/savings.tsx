@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PiggyBank, Plus, Calendar, Users, Sparkles, TrendingUp } from 'lucide-react';
+import { PiggyBank, Plus, Calendar, Sparkles } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
-import { DEMO_SAVINGS_POOLS } from '@/lib/demo-data';
+import { useCooperative } from '@/providers/CooperativeProvider';
+import { loadSavingsPools } from '@/services/cooperative/savings';
+import { loadMembersInPayoutOrder } from '@/services/cooperative/members';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import type { SavingsPool } from '@/types';
@@ -9,7 +12,7 @@ import type { SavingsPool } from '@/types';
 function ProgressRing({ progress, size = 56 }: { progress: number; size?: number }) {
   const r = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
-  const offset = circ - (progress / 100) * circ;
+  const offset = circ - (Math.min(100, Math.max(0, progress)) / 100) * circ;
   return (
     <svg width={size} height={size} className="rotate-[-90deg]">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth={4} className="text-stone-100 dark:text-white/8" />
@@ -37,7 +40,6 @@ function PoolCard({ pool, delay = 0 }: { pool: SavingsPool; delay?: number }) {
       transition={{ delay }}
       className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all"
     >
-      {/* Header */}
       <div className="flex items-start justify-between mb-5">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#6393C4]/8 dark:bg-[#6393C4]/12 flex items-center justify-center">
@@ -50,14 +52,12 @@ function PoolCard({ pool, delay = 0 }: { pool: SavingsPool; delay?: number }) {
             </span>
           </div>
         </div>
-
         <div className="relative flex items-center justify-center">
           <ProgressRing progress={pool.progress} />
           <span className="absolute text-xs font-bold text-stone-800 dark:text-white">{pool.progress}%</span>
         </div>
       </div>
 
-      {/* Balance vs target */}
       <div className="mb-4">
         <div className="flex justify-between text-xs mb-1.5">
           <span className="text-stone-400 dark:text-white/40">Progress</span>
@@ -68,12 +68,11 @@ function PoolCard({ pool, delay = 0 }: { pool: SavingsPool; delay?: number }) {
         <div className="h-2 bg-stone-100 dark:bg-white/8 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-[#6393C4] to-[#77A6DB] rounded-full transition-all duration-700"
-            style={{ width: `${pool.progress}%` }}
+            style={{ width: `${Math.min(100, pool.progress)}%` }}
           />
         </div>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl px-2.5 py-2 text-center">
           <p className="text-[10px] text-stone-400 dark:text-white/35 mb-0.5">Contribution</p>
@@ -89,51 +88,74 @@ function PoolCard({ pool, delay = 0 }: { pool: SavingsPool; delay?: number }) {
         </div>
       </div>
 
-      {/* Next contribution */}
-      <div className="flex items-center gap-2 mb-4 text-xs text-stone-500 dark:text-white/50">
-        <Calendar className="w-3.5 h-3.5 text-stone-400 dark:text-white/30 flex-shrink-0" />
-        Next contribution: <span className="font-semibold text-stone-700 dark:text-white/70">{formatDate(pool.nextContributionDate)}</span>
-      </div>
-
-      {/* AI Recommendation */}
-      <div className="bg-[#6393C4]/5 dark:bg-[#6393C4]/8 border border-[#6393C4]/12 rounded-xl px-3 py-2.5">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Sparkles className="w-3 h-3 text-[#6393C4]" />
-          <span className="text-[10px] font-semibold text-[#6393C4] uppercase tracking-wide">Nexa</span>
+      {pool.nextContributionDate && (
+        <div className="flex items-center gap-2 mb-4 text-xs text-stone-500 dark:text-white/50">
+          <Calendar className="w-3.5 h-3.5 text-stone-400 dark:text-white/30 flex-shrink-0" />
+          Next contribution: <span className="font-semibold text-stone-700 dark:text-white/70">{formatDate(pool.nextContributionDate)}</span>
         </div>
-        <p className="text-xs text-stone-600 dark:text-white/60 leading-relaxed">{pool.aiRecommendation}</p>
-      </div>
+      )}
+
+      {pool.aiRecommendation && (
+        <div className="bg-[#6393C4]/5 dark:bg-[#6393C4]/8 border border-[#6393C4]/12 rounded-xl px-3 py-2.5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Sparkles className="w-3 h-3 text-[#6393C4]" />
+            <span className="text-[10px] font-semibold text-[#6393C4] uppercase tracking-wide">Nexa</span>
+          </div>
+          <p className="text-xs text-stone-600 dark:text-white/60 leading-relaxed">{pool.aiRecommendation}</p>
+        </div>
+      )}
     </motion.div>
   );
 }
 
 export default function Savings() {
-  const totalBalance = DEMO_SAVINGS_POOLS.reduce((s, p) => s + p.balance, 0);
-  const totalTarget = DEMO_SAVINGS_POOLS.reduce((s, p) => s + p.target, 0);
-  const totalMonthly = DEMO_SAVINGS_POOLS.reduce((s, p) => s + p.contributionAmount * p.memberIds.length, 0);
+  const { activeCooperative } = useCooperative();
+  const [pools, setPools] = useState<SavingsPool[]>([]);
+  const [memberCount, setMemberCount] = useState(0);
+
+  useEffect(() => {
+    if (!activeCooperative) {
+      setPools([]);
+      setMemberCount(0);
+      return;
+    }
+    setPools(loadSavingsPools(activeCooperative.id));
+    setMemberCount(loadMembersInPayoutOrder(activeCooperative.id).length || activeCooperative.memberCount || 0);
+  }, [activeCooperative?.id]);
+
+  const totalBalance = pools.reduce((s, p) => s + p.balance, 0);
+  const totalTarget = pools.reduce((s, p) => s + p.target, 0);
+  const totalMonthly = pools.reduce((s, p) => s + p.contributionAmount * p.memberIds.length, 0);
+  // When no custom pools exist, surface the cooperative's primary contribution schedule as zeros until funded
+  const expectedMonthly =
+    totalMonthly ||
+    (activeCooperative
+      ? activeCooperative.contributionAmount * Math.max(memberCount, 0)
+      : 0);
+  const currency = activeCooperative?.currency ?? 'USD';
+  const progressPct = totalTarget > 0 ? Math.round((totalBalance / totalTarget) * 100) : 0;
 
   return (
     <DashboardLayout>
       <div className="px-6 py-6 max-w-7xl mx-auto">
-
-        {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-7">
           <div>
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Savings</h1>
-            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">{DEMO_SAVINGS_POOLS.length} active pools · {formatCurrency(totalBalance)} saved</p>
+            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
+              {pools.length} pool{pools.length === 1 ? '' : 's'} · {formatCurrency(totalBalance, currency)} saved
+            </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
+          <button type="button" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
             <Plus className="w-4 h-4" /> New Pool
           </button>
         </motion.div>
 
-        {/* Stats */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Total Saved', value: formatCurrency(totalBalance), sub: `of ${formatCurrency(totalTarget)} target`, color: 'text-[#6393C4]' },
-            { label: 'Monthly Collections', value: formatCurrency(totalMonthly), sub: 'Expected this month', color: 'text-emerald-500' },
-            { label: 'Active Pools', value: String(DEMO_SAVINGS_POOLS.filter(p => p.status === 'active').length), sub: 'Running now', color: 'text-blue-500' },
-            { label: 'Overall Progress', value: `${Math.round((totalBalance / totalTarget) * 100)}%`, sub: 'Across all pools', color: 'text-purple-500' },
+            { label: 'Total Saved', value: formatCurrency(totalBalance, currency), sub: totalTarget > 0 ? `of ${formatCurrency(totalTarget, currency)} target` : 'No target set', color: 'text-[#6393C4]' },
+            { label: 'Expected Monthly', value: formatCurrency(expectedMonthly, currency), sub: activeCooperative ? `${activeCooperative.contributionFrequency} schedule` : 'No cooperative', color: 'text-emerald-500' },
+            { label: 'Active Pools', value: String(pools.filter((p) => p.status === 'active').length), sub: pools.length === 0 ? 'None yet' : 'Running now', color: 'text-blue-500' },
+            { label: 'Overall Progress', value: totalTarget > 0 ? `${progressPct}%` : '—', sub: 'Across all pools', color: 'text-purple-500' },
           ].map(({ label, value, sub, color }) => (
             <div key={label} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4">
               <p className="text-xs text-stone-400 dark:text-white/40 mb-1">{label}</p>
@@ -143,12 +165,23 @@ export default function Savings() {
           ))}
         </motion.div>
 
-        {/* Pool cards */}
-        <div className="grid lg:grid-cols-2 gap-4">
-          {DEMO_SAVINGS_POOLS.map((pool, i) => (
-            <PoolCard key={pool.id} pool={pool} delay={0.15 + i * 0.05} />
-          ))}
-        </div>
+        {pools.length === 0 ? (
+          <div className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl py-16 text-center px-6">
+            <PiggyBank className="w-10 h-10 text-stone-200 dark:text-white/10 mx-auto mb-3" />
+            <p className="font-semibold text-stone-700 dark:text-white/70 mb-1">No savings pools yet</p>
+            <p className="text-sm text-stone-400 dark:text-white/40 max-w-md mx-auto">
+              {activeCooperative
+                ? `Primary contribution is ${formatCurrency(activeCooperative.contributionAmount, currency)} ${activeCooperative.contributionFrequency}. Create a pool when you are ready — balances stay at zero until real contributions land.`
+                : 'Create or join a cooperative first. Pools will track real contributions only.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-4">
+            {pools.map((pool, i) => (
+              <PoolCard key={pool.id} pool={pool} delay={0.15 + i * 0.05} />
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

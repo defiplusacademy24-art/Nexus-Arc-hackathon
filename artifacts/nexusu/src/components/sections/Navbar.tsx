@@ -3,6 +3,7 @@ import { Menu, X, ArrowRight, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { useTheme } from 'next-themes';
+import { NexusuLogo } from '@/components/NexusuLogo';
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -38,9 +39,7 @@ export function Navbar() {
     >
       <div className="container mx-auto px-5 sm:px-6 max-w-5xl h-14 sm:h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5" aria-label="Nexusu home">
-          <div className="w-8 h-8 rounded-md overflow-hidden bg-white border border-stone-200 dark:border-[#1A2A3A] flex items-center justify-center" aria-hidden="true">
-            <img src="/logo.png" alt="" className="w-full h-full object-contain" />
-          </div>
+          <NexusuLogo size="md" />
           <span className="font-display font-bold text-lg text-[#030F1F] dark:text-white">Nexusu</span>
         </Link>
 

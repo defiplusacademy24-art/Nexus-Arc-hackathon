@@ -66,11 +66,11 @@ const layers = [
 ];
 
 const ACTIVITY_LOG = [
-  { agent: 'Loan Agent', action: 'Approved $1,200 loan for Amina K.', color: '#77A6DB', delay: 0 },
-  { agent: 'Treasury Agent', action: 'Distributed $8,750 contributions', color: '#77A6DB', delay: 1.8 },
-  { agent: 'AI Decision', action: 'Risk score updated — 22 members', color: '#6393C4', delay: 3.4 },
-  { agent: 'Gov. Agent', action: 'Proposal #7 passed (18/22 votes)', color: '#5289B8', delay: 5.1 },
-  { agent: 'Fraud Guard', action: 'Anomaly flagged & resolved', color: '#DC2626', delay: 6.7 },
+  { agent: 'Loan Agent', action: 'Awaiting first loan application…', color: '#77A6DB', delay: 0 },
+  { agent: 'Treasury Agent', action: 'Ready to track USDC contributions', color: '#77A6DB', delay: 1.8 },
+  { agent: 'AI Decision', action: 'Standing by for live cooperative data', color: '#6393C4', delay: 3.4 },
+  { agent: 'Gov. Agent', action: 'No proposals yet — create when ready', color: '#5289B8', delay: 5.1 },
+  { agent: 'Fraud Guard', action: 'Monitoring idle — zero alerts', color: '#DC2626', delay: 6.7 },
 ];
 
 const NODES = [

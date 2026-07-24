@@ -3,7 +3,7 @@ import { ShieldCheck, Copy, ExternalLink, Wallet, CheckCircle2, Globe } from 'lu
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useWallet } from '@/providers/WalletProvider';
 import { ARC_EXPLORER_URL, ARC_TESTNET_CHAIN_ID } from '@/config/arc';
-import { ARC_FAUCET_URL, ARC_NETWORK_LABEL, WALLET_INSTALL_URL } from '@/services/wallet/constants';
+import { ARC_FAUCET_URL, ARC_NETWORK_LABEL } from '@/services/wallet/constants';
 import { useToast } from '@/hooks/use-toast';
 
 function InfoRow({ label, value, mono = false, onCopy }: {
@@ -55,7 +55,7 @@ export default function WalletProfile() {
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
           <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Wallet Profile</h1>
-          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">Your Arc Testnet wallet on Circle&apos;s network</p>
+          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">Your Circle email wallet on Arc Testnet</p>
         </motion.div>
 
         <motion.div
@@ -79,7 +79,7 @@ export default function WalletProfile() {
           <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
             <CheckCircle2 className="w-4 h-4 text-white flex-shrink-0" />
             <span className="text-sm font-semibold">
-              {isOnArcTestnet ? 'Connected to Arc Testnet' : 'Switch to Arc Testnet in your wallet'}
+              {isOnArcTestnet ? 'Signed in · Arc Testnet' : 'Session not on Arc Testnet'}
             </span>
             <span className="ml-auto text-xs text-white/70">USDC gas</span>
           </div>
@@ -163,20 +163,11 @@ export default function WalletProfile() {
             <ExternalLink className="w-4 h-4" />
             Get Testnet USDC
           </a>
-          <a
-            href={WALLET_INSTALL_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-medium text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-all"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Wallet Setup Guide
-          </a>
           <button
             onClick={async () => { await disconnect(); window.location.href = '/'; }}
             className="py-3 rounded-xl border border-red-200 dark:border-red-500/20 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/8 transition-colors"
           >
-            Disconnect Wallet
+            Sign out
           </button>
         </motion.div>
       </div>

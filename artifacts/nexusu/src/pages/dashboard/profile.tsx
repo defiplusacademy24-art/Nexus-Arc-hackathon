@@ -6,14 +6,10 @@ import { useWallet } from '@/providers/WalletProvider';
 import { useIdentity } from '@/hooks/useIdentity';
 import { useWalletAssets } from '@/hooks/useWalletAssets';
 import { useProfile } from '@/hooks/useProfile';
-import { useSession } from '@/hooks/useSession';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { IdentityCard } from '@/components/profile/IdentityCard';
 import { WalletBalanceCard } from '@/components/profile/WalletBalanceCard';
 import { MemberCard } from '@/components/profile/MemberCard';
 import { MemberStats } from '@/components/profile/MemberStats';
-import { ActivityTimeline } from '@/components/profile/ActivityTimeline';
-import { SecurityCard } from '@/components/profile/SecurityCard';
 import { PreferencesCard } from '@/components/profile/PreferencesCard';
 
 function NotConnected() {
@@ -24,16 +20,16 @@ function NotConnected() {
           <UserCircle className="w-8 h-8 text-stone-300 dark:text-white/20" />
         </div>
         <h2 className="text-lg font-display font-bold text-stone-800 dark:text-white mb-2">
-          No wallet connected
+          Not signed in
         </h2>
         <p className="text-sm text-stone-400 dark:text-white/40 mb-6 max-w-xs">
-          Connect your wallet on Arc Testnet to view your Nexusu identity and profile.
+          Sign in with email to view your Nexusu identity and Arc wallet profile.
         </p>
         <Link
           href="/app"
           className="px-5 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#d43e1b] transition-colors"
         >
-          Connect Wallet
+          Sign in with Email
         </Link>
       </div>
     </DashboardLayout>
@@ -41,22 +37,12 @@ function NotConnected() {
 }
 
 export default function ProfilePage() {
-  const { isConnected, disconnect, reconnect } = useWallet();
+  const { isConnected } = useWallet();
   const identity = useIdentity();
   const assets = useWalletAssets();
   const profile = useProfile();
-  const session = useSession();
 
   if (!isConnected || !identity) return <NotConnected />;
-
-  const handleDisconnect = async () => {
-    await disconnect();
-    window.location.href = '/';
-  };
-
-  const handleReconnect = async () => {
-    await reconnect();
-  };
 
   return (
     <DashboardLayout>
@@ -79,43 +65,36 @@ export default function ProfilePage() {
               Identity & Profile
             </h1>
             <p className="text-xs text-stone-400 dark:text-white/35 mt-0.5">
-              Your Nexusu decentralised identity · {identity.network}
+              Your Nexusu profile · {identity.network}
             </p>
           </div>
         </motion.div>
 
-        {/* Profile header */}
-        <ProfileHeader identity={identity} prefs={profile.prefs} />
+        {/* Profile header — photo upload lives here */}
+        <ProfileHeader
+          identity={identity}
+          prefs={profile.prefs}
+          onAvatarChange={profile.setAvatarUrl}
+          onAvatarClear={profile.clearAvatar}
+        />
 
-        {/* Row 1: Identity + Membership */}
-        <div className="grid lg:grid-cols-2 gap-5 mb-5">
-          <IdentityCard identity={identity} delay={0.05} />
+        {/* 1. Wallet assets first */}
+        <div className="mb-5">
+          <WalletBalanceCard assets={assets} delay={0.05} />
+        </div>
+
+        {/* 2. Cooperative details */}
+        <div className="mb-5">
           <MemberCard delay={0.1} />
         </div>
 
-        {/* Row 2: Wallet assets — full width */}
+        {/* 3. Member stats */}
         <div className="mb-5">
-          <WalletBalanceCard assets={assets} delay={0.15} />
+          <MemberStats delay={0.15} />
         </div>
 
-        {/* Row 3: Stats + Activity */}
-        <div className="grid lg:grid-cols-2 gap-5 mb-5">
-          <MemberStats delay={0.2} />
-          <ActivityTimeline delay={0.25} />
-        </div>
-
-        {/* Row 4: Security + Preferences */}
-        <div className="grid lg:grid-cols-2 gap-5">
-          {session && (
-            <SecurityCard
-              session={session}
-              onDisconnect={handleDisconnect}
-              onReconnect={handleReconnect}
-              delay={0.3}
-            />
-          )}
-          <PreferencesCard profile={profile} delay={0.35} />
-        </div>
+        {/* 4. Preferences */}
+        <PreferencesCard profile={profile} delay={0.2} />
 
       </div>
     </DashboardLayout>
