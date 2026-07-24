@@ -43,16 +43,16 @@ function shortWallet(w: string): string {
   return `${w.slice(0, 6)}…${w.slice(-4)}`;
 }
 
-function emit(inputs: CreateNotificationInput[]): StoredNotification[] {
-  const created = createNotifications(inputs);
+async function emit(inputs: CreateNotificationInput[]): Promise<StoredNotification[]> {
+  const created = await createNotifications(inputs);
   publishMany(created);
   return created;
 }
 
-export function notifyCoopCreated(
+export async function notifyCoopCreated(
   coop: StoredCooperative,
   founderWallet: string,
-): StoredNotification[] {
+): Promise<StoredNotification[]> {
   return emit([
     {
       recipientWallet: founderWallet,
@@ -67,21 +67,20 @@ export function notifyCoopCreated(
   ]);
 }
 
-export function notifyMemberJoined(
+export async function notifyMemberJoined(
   coop: StoredCooperative,
   joinerWallet: string,
   joinerName?: string,
   joinPosition?: number,
-): StoredNotification[] {
+): Promise<StoredNotification[]> {
   const label = joinerName?.trim() || shortWallet(joinerWallet);
-  const members = getMembers(coop.id);
+  const members = await getMembers(coop.id);
   const inputs: CreateNotificationInput[] = [];
   const posLabel =
     typeof joinPosition === "number" && joinPosition > 0
       ? ` Payout Position #${joinPosition}.`
       : "";
 
-  // Welcome the joiner
   inputs.push({
     recipientWallet: joinerWallet,
     coopId: coop.id,
@@ -100,7 +99,6 @@ export function notifyMemberJoined(
     },
   });
 
-  // Alert other active members
   for (const m of members) {
     if (m.walletIdentity.toLowerCase() === joinerWallet.toLowerCase()) continue;
     if (m.status !== "active") continue;
@@ -125,11 +123,11 @@ export function notifyMemberJoined(
   return emit(inputs);
 }
 
-export function notifyCoopActivated(
+export async function notifyCoopActivated(
   coop: StoredCooperative,
   actorWallet: string,
-): StoredNotification[] {
-  const members = getMembers(coop.id);
+): Promise<StoredNotification[]> {
+  const members = await getMembers(coop.id);
   const inputs: CreateNotificationInput[] = members
     .filter((m) => m.status === "active")
     .map((m) => ({
@@ -149,13 +147,13 @@ export function notifyCoopActivated(
   return emit(inputs);
 }
 
-export function notifyTransaction(
+export async function notifyTransaction(
   coop: StoredCooperative,
   tx: StoredTransaction,
-): StoredNotification[] {
+): Promise<StoredNotification[]> {
   const money = formatMoney(tx.amount, tx.currency || coop.currency || "USD");
   const actor = shortWallet(tx.walletIdentity);
-  const members = getMembers(coop.id);
+  const members = await getMembers(coop.id);
 
   let type: NotifType;
   let title: string;
@@ -170,7 +168,6 @@ export function notifyTransaction(
     descriptionOthers = `${actor} withdrew ${money} from ${coop.name}.`;
     actionLabel = "View treasury";
   } else {
-    // deposit or contribution
     type = tx.type === "contribution" ? "contribution" : "deposit";
     title = tx.type === "contribution" ? "Contribution received" : "Deposit received";
     descriptionActor = `You deposited ${money} into ${coop.name}.`;
@@ -201,11 +198,10 @@ export function notifyTransaction(
   return emit(inputs);
 }
 
-/** Generic emit for future domain events (loans, proposals, etc.) */
-export function notifyEvent(
+export async function notifyEvent(
   recipients: string[],
   payload: Omit<CreateNotificationInput, "recipientWallet">,
-): StoredNotification[] {
+): Promise<StoredNotification[]> {
   const inputs = uniqueWallets(recipients).map((recipientWallet) => ({
     ...payload,
     recipientWallet,
@@ -213,8 +209,10 @@ export function notifyEvent(
   return emit(inputs);
 }
 
-export function notifySingle(input: CreateNotificationInput): StoredNotification {
-  const n = createNotification(input);
+export async function notifySingle(
+  input: CreateNotificationInput,
+): Promise<StoredNotification> {
+  const n = await createNotification(input);
   publishNotification(n);
   return n;
 }
@@ -231,8 +229,7 @@ function shortAddr(w: string): string {
   return `${w.slice(0, 6)}…${w.slice(-4)}`;
 }
 
-/** Notify a wallet about an Arc on-chain USDC transfer (deposit/withdrawal). */
-export function notifyOnchainTransfer(input: {
+export async function notifyOnchainTransfer(input: {
   wallet: string;
   direction: "in" | "out";
   amount: number;
@@ -240,7 +237,7 @@ export function notifyOnchainTransfer(input: {
   txHash: string;
   explorerUrl?: string;
   token?: "usdc-erc20" | "usdc-native";
-}): StoredNotification {
+}): Promise<StoredNotification> {
   const money = formatUsdc(input.amount);
   const peer = shortAddr(input.counterparty ?? "");
   const tokenLabel =

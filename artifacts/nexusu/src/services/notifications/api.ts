@@ -153,6 +153,38 @@ function normalizeNotif(n: ApiNotification): ApiNotification {
 
 // ── Cooperatives API ───────────────────────────────────────────────────────────
 
+/** List cooperatives for wallet (server is source of truth when DATABASE_URL is set). */
+export async function apiListCooperatives(
+  wallet: string,
+): Promise<{
+  cooperatives: Array<Record<string, unknown>>;
+  storage?: 'postgres' | 'file';
+}> {
+  const res = await fetch('/api/cooperatives', {
+    headers: headers(wallet),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+/**
+ * Hydrate cooperatives + members for the connected wallet.
+ * Call after login so UI restores durable server data across devices/redeploys.
+ */
+export async function apiHydrateCooperatives(
+  wallet: string,
+): Promise<{
+  cooperatives: Array<Record<string, unknown>>;
+  membersByCoop: Record<string, Array<Record<string, unknown>>>;
+  storage?: 'postgres' | 'file';
+}> {
+  const res = await fetch('/api/cooperatives?hydrate=1', {
+    headers: headers(wallet),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
 export async function apiCreateCooperative(
   wallet: string,
   body: Record<string, unknown>,
@@ -160,6 +192,7 @@ export async function apiCreateCooperative(
   cooperative: { id: string; name: string; inviteCode: string; [k: string]: unknown };
   member?: { id: string; joinPosition?: number; [k: string]: unknown };
   created?: boolean;
+  storage?: 'postgres' | 'file';
 }> {
   const res = await fetch('/api/cooperatives', {
     method: 'POST',

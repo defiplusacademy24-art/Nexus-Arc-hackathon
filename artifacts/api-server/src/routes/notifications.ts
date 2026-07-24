@@ -52,35 +52,40 @@ function toApi(n: {
 }
 
 // GET /api/notifications
-router.get("/", (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
     const unreadOnly =
       req.query.unread === "true" || req.query.unread === "1";
     const limit = req.query.limit ? Number(req.query.limit) : 100;
-    const items = listNotifications({
-      wallet,
-      unreadOnly,
-      limit: Number.isFinite(limit) ? limit : 100,
-    }).map(toApi);
-    res.json({ notifications: items, unreadCount: unreadCount(wallet) });
+    const items = (
+      await listNotifications({
+        wallet,
+        unreadOnly,
+        limit: Number.isFinite(limit) ? limit : 100,
+      })
+    ).map(toApi);
+    res.json({
+      notifications: items,
+      unreadCount: await unreadCount(wallet),
+    });
   } catch (e) {
     sendError(res, e);
   }
 });
 
 // GET /api/notifications/unread-count
-router.get("/unread-count", (req: Request, res: Response) => {
+router.get("/unread-count", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
-    res.json({ count: unreadCount(wallet) });
+    res.json({ count: await unreadCount(wallet) });
   } catch (e) {
     sendError(res, e);
   }
 });
 
 // GET /api/notifications/stream — Server-Sent Events
-router.get("/stream", (req: Request, res: Response) => {
+router.get("/stream", async (req: Request, res: Response) => {
   try {
     const wallet = resolveWallet(req);
     if (!wallet) {
@@ -92,7 +97,6 @@ router.get("/stream", (req: Request, res: Response) => {
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
-    // Flush headers for proxies
     res.flushHeaders?.();
 
     const write = (event: string, data: unknown) => {
@@ -101,12 +105,13 @@ router.get("/stream", (req: Request, res: Response) => {
     };
 
     write("connected", { wallet, at: new Date().toISOString() });
-    // Initial unread count
-    write("unread", { count: unreadCount(wallet) });
+    write("unread", { count: await unreadCount(wallet) });
 
     const unsub = subscribe(wallet, (evt) => {
       write("notification", toApi(evt.notification));
-      write("unread", { count: unreadCount(wallet) });
+      void unreadCount(wallet).then((count) => {
+        write("unread", { count });
+      });
     });
 
     const heartbeat = setInterval(() => {
@@ -123,25 +128,29 @@ router.get("/stream", (req: Request, res: Response) => {
 });
 
 // PATCH /api/notifications/:id/read
-router.patch("/:id/read", (req: Request, res: Response) => {
+router.patch("/:id/read", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
-    const notif = markNotificationRead(req.params.id, wallet);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const notif = await markNotificationRead(id, wallet);
     if (!notif) {
       res.status(404).json({ error: "Notification not found" });
       return;
     }
-    res.json({ notification: toApi(notif), unreadCount: unreadCount(wallet) });
+    res.json({
+      notification: toApi(notif),
+      unreadCount: await unreadCount(wallet),
+    });
   } catch (e) {
     sendError(res, e);
   }
 });
 
 // POST /api/notifications/read-all
-router.post("/read-all", (req: Request, res: Response) => {
+router.post("/read-all", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
-    const updated = markAllNotificationsRead(wallet);
+    const updated = await markAllNotificationsRead(wallet);
     res.json({ updated, unreadCount: 0 });
   } catch (e) {
     sendError(res, e);

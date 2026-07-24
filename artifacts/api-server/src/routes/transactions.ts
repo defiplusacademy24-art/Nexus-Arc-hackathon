@@ -27,14 +27,14 @@ function sendError(res: Response, e: unknown): void {
 }
 
 // GET /api/transactions
-router.get("/", (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     requireWallet(req);
     const coopId = typeof req.query.coopId === "string" ? req.query.coopId : undefined;
     const wallet =
       typeof req.query.forWallet === "string" ? req.query.forWallet : undefined;
     const limit = req.query.limit ? Number(req.query.limit) : 50;
-    const transactions = listTransactions({
+    const transactions = await listTransactions({
       coopId,
       wallet,
       limit: Number.isFinite(limit) ? limit : 50,
@@ -46,10 +46,11 @@ router.get("/", (req: Request, res: Response) => {
 });
 
 // GET /api/transactions/treasury/:coopId
-router.get("/treasury/:coopId", (req: Request, res: Response) => {
+router.get("/treasury/:coopId", async (req: Request, res: Response) => {
   try {
     requireWallet(req);
-    const snapshot = getTreasurySnapshot(req.params.coopId);
+    const coopId = Array.isArray(req.params.coopId) ? req.params.coopId[0] : req.params.coopId;
+    const snapshot = await getTreasurySnapshot(coopId);
     if (!snapshot) {
       res.status(404).json({ error: "Cooperative not found" });
       return;
@@ -61,7 +62,7 @@ router.get("/treasury/:coopId", (req: Request, res: Response) => {
 });
 
 // POST /api/transactions
-router.post("/", (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
     const body = req.body as {
@@ -74,7 +75,7 @@ router.post("/", (req: Request, res: Response) => {
 
     let coopId = body.coopId;
     if (!coopId && body.inviteCode) {
-      const found = findByInviteCode(body.inviteCode);
+      const found = await findByInviteCode(body.inviteCode);
       if (!found) {
         res.status(404).json({ error: "Cooperative not found for invite code" });
         return;
@@ -95,7 +96,7 @@ router.post("/", (req: Request, res: Response) => {
       return;
     }
 
-    const tx = recordTransaction({
+    const tx = await recordTransaction({
       coopId,
       walletIdentity: wallet,
       type,
@@ -103,13 +104,13 @@ router.post("/", (req: Request, res: Response) => {
       note: body.note,
     });
 
-    const coop = getCooperative(coopId);
+    const coop = await getCooperative(coopId);
     let notificationsCreated = 0;
     if (coop) {
-      notificationsCreated = notifyTransaction(coop, tx).length;
+      notificationsCreated = (await notifyTransaction(coop, tx)).length;
     }
 
-    const snapshot = getTreasurySnapshot(coopId);
+    const snapshot = await getTreasurySnapshot(coopId);
 
     res.status(201).json({
       transaction: tx,

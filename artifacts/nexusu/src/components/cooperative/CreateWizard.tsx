@@ -485,7 +485,7 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
   const launch = async () => {
     setCreating(true);
     try {
-      createCooperative({
+      await createCooperative({
         name: form.name,
         description: form.description,
         country: form.country,

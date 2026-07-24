@@ -24,12 +24,15 @@ function sendError(res: Response, e: unknown): void {
 }
 
 // GET /api/onchain/transfers
-router.get("/transfers", (req: Request, res: Response) => {
+router.get("/transfers", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
     const limit = req.query.limit ? Number(req.query.limit) : 50;
     res.json({
-      transfers: listOnchainTransfers(wallet, Number.isFinite(limit) ? limit : 50),
+      transfers: await listOnchainTransfers(
+        wallet,
+        Number.isFinite(limit) ? limit : 50,
+      ),
     });
   } catch (e) {
     sendError(res, e);
@@ -46,8 +49,6 @@ router.post("/sync", async (req: Request, res: Response) => {
     const wallet = requireWallet(req);
     const detected = await scanWalletTransfers(wallet);
 
-    // Only push notifications for recent activity (48h). Older txs are stored
-    // for dedupe but won't flood the inbox on first connect.
     const notifyAfter = Date.now() - 48 * 60 * 60 * 1000;
 
     let created = 0;
@@ -61,7 +62,7 @@ router.post("/sync", async (req: Request, res: Response) => {
     }> = [];
 
     for (const t of detected) {
-      const { transfer, created: isNew } = ingestOnchainTransfer({
+      const { transfer, created: isNew } = await ingestOnchainTransfer({
         txHash: t.txHash,
         logIndex: t.logIndex,
         wallet,
@@ -80,7 +81,7 @@ router.post("/sync", async (req: Request, res: Response) => {
         const ts = t.timestamp ? new Date(t.timestamp).getTime() : Date.now();
         const isRecent = Number.isFinite(ts) && ts >= notifyAfter;
         if (isRecent) {
-          notifyOnchainTransfer({
+          await notifyOnchainTransfer({
             wallet,
             direction: transfer.direction,
             amount: transfer.amount,
@@ -119,23 +120,22 @@ router.post("/sync", async (req: Request, res: Response) => {
  * Body: single transfer or { transfers: [...] }
  * Deduped by txHash+logIndex. Creates deposit/withdrawal notifications for new ones.
  */
-router.post("/transfers", (req: Request, res: Response) => {
+router.post("/transfers", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
-    const body = req.body as
-      | {
-          transfers?: Array<Record<string, unknown>>;
-          txHash?: string;
-          logIndex?: number | null;
-          direction?: "in" | "out";
-          amount?: number;
-          token?: "usdc-erc20" | "usdc-native";
-          counterparty?: string;
-          blockNumber?: number;
-          explorerUrl?: string;
-          timestamp?: string;
-          wallet?: string;
-        };
+    const body = req.body as {
+      transfers?: Array<Record<string, unknown>>;
+      txHash?: string;
+      logIndex?: number | null;
+      direction?: "in" | "out";
+      amount?: number;
+      token?: "usdc-erc20" | "usdc-native";
+      counterparty?: string;
+      blockNumber?: number;
+      explorerUrl?: string;
+      timestamp?: string;
+      wallet?: string;
+    };
 
     const rawList = Array.isArray(body.transfers)
       ? body.transfers
@@ -161,12 +161,11 @@ router.post("/transfers", (req: Request, res: Response) => {
       const amount = Number(item.amount);
       const itemWallet = String(item.wallet ?? wallet);
 
-      // Only allow reporting for the authenticated wallet
       if (itemWallet.toLowerCase() !== wallet.toLowerCase()) {
         continue;
       }
 
-      const { transfer, created } = ingestOnchainTransfer({
+      const { transfer, created } = await ingestOnchainTransfer({
         txHash,
         logIndex:
           typeof item.logIndex === "number"
@@ -177,8 +176,7 @@ router.post("/transfers", (req: Request, res: Response) => {
         wallet: itemWallet,
         direction,
         amount,
-        token:
-          item.token === "usdc-native" ? "usdc-native" : "usdc-erc20",
+        token: item.token === "usdc-native" ? "usdc-native" : "usdc-erc20",
         counterparty:
           typeof item.counterparty === "string" ? item.counterparty : undefined,
         blockNumber:
@@ -191,7 +189,7 @@ router.post("/transfers", (req: Request, res: Response) => {
 
       let notificationId: string | undefined;
       if (created) {
-        const notif = notifyOnchainTransfer({
+        const notif = await notifyOnchainTransfer({
           wallet: itemWallet,
           direction,
           amount: transfer.amount,

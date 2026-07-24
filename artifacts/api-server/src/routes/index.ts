@@ -17,7 +17,12 @@ router.use("/cooperatives", cooperativesRouter);
 router.use("/transactions", transactionsRouter);
 router.use("/onchain", onchainRouter);
 
+import { storageBackend } from "../lib/store";
+
 logger.info(
+  {
+    storage: storageBackend(),
+  },
   "Domain APIs enabled: /api/notifications, /api/cooperatives, /api/transactions, /api/onchain",
 );
 

@@ -19,9 +19,11 @@ Nexusu is a Cooperative OS — a web app that empowers savings groups to operate
 - Framework / Application Preset: **Other** (commands come from `vercel.json`)
 - Env vars (Project → Settings → Environment Variables):
   - Build: `VITE_WALLETCONNECT_PROJECT_ID`, `VITE_CIRCLE_UC_APP_ID` (optional)
+  - Runtime (required for production): `DATABASE_URL` (Postgres — Vercel Postgres / Neon / Supabase)
   - Runtime: `CIRCLE_UC_API_KEY` (and optional `CIRCLE_UC_BLOCKCHAIN`, `CIRCLE_UC_ACCOUNT_TYPE`, `CORS_ORIGIN`)
 - Leave `VITE_API_URL` empty so the browser calls same-origin `/api/*`
-- File store is ephemeral on serverless (`/tmp`); fine for demos, not durable multi-instance production
+- **Data persistence**: with `DATABASE_URL`, cooperatives/members/transactions/notifications live in Postgres and survive redeploys + multi-device login. Without it, the API uses an ephemeral JSON file under `/tmp` (demo only). Tables are auto-created on first request; you can also run `pnpm --filter @workspace/db run push`.
+- Frontend hydrates coops from `GET /api/cooperatives?hydrate=1` on wallet connect; `localStorage` is only a cache
 
 ## Stack
 

@@ -1,5 +1,5 @@
 /**
- * Cooperative create / join / activate / list — emits real-time notifications.
+ * Cooperative create / join / activate / list / hydrate — emits real-time notifications.
  * Mounted at /api/cooperatives
  */
 
@@ -10,8 +10,10 @@ import {
   getCooperative,
   getCooperativeSummary,
   getMembers,
+  hydrateForWallet,
   joinCooperative,
   listCooperativesForWallet,
+  storageBackend,
 } from "../lib/store";
 import { notifyCoopCreated, notifyMemberJoined, notifyCoopActivated } from "../lib/notify";
 import { requireWallet } from "../lib/wallet";
@@ -27,27 +29,42 @@ function sendError(res: Response, e: unknown): void {
   res.status(status).json({ error: message });
 }
 
-// GET /api/cooperatives
-router.get("/", (req: Request, res: Response) => {
-  try {
-    const wallet = requireWallet(req);
-    const cooperatives = listCooperativesForWallet(wallet);
-    res.json({ cooperatives });
-  } catch (e) {
-    sendError(res, e);
-  }
-});
-
 function paramId(req: Request): string {
   const id = req.params.id;
   return Array.isArray(id) ? id[0] : id;
 }
 
+// GET /api/cooperatives — list for wallet; ?hydrate=1 includes members
+router.get("/", async (req: Request, res: Response) => {
+  try {
+    const wallet = requireWallet(req);
+    const hydrate =
+      req.query.hydrate === "1" ||
+      req.query.hydrate === "true" ||
+      req.query.withMembers === "1" ||
+      req.query.withMembers === "true";
+
+    if (hydrate) {
+      const data = await hydrateForWallet(wallet);
+      res.json({
+        ...data,
+        storage: storageBackend(),
+      });
+      return;
+    }
+
+    const cooperatives = await listCooperativesForWallet(wallet);
+    res.json({ cooperatives, storage: storageBackend() });
+  } catch (e) {
+    sendError(res, e);
+  }
+});
+
 // GET /api/cooperatives/:id
-router.get("/:id", (req: Request, res: Response) => {
+router.get("/:id", async (req: Request, res: Response) => {
   try {
     requireWallet(req);
-    const coop = getCooperative(paramId(req));
+    const coop = await getCooperative(paramId(req));
     if (!coop) {
       res.status(404).json({ error: "Cooperative not found" });
       return;
@@ -59,10 +76,10 @@ router.get("/:id", (req: Request, res: Response) => {
 });
 
 // GET /api/cooperatives/:id/members
-router.get("/:id/members", (req: Request, res: Response) => {
+router.get("/:id/members", async (req: Request, res: Response) => {
   try {
     requireWallet(req);
-    const members = getMembers(paramId(req));
+    const members = await getMembers(paramId(req));
     res.json({ members });
   } catch (e) {
     sendError(res, e);
@@ -70,10 +87,10 @@ router.get("/:id/members", (req: Request, res: Response) => {
 });
 
 // GET /api/cooperatives/:id/summary
-router.get("/:id/summary", (req: Request, res: Response) => {
+router.get("/:id/summary", async (req: Request, res: Response) => {
   try {
     requireWallet(req);
-    const summary = getCooperativeSummary(paramId(req));
+    const summary = await getCooperativeSummary(paramId(req));
     if (!summary) {
       res.status(404).json({ error: "Cooperative not found" });
       return;
@@ -85,7 +102,7 @@ router.get("/:id/summary", (req: Request, res: Response) => {
 });
 
 // POST /api/cooperatives
-router.post("/", (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
     const body = req.body as {
@@ -114,7 +131,7 @@ router.post("/", (req: Request, res: Response) => {
       return;
     }
 
-    const { coop, member, created } = createCooperative(
+    const { coop, member, created } = await createCooperative(
       {
         name: body.name,
         description: body.description,
@@ -138,14 +155,14 @@ router.post("/", (req: Request, res: Response) => {
       wallet,
     );
 
-    // Only notify on first creation (avoid spam on idempotent re-sync)
-    const notifications = created ? notifyCoopCreated(coop, wallet) : [];
+    const notifications = created ? await notifyCoopCreated(coop, wallet) : [];
 
     res.status(created ? 201 : 200).json({
       cooperative: coop,
       member,
       created,
       notificationsCreated: notifications.length,
+      storage: storageBackend(),
     });
   } catch (e) {
     sendError(res, e);
@@ -153,7 +170,7 @@ router.post("/", (req: Request, res: Response) => {
 });
 
 // POST /api/cooperatives/join
-router.post("/join", (req: Request, res: Response) => {
+router.post("/join", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
     const body = req.body as {
@@ -167,7 +184,7 @@ router.post("/join", (req: Request, res: Response) => {
       return;
     }
 
-    const { coop, member, joined, joinPosition } = joinCooperative(
+    const { coop, member, joined, joinPosition } = await joinCooperative(
       body.inviteCode,
       wallet,
       body.displayName,
@@ -175,7 +192,7 @@ router.post("/join", (req: Request, res: Response) => {
     );
 
     const notifications = joined
-      ? notifyMemberJoined(coop, wallet, body.displayName, joinPosition)
+      ? await notifyMemberJoined(coop, wallet, body.displayName, joinPosition)
       : [];
 
     res.status(200).json({
@@ -184,6 +201,7 @@ router.post("/join", (req: Request, res: Response) => {
       joined,
       joinPosition,
       notificationsCreated: notifications.length,
+      storage: storageBackend(),
       message: joined
         ? `Welcome to the cooperative! You have been assigned Payout Position #${joinPosition}. You will receive the pooled contribution during Cycle ${joinPosition}.`
         : "You are already a member of this cooperative.",
@@ -194,15 +212,16 @@ router.post("/join", (req: Request, res: Response) => {
 });
 
 // POST /api/cooperatives/:id/activate — owner starts cooperative
-router.post("/:id/activate", (req: Request, res: Response) => {
+router.post("/:id/activate", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
-    const coop = activateCooperative(paramId(req), wallet);
-    const notifications = notifyCoopActivated(coop, wallet);
+    const coop = await activateCooperative(paramId(req), wallet);
+    const notifications = await notifyCoopActivated(coop, wallet);
     res.json({
       cooperative: coop,
       notificationsCreated: notifications.length,
       message: "Cooperative is now Active. Joining is closed and payout order is locked.",
+      storage: storageBackend(),
     });
   } catch (e) {
     sendError(res, e);
