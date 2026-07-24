@@ -150,7 +150,7 @@ export function Metrics() {
               Platform activity, in real time
             </h2>
             <p className="mt-2 text-sm sm:text-base text-stone-500 dark:text-white/55 leading-relaxed">
-              Every cooperative and agent hosted on Nexusu is counted from the live platform store — not demo numbers.
+              Real-time activity across cooperatives and autonomous agents on Arc.
             </p>
           </div>
 
@@ -216,10 +216,6 @@ export function Metrics() {
             );
           })}
         </div>
-
-        <p className="mt-8 text-center text-xs text-stone-400 dark:text-white/35 max-w-lg mx-auto leading-relaxed">
-          Counts start at zero and grow as communities create cooperatives and host autonomous agents on Arc.
-        </p>
       </div>
     </section>
   );
