@@ -30,6 +30,21 @@ export type UcSession = {
   userId?: string;
 };
 
+const UC_SESSION_KEY = 'nexusu-uc-session';
+
+/** Rehydrate Circle session from localStorage (same key as useCircleEmailWallet). */
+export function loadStoredUcSession(): UcSession | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem(UC_SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as UcSession;
+    return s?.kind === 'uc' && s.address && s.walletId ? s : null;
+  } catch {
+    return null;
+  }
+}
+
 async function api<T>(path: string, body?: unknown): Promise<T> {
   const url = `${API_URL}${path}`;
   const r = await fetch(url, {

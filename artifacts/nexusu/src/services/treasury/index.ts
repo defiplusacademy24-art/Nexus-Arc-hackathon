@@ -1,7 +1,6 @@
 /**
  * Treasury service — real cooperative balances + transaction-derived series.
- * No mock snapshots or fake 12-month histories.
- * Future: Arc treasury contracts, Circle UC wallets, automated contribution tracking.
+ * On-chain vault: see `./vault` (CooperativeTreasuryVault on Arc).
  */
 
 import type { TreasurySnapshot, CashFlowPoint } from '@/types';

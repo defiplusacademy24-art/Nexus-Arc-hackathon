@@ -6,23 +6,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   connectEmailWallet,
+  loadStoredUcSession,
   ucWalletEnabled,
   type UcSession,
 } from '@/services/circle/userWallet';
 
 const UC_SESSION_KEY = 'nexusu-uc-session';
 const LAST_UC_EMAIL_KEY = 'nexusu-uc-email';
-
-function loadUcSession(): UcSession | null {
-  try {
-    const raw = localStorage.getItem(UC_SESSION_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw) as UcSession;
-    return s?.kind === 'uc' && s.address && s.walletId ? s : null;
-  } catch {
-    return null;
-  }
-}
 
 export interface UseCircleEmailWallet {
   uc: UcSession | null;
@@ -35,7 +25,7 @@ export interface UseCircleEmailWallet {
 }
 
 export function useCircleEmailWallet(): UseCircleEmailWallet {
-  const [uc, setUc] = useState<UcSession | null>(() => loadUcSession());
+  const [uc, setUc] = useState<UcSession | null>(() => loadStoredUcSession());
   const [isConnectingEmail, setIsConnectingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [lastUcEmail, setLastUcEmail] = useState<string | null>(() => {

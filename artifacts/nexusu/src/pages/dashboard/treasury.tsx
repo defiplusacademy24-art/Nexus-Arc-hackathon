@@ -31,6 +31,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { CashFlowPoint, Loan } from '@/types';
 import { Link } from 'wouter';
+import { OnChainVaultPanel } from '@/components/treasury/OnChainVaultPanel';
 
 function TreasuryCard({ label, value, description, color, icon: Icon, delay = 0 }: {
   label: string; value: number; description?: string;
@@ -347,13 +348,16 @@ export default function Treasury() {
           </button>
         </motion.div>
 
-        {/* Deposit / Withdraw */}
+        {/* On-chain Arc vault (deposit / payout via CooperativeTreasuryVault) */}
+        <OnChainVaultPanel />
+
+        {/* Deposit / Withdraw (off-chain ledger) */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-6"
         >
-          <h2 className="text-sm font-semibold text-stone-800 dark:text-white mb-1">Record transaction</h2>
+          <h2 className="text-sm font-semibold text-stone-800 dark:text-white mb-1">Record transaction (ledger)</h2>
           <p className="text-xs text-stone-400 dark:text-white/40 mb-4">
             Deposits and withdrawals update the treasury balance and notify members. View every movement under Notifications → Transactions.
           </p>
