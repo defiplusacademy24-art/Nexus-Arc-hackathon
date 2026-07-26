@@ -95,12 +95,14 @@ function WorkspaceCard({ coop, active, onClick }: { coop: Cooperative; active: b
 
 function Stat({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
   return (
-    <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-4 h-4 text-[#6393C4]" />
-        <p className="text-xs text-stone-400 dark:text-white/40">{label}</p>
+    <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-3 sm:p-4 min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 min-w-0">
+        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#6393C4] flex-shrink-0" />
+        <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 truncate">{label}</p>
       </div>
-      <p className="text-base font-display font-bold text-stone-800 dark:text-white">{value}</p>
+      <p className="text-sm sm:text-base font-display font-bold text-stone-800 dark:text-white break-words">
+        {value}
+      </p>
     </div>
   );
 }
@@ -381,7 +383,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="w-full max-w-md bg-white dark:bg-[#081827] border-l border-stone-100 dark:border-[#1A2A3A] flex flex-col"
+        className="w-full max-w-md h-full max-h-[100dvh] bg-white dark:bg-[#081827] border-l border-stone-100 dark:border-[#1A2A3A] flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
@@ -640,11 +642,11 @@ export default function Cooperatives() {
           <Building2 className="w-12 h-12 text-stone-200 dark:text-white/10 mb-4" />
           <p className="font-display font-bold text-stone-800 dark:text-white mb-2">No Cooperative Yet</p>
           <p className="text-sm text-stone-400 dark:text-white/40 mb-6">Create a new cooperative or join one with an invite code.</p>
-          <div className="flex gap-3">
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm sm:max-w-none sm:w-auto">
+            <button onClick={() => setShowCreate(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
               <Plus className="w-4 h-4" /> Create Cooperative
             </button>
-            <button onClick={() => setShowJoin(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors">
+            <button onClick={() => setShowJoin(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors">
               <UserPlus className="w-4 h-4" /> Join with Code
             </button>
           </div>
@@ -657,36 +659,48 @@ export default function Cooperatives() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-6xl mx-auto space-y-6">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-6xl mx-auto space-y-5 sm:space-y-6 overflow-x-hidden">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-4">
-          <div className="flex-1">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
+        >
+          <div className="min-w-0 sm:flex-1">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Cooperatives</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
               {cooperatives.length === 1 ? '1 workspace' : `${cooperatives.length} workspaces`}
             </p>
           </div>
-          <div className="flex gap-2.5">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-2.5 w-full sm:w-auto">
             {isManager && (
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 sm:px-3.5 sm:py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
               >
-                <Settings className="w-3.5 h-3.5" /> Settings
+                <Settings className="w-3.5 h-3.5 flex-shrink-0" /> Settings
               </button>
             )}
             <button
               onClick={() => setShowJoin(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
+              className={cn(
+                'flex items-center justify-center gap-1.5 px-3 py-2.5 sm:px-3.5 sm:py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 text-sm font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors',
+                !isManager && 'col-span-1',
+              )}
             >
-              <UserPlus className="w-3.5 h-3.5" /> Join
+              <UserPlus className="w-3.5 h-3.5 flex-shrink-0" /> Join
             </button>
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors"
+              className={cn(
+                'flex items-center justify-center gap-1.5 px-3 py-2.5 sm:px-3.5 sm:py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors whitespace-nowrap',
+                isManager ? 'col-span-2 sm:col-span-1' : 'col-span-1',
+              )}
             >
-              <Plus className="w-3.5 h-3.5" /> Create Cooperative
+              <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="sm:hidden">Create</span>
+              <span className="hidden sm:inline">Create Cooperative</span>
             </button>
           </div>
         </motion.div>
@@ -726,50 +740,61 @@ export default function Cooperatives() {
           transition={{ delay: 0.1 }}
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
         >
-          <div className="bg-gradient-to-r from-[#6393C4] to-[#77A6DB] p-6 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-r from-[#6393C4] to-[#77A6DB] p-4 sm:p-6 text-white relative overflow-hidden">
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, white, transparent 70%)' }} />
-            <div className="flex items-start justify-between gap-4 relative">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-xl flex-shrink-0">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 relative min-w-0">
+              <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-lg sm:text-xl flex-shrink-0">
                   {activeCooperative.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">{activeCooperative.type}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 flex-wrap">
+                    <span className="text-[10px] sm:text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">{activeCooperative.type}</span>
                     {activeCooperative.privacy && (
-                      <span className="text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">{PRIVACY_LABELS[activeCooperative.privacy] ?? activeCooperative.privacy}</span>
+                      <span className="text-[10px] sm:text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">{PRIVACY_LABELS[activeCooperative.privacy] ?? activeCooperative.privacy}</span>
                     )}
-                    <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="w-3 h-3" /> {statusDisplay}
+                    <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="w-3 h-3 flex-shrink-0" /> {statusDisplay}
                     </span>
                     {summary?.joiningClosed && (
-                      <span className="text-[11px] font-semibold bg-white/25 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] sm:text-[11px] font-semibold bg-white/25 px-2 py-0.5 rounded-full">
                         Joining Closed
                       </span>
                     )}
                   </div>
-                  <h2 className="text-2xl font-display font-bold">{activeCooperative.name}</h2>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-white/70 text-sm">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {activeCooperative.country}
+                  <h2 className="text-xl sm:text-2xl font-display font-bold leading-tight break-words">
+                    {activeCooperative.name}
+                  </h2>
+                  <div className="flex items-center gap-1.5 mt-1 text-white/70 text-sm">
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{activeCooperative.country}</span>
                   </div>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-white/60 text-xs mb-1">Treasury</p>
-                <p className="text-3xl font-display font-bold">{formatCurrency(activeCooperative.treasuryBalance)}</p>
-                <Link href="/dashboard/treasury" className="mt-1 flex items-center gap-1 text-white/60 text-[11px] hover:text-white transition-colors justify-end">
+              <div className="flex items-end justify-between sm:block sm:text-right flex-shrink-0 pt-1 sm:pt-0 border-t border-white/15 sm:border-0">
+                <div>
+                  <p className="text-white/60 text-xs mb-0.5 sm:mb-1">Treasury</p>
+                  <p className="text-2xl sm:text-3xl font-display font-bold tabular-nums">
+                    {formatCurrency(activeCooperative.treasuryBalance)}
+                  </p>
+                </div>
+                <Link
+                  href="/dashboard/treasury"
+                  className="mt-0 sm:mt-1 flex items-center gap-1 text-white/70 text-[11px] hover:text-white transition-colors sm:justify-end"
+                >
                   View Treasury <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
             </div>
           </div>
 
-          <div className="p-6">
-            <p className="text-sm text-stone-500 dark:text-white/50 mb-6 leading-relaxed">{activeCooperative.description}</p>
+          <div className="p-4 sm:p-6">
+            <p className="text-sm text-stone-500 dark:text-white/50 mb-5 sm:mb-6 leading-relaxed break-words">
+              {activeCooperative.description}
+            </p>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-5 sm:mb-6">
               <Stat
                 label="Members"
                 value={
@@ -786,7 +811,7 @@ export default function Cooperatives() {
 
             {/* Cooperative summary (payout / cycle) */}
             {summary && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-5 sm:mb-6">
                 {[
                   { l: 'Current Recipient', v: `Position #${summary.currentRecipientPosition}` },
                   {
@@ -801,9 +826,11 @@ export default function Cooperatives() {
                   },
                   { l: 'Status', v: statusDisplay },
                 ].map(({ l, v }) => (
-                  <div key={l} className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-3">
-                    <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-1">{l}</p>
-                    <p className="text-sm font-semibold text-stone-800 dark:text-white">{v}</p>
+                  <div key={l} className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-3 min-w-0">
+                    <p className="text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-1 leading-tight">
+                      {l}
+                    </p>
+                    <p className="text-sm font-semibold text-stone-800 dark:text-white break-words">{v}</p>
                   </div>
                 ))}
               </div>
@@ -811,8 +838,8 @@ export default function Cooperatives() {
 
             {/* Start cooperative (owner) */}
             {canStart && (
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#6393C4]/25 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 px-4 py-3">
-                <div>
+              <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#6393C4]/25 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 px-4 py-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-stone-800 dark:text-white">Ready to begin cycles?</p>
                   <p className="text-[11px] text-stone-500 dark:text-white/40 mt-0.5">
                     Starting closes joining permanently and locks the payout order.
@@ -821,7 +848,7 @@ export default function Cooperatives() {
                 <button
                   onClick={handleStartCooperative}
                   disabled={activating}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60 transition-colors"
+                  className="flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60 transition-colors whitespace-nowrap flex-shrink-0"
                 >
                   {activating ? 'Starting…' : 'Start Cooperative'}
                 </button>
@@ -829,9 +856,9 @@ export default function Cooperatives() {
             )}
 
             {/* Rules + Governance + Invite */}
-            <div className="grid lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               {/* Contribution Rules */}
-              <div className="space-y-3">
+              <div className="space-y-3 min-w-0">
                 <h3 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest">Contribution Rules</h3>
                 {[
                   { l: 'Amount', v: formatCurrency(activeCooperative.contributionAmount, activeCooperative.currency) },
@@ -844,15 +871,15 @@ export default function Cooperatives() {
                   },
                   { l: 'Founded', v: formatDate(activeCooperative.createdAt) },
                 ].map(({ l, v }) => (
-                  <div key={l} className="flex justify-between items-center py-2 border-b border-stone-50 dark:border-white/4 last:border-0">
-                    <span className="text-sm text-stone-400 dark:text-white/40">{l}</span>
-                    <span className="text-sm font-semibold text-stone-700 dark:text-white/80">{v}</span>
+                  <div key={l} className="flex justify-between items-start gap-3 py-2 border-b border-stone-50 dark:border-white/4 last:border-0">
+                    <span className="text-sm text-stone-400 dark:text-white/40 flex-shrink-0">{l}</span>
+                    <span className="text-sm font-semibold text-stone-700 dark:text-white/80 text-right break-words">{v}</span>
                   </div>
                 ))}
               </div>
 
               {/* Governance */}
-              <div className="space-y-3">
+              <div className="space-y-3 min-w-0">
                 <h3 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest">Governance</h3>
                 {[
                   { l: 'Voting Model', v: VOTING_LABELS[activeCooperative.votingModel ?? 'simple-majority'] },
@@ -860,9 +887,9 @@ export default function Cooperatives() {
                   { l: 'Loan Policy', v: LOAN_POLICY_LABELS[activeCooperative.loanApprovalPolicy ?? 'hybrid'] },
                   { l: 'AI Governance', v: activeCooperative.aiGovernanceEnabled !== false ? 'Enabled' : 'Disabled' },
                 ].map(({ l, v }) => (
-                  <div key={l} className="flex justify-between items-center py-2 border-b border-stone-50 dark:border-white/4 last:border-0">
-                    <span className="text-sm text-stone-400 dark:text-white/40">{l}</span>
-                    <span className="text-sm font-semibold text-stone-700 dark:text-white/80">{v}</span>
+                  <div key={l} className="flex justify-between items-start gap-3 py-2 border-b border-stone-50 dark:border-white/4 last:border-0">
+                    <span className="text-sm text-stone-400 dark:text-white/40 flex-shrink-0">{l}</span>
+                    <span className="text-sm font-semibold text-stone-700 dark:text-white/80 text-right break-words">{v}</span>
                   </div>
                 ))}
               </div>
@@ -911,29 +938,77 @@ export default function Cooperatives() {
           transition={{ delay: 0.18 }}
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl overflow-hidden"
         >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-stone-50 dark:border-white/4">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-4 border-b border-stone-50 dark:border-white/4">
+            <div className="min-w-0">
               <h2 className="font-display font-bold text-stone-900 dark:text-white text-base">Members</h2>
               <p className="text-xs text-stone-400 dark:text-white/35 mt-0.5">{members.length} total · {members.filter((m) => m.status === 'active').length} active</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <Link
                 href="/dashboard/members"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/50 text-xs font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl border border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/50 text-xs font-semibold hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50 transition-colors"
               >
                 All Members <ChevronRight className="w-3 h-3" />
               </Link>
               <button
                 onClick={() => setShowJoin(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#6393C4] text-white text-xs font-semibold hover:bg-[#5289B8] transition-colors"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl bg-[#6393C4] text-white text-xs font-semibold hover:bg-[#5289B8] transition-colors"
               >
                 <UserPlus className="w-3 h-3" /> Invite
               </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          {/* Mobile member cards */}
+          <div className="md:hidden divide-y divide-stone-50 dark:divide-white/4">
+            {displayedMembers.map((member) => {
+              const RoleIcon = ROLE_ICON[member.role] ?? Users;
+              return (
+                <div key={member.id} className="px-4 py-3 flex items-start gap-3">
+                  <span className="inline-flex items-center justify-center min-w-[2rem] h-7 px-2 rounded-lg bg-[#6393C4] text-white text-xs font-bold flex-shrink-0 mt-0.5">
+                    #{member.joinPosition ?? '—'}
+                  </span>
+                  <MemberAvatar initials={member.initials} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-stone-800 dark:text-white truncate">{member.name}</p>
+                        <p className="text-[10px] text-stone-400 dark:text-white/30 font-mono truncate">
+                          {member.walletIdentity.slice(0, 10)}…{member.walletIdentity.slice(-4)}
+                        </p>
+                      </div>
+                      <span className={cn(
+                        'text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0',
+                        member.status === 'active'
+                          ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20'
+                          : member.status === 'suspended'
+                          ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20'
+                          : 'bg-stone-50 dark:bg-[#2E3B4B]/40 text-stone-500 dark:text-white/35 border-stone-200 dark:border-white/10',
+                      )}>
+                        {member.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                      <span className={cn('inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border', roleBadgeClass(member.role))}>
+                        <RoleIcon className="w-2.5 h-2.5" />
+                        {roleLabel(member.role)}
+                      </span>
+                      <span className="text-[11px] text-stone-500 dark:text-white/45">
+                        {contributionStatusLabel(member.contributionStatus)}
+                      </span>
+                      <span className="text-[11px] font-semibold text-stone-600 dark:text-white/55 tabular-nums">
+                        {formatCurrency(member.totalContributed)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
               <thead>
                 <tr className="border-b border-stone-50 dark:border-white/4">
                   {['Pos', 'Member', 'Role', 'Contribution', 'Status', 'Contributed', 'Joined', ''].map((h) => (
@@ -958,7 +1033,7 @@ export default function Cooperatives() {
           </div>
 
           {members.length > 8 && (
-            <div className="px-6 py-3 border-t border-stone-50 dark:border-white/4">
+            <div className="px-4 sm:px-6 py-3 border-t border-stone-50 dark:border-white/4">
               <button
                 onClick={() => setMembersExpanded((e) => !e)}
                 className="text-xs font-semibold text-stone-400 dark:text-white/40 hover:text-[#6393C4] transition-colors"
@@ -969,7 +1044,7 @@ export default function Cooperatives() {
           )}
 
           {members.length === 0 && (
-            <div className="py-12 text-center">
+            <div className="py-12 text-center px-4">
               <Users className="w-8 h-8 text-stone-200 dark:text-white/10 mx-auto mb-3" />
               <p className="text-sm text-stone-400 dark:text-white/40">No members yet. Invite your first members.</p>
             </div>
@@ -982,7 +1057,7 @@ export default function Cooperatives() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.25 }}
-            className="border-2 border-dashed border-stone-200 dark:border-white/10 rounded-2xl p-8 text-center hover:border-[#6393C4]/30 dark:hover:border-[#6393C4]/20 transition-colors cursor-pointer group"
+            className="border-2 border-dashed border-stone-200 dark:border-white/10 rounded-2xl p-6 sm:p-8 text-center hover:border-[#6393C4]/30 dark:hover:border-[#6393C4]/20 transition-colors cursor-pointer group"
             onClick={() => setShowCreate(true)}
           >
             <div className="w-10 h-10 rounded-xl bg-stone-100 dark:bg-[#2E3B4B]/40 flex items-center justify-center mx-auto mb-3 group-hover:bg-[#6393C4]/8 transition-colors">

@@ -40,13 +40,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopNav onMenuClick={() => setSidebarOpen(true)} />
 
-        {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-8">
+        {/* Scrollable content — extra bottom pad clears fixed mobile nav + safe area */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8">
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-[#081827] border-t border-[#1A2A3A]/20 dark:border-[#1A2A3A] flex">
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-[#081827] border-t border-[#1A2A3A]/20 dark:border-[#1A2A3A] flex pb-[env(safe-area-inset-bottom)]">
           {MOBILE_NAV.map((item) => {
             const active = mobileIsActive(item.href);
             return (
@@ -54,14 +54,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors',
+                  'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors min-w-0',
                   active
                     ? 'text-[#6393C4]'
                     : 'text-stone-400 dark:text-white/40 hover:text-stone-600 dark:hover:text-white/60',
                 )}
               >
-                <item.icon className={cn('w-5 h-5', active && 'text-[#6393C4]')} />
-                {item.label}
+                <item.icon className={cn('w-5 h-5 flex-shrink-0', active && 'text-[#6393C4]')} />
+                <span className="truncate max-w-full px-0.5">{item.label}</span>
               </Link>
             );
           })}
