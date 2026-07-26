@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Banknote, Clock, CheckCircle2, XCircle, TrendingUp, Sparkles,
   Loader2, Shield, AlertTriangle, RefreshCcw, ArrowDownToLine,
+  Download, Activity,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useCooperative } from '@/providers/CooperativeProvider';
@@ -18,11 +19,17 @@ import {
   remainingBalance,
   applyLoanRepayment,
   isOutstandingLoan,
+  ensureLoanFinance,
 } from '@/services/cooperative/loans';
 import {
   evaluateLoanApplication,
   decisionBadgeLabel,
 } from '@/services/cooperative/lending-agent';
+import {
+  LOAN_INTEREST_TABLE,
+  computeLoanFinance,
+  formatInterestPct,
+} from '@/services/cooperative/interest';
 import { getMemberByWallet, loadMembersInPayoutOrder } from '@/services/cooperative/members';
 import { formatCurrency, formatDate, riskColor, riskLabel } from '@/utils/format';
 import { cn } from '@/lib/utils';
@@ -44,12 +51,17 @@ const PURPOSES: LoanPurposeCategory[] = [
   'Other',
 ];
 
-const PERIODS: { months: number; label: string }[] = [
-  { months: 1, label: '1 month' },
-  { months: 2, label: '2 months' },
-  { months: 3, label: '3 months' },
-  { months: 6, label: '6 months' },
-];
+const PERIODS = LOAN_INTEREST_TABLE.map((r) => ({
+  months: r.months,
+  label: r.label,
+}));
+
+type DistLogLine = {
+  id: string;
+  label: string;
+  amount: number;
+  tone: 'principal' | 'interest' | 'treasury' | 'savings';
+};
 
 const STATUS_CONFIG: Record<LoanStatus, { label: string; class: string; icon: React.ElementType }> = {
   pending: {
@@ -288,13 +300,16 @@ function AiEvaluationCard({
 function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
   const config = STATUS_CONFIG[loan.status];
   const Icon = config.icon;
+  const L = ensureLoanFinance(loan);
   const statusLabel =
     loan.aiDecision ? decisionBadgeLabel(loan.aiDecision) : config.label;
-  const principal = loan.approvedAmount ?? loan.requestedAmount;
-  const paid = loan.paidAmount ?? 0;
-  const remaining = remainingBalance(loan);
+  const principal = L.approvedAmount ?? L.requestedAmount;
+  const totalDue = L.totalRepayment ?? principal;
+  const paid = L.paidAmount ?? 0;
+  const remaining = remainingBalance(L);
   const progress =
-    principal > 0 ? Math.round((paid / principal) * 100) : undefined;
+    totalDue > 0 ? Math.round((paid / totalDue) * 100) : undefined;
+  const ratePct = formatInterestPct(L.interestRate ?? 0.05);
 
   return (
     <motion.div
@@ -324,7 +339,7 @@ function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
 
       <div className="flex items-baseline gap-2 mb-3 flex-wrap">
         <span className="text-2xl font-display font-bold text-stone-900 dark:text-white">
-          {formatCurrency(loan.approvedAmount ?? loan.requestedAmount, currency)}
+          {formatCurrency(principal, currency)}
         </span>
         {loan.status === 'pending' && (
           <span className="text-xs text-stone-400 dark:text-white/40">requested</span>
@@ -347,27 +362,27 @@ function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
           <p className="font-semibold text-stone-800 dark:text-white">{loan.purposeCategory ?? loan.purpose}</p>
         </div>
         <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-lg px-2.5 py-2">
-          <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Repayment</p>
+          <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Duration</p>
           <p className="font-semibold text-stone-800 dark:text-white">{loan.repaymentMonths} mo</p>
         </div>
         <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-lg px-2.5 py-2">
-          <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">AI Risk</p>
-          <p className={cn('font-semibold', riskColor(loan.riskScore))}>
-            {loan.riskLevel ?? riskLabel(loan.riskScore)} Risk
-          </p>
+          <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Interest</p>
+          <p className="font-semibold text-stone-800 dark:text-white">{ratePct}</p>
         </div>
         <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-lg px-2.5 py-2">
-          <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Status</p>
-          <p className="font-semibold text-stone-800 dark:text-white">{statusLabel}</p>
+          <p className="text-[10px] text-stone-400 dark:text-white/30 mb-0.5">Monthly</p>
+          <p className="font-semibold text-stone-800 dark:text-white">
+            {formatCurrency(L.monthlyPayment, currency)}
+          </p>
         </div>
       </div>
 
-      {progress !== undefined && (paid > 0 || isOutstandingLoan(loan)) && principal > 0 && (
+      {progress !== undefined && (paid > 0 || isOutstandingLoan(loan)) && totalDue > 0 && (
         <div className="mb-4">
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-stone-400 dark:text-white/40">Repaid</span>
+            <span className="text-stone-400 dark:text-white/40">Repayment progress</span>
             <span className="font-semibold text-stone-700 dark:text-white/80">
-              {formatCurrency(paid, currency)} / {formatCurrency(principal, currency)}
+              {formatCurrency(paid, currency)} / {formatCurrency(totalDue, currency)}
             </span>
           </div>
           <div className="h-2 bg-stone-100 dark:bg-white/8 rounded-full overflow-hidden">
@@ -375,7 +390,7 @@ function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
           </div>
           {loan.dueDate && isOutstandingLoan(loan) && (
             <p className="text-[10px] text-stone-400 dark:text-white/30 mt-1">
-              Due {formatDate(loan.dueDate)}
+              Due {formatDate(loan.dueDate)} · Total with interest {formatCurrency(totalDue, currency)}
             </p>
           )}
         </div>
@@ -417,10 +432,16 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   amount: '',
   purpose: '',
-  months: 2,
+  months: 3,
   reason: '',
   agreed: false,
 };
+
+function nextPaymentEstimate(loan: Loan): number {
+  const L = ensureLoanFinance(loan);
+  const rem = remainingBalance(L);
+  return Math.min(rem, L.monthlyPayment || rem);
+}
 
 export default function Loans() {
   const { activeCooperative, updateCooperative, refresh } = useCooperative();
@@ -438,6 +459,7 @@ export default function Loans() {
   const [repayError, setRepayError] = useState('');
   const [repaySuccess, setRepaySuccess] = useState('');
   const [repaying, setRepaying] = useState(false);
+  const [distLog, setDistLog] = useState<DistLogLine[]>([]);
 
   const reload = useCallback(() => {
     setLoans(activeCooperative ? loadLoans(activeCooperative.id) : []);
@@ -549,31 +571,57 @@ export default function Loans() {
         walletAddress,
       );
 
-      // Only restore cash if this loan originally reduced treasury (cashDisbursedFromTreasury).
-      // Otherwise outstanding falls but cash is unchanged — never inflate the total.
-      if (result.cashToRestore > 0) {
+      // Principal → loan pool cash (if disbursed). Interest → treasury profit.
+      const cashIn =
+        Math.round((result.cashToRestore + result.interestToTreasury) * 100) / 100;
+      if (cashIn > 0) {
         const nextTreasury =
-          Math.round(
-            ((activeCooperative.treasuryBalance ?? 0) + result.cashToRestore) * 100,
-          ) / 100;
+          Math.round(((activeCooperative.treasuryBalance ?? 0) + cashIn) * 100) / 100;
         updateCooperative(activeCooperative.id, { treasuryBalance: nextTreasury });
         refresh();
       }
 
+      setDistLog([
+        {
+          id: `p-${Date.now()}`,
+          label: 'Loan Principal Returned',
+          amount: result.principalPortion,
+          tone: 'principal',
+        },
+        {
+          id: `i-${Date.now()}`,
+          label: 'Interest Earned',
+          amount: result.interestPortion,
+          tone: 'interest',
+        },
+        {
+          id: `t-${Date.now()}`,
+          label: 'Treasury Updated',
+          amount: cashIn,
+          tone: 'treasury',
+        },
+        {
+          id: `s-${Date.now()}`,
+          label: 'Savings Vault Updated',
+          amount: Math.round(result.interestPortion * 0.05 * 100) / 100,
+          tone: 'savings',
+        },
+      ]);
+
       setLoans(loadLoans(activeCooperative.id));
       setRepayAmount('');
+      const intNote =
+        result.interestPortion > 0
+          ? ` Interest ${formatCurrency(result.interestPortion, currency)} → cooperative profit.`
+          : '';
       if (result.fullyPaid) {
         setRepaySuccess(
-          result.cashToRestore > 0
-            ? `Fully repaid ${formatCurrency(result.amountPaid, currency)}. Cash restored to treasury. Loan closed.`
-            : `Fully repaid ${formatCurrency(result.amountPaid, currency)}. Loan closed (removed from outstanding).`,
+          `Fully repaid ${formatCurrency(result.amountPaid, currency)}. Loan closed.${intNote}`,
         );
         setRepayLoanId('');
       } else {
         setRepaySuccess(
-          result.cashToRestore > 0
-            ? `Paid ${formatCurrency(result.amountPaid, currency)} (cash restored). Still owed ${formatCurrency(result.remaining, currency)}.`
-            : `Paid ${formatCurrency(result.amountPaid, currency)}. Still owed ${formatCurrency(result.remaining, currency)}.`,
+          `Paid ${formatCurrency(result.amountPaid, currency)}. Still owed ${formatCurrency(result.remaining, currency)}.${intNote}`,
         );
       }
     } catch (e) {
@@ -582,6 +630,12 @@ export default function Loans() {
       setRepaying(false);
     }
   };
+
+  const previewFinance = useMemo(() => {
+    const amt = Number(form.amount);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+    return computeLoanFinance(amt, form.months);
+  }, [form.amount, form.months]);
 
   const submitApplication = async () => {
     setFormError('');
@@ -927,74 +981,219 @@ export default function Loans() {
                   })}
                 </div>
 
-                {selectedRepayLoan && (
-                  <div className="rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/80 dark:bg-[#2E3B4B]/25 p-4">
-                    <p className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide mb-3">
-                      Make a payment
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3 mb-3">
-                      <div className="flex-1 space-y-1.5">
-                        <label className="text-[11px] text-stone-400 dark:text-white/40">
-                          Amount (max {formatCurrency(remainingBalance(selectedRepayLoan), currency)})
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={repayAmount}
-                          onChange={(e) => {
-                            setRepayAmount(e.target.value);
-                            setRepayError('');
-                            setRepaySuccess('');
-                          }}
-                          placeholder="0.00"
-                          disabled={repaying}
-                          className="w-full bg-white dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10 disabled:opacity-60"
-                        />
+                {selectedRepayLoan && (() => {
+                  const L = ensureLoanFinance(selectedRepayLoan);
+                  const principal = L.approvedAmount ?? L.requestedAmount;
+                  const totalDue = L.totalRepayment ?? principal;
+                  const paid = L.paidAmount ?? 0;
+                  const rem = remainingBalance(L);
+                  const pct = totalDue > 0 ? Math.round((paid / totalDue) * 100) : 0;
+                  const nextPay = nextPaymentEstimate(L);
+                  const history = L.repaymentHistory ?? [];
+                  return (
+                    <div className="space-y-4">
+                      {/* Loan detail panel */}
+                      <div className="rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/80 dark:bg-[#2E3B4B]/25 p-4">
+                        <p className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide mb-3">
+                          Loan details
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
+                          {[
+                            { l: 'Loan Amount', v: formatCurrency(principal, currency) },
+                            { l: 'Interest Rate', v: formatInterestPct(L.interestRate ?? 0.05) },
+                            { l: 'Total Repayment', v: formatCurrency(totalDue, currency) },
+                            { l: 'Remaining Balance', v: formatCurrency(rem, currency) },
+                            { l: 'Due Date', v: L.dueDate ? formatDate(L.dueDate) : '—' },
+                            { l: 'Next Payment', v: formatCurrency(nextPay, currency) },
+                          ].map(({ l, v }) => (
+                            <div key={l} className="rounded-lg bg-white dark:bg-white/5 border border-stone-100 dark:border-white/6 px-2.5 py-2 min-w-0">
+                              <p className="text-[10px] text-stone-400 dark:text-white/35">{l}</p>
+                              <p className="text-sm font-bold text-stone-800 dark:text-white tabular-nums break-words">{v}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mb-4">
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-stone-400 dark:text-white/40">Repayment progress</span>
+                            <span className="font-semibold text-stone-600 dark:text-white/60">{pct}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-stone-100 dark:bg-white/8 overflow-hidden">
+                            <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 mb-3">
+                          <div className="flex-1 space-y-1.5">
+                            <label className="text-[11px] text-stone-400 dark:text-white/40">
+                              Amount (max {formatCurrency(rem, currency)})
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={repayAmount}
+                              onChange={(e) => {
+                                setRepayAmount(e.target.value);
+                                setRepayError('');
+                                setRepaySuccess('');
+                              }}
+                              placeholder="0.00"
+                              disabled={repaying}
+                              className="w-full bg-white dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10 disabled:opacity-60"
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-end gap-2">
+                            <button
+                              type="button"
+                              disabled={repaying}
+                              onClick={() => setRepayAmount(String(nextPay))}
+                              className="flex-1 sm:flex-none px-3 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 disabled:opacity-60 transition-colors"
+                            >
+                              Pay Now
+                            </button>
+                            <button
+                              type="button"
+                              disabled={repaying}
+                              onClick={() => setRepayAmount(String(rem))}
+                              className="flex-1 sm:flex-none px-3 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-xs font-semibold text-stone-600 dark:text-white/60 hover:bg-white dark:hover:bg-white/5 transition-colors"
+                            >
+                              Pay Full Balance
+                            </button>
+                            <button
+                              type="button"
+                              disabled={repaying}
+                              onClick={submitRepayment}
+                              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60 transition-colors"
+                            >
+                              {repaying ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <RefreshCcw className="w-4 h-4" />
+                              )}
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-xs font-semibold text-stone-500 dark:text-white/50"
+                              onClick={() => {
+                                const lines = [
+                                  `Nexusu Loan Statement`,
+                                  `Borrower: ${L.borrowerName}`,
+                                  `Principal: ${formatCurrency(principal, currency)}`,
+                                  `Interest: ${formatInterestPct(L.interestRate ?? 0.05)}`,
+                                  `Total due: ${formatCurrency(totalDue, currency)}`,
+                                  `Paid: ${formatCurrency(paid, currency)}`,
+                                  `Remaining: ${formatCurrency(rem, currency)}`,
+                                ].join('\n');
+                                void navigator.clipboard?.writeText(lines);
+                                setRepaySuccess('Statement copied to clipboard.');
+                              }}
+                            >
+                              <Download className="w-3.5 h-3.5" /> Statement
+                            </button>
+                          </div>
+                        </div>
+                        {repayError && (
+                          <p className="text-xs text-red-500 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            {repayError}
+                          </p>
+                        )}
+                        {repaySuccess && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {repaySuccess}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-stone-400 dark:text-white/30 mt-3">
+                          Interest is collected first, then principal returns to the loan pool. Interest strengthens the cooperative treasury and savings policy.
+                        </p>
                       </div>
-                      <div className="flex items-end gap-2">
-                        <button
-                          type="button"
-                          disabled={repaying}
-                          onClick={() =>
-                            setRepayAmount(String(remainingBalance(selectedRepayLoan)))
-                          }
-                          className="px-3 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-xs font-semibold text-stone-600 dark:text-white/60 hover:bg-white dark:hover:bg-white/5 transition-colors"
-                        >
-                          Pay full balance
-                        </button>
-                        <button
-                          type="button"
-                          disabled={repaying}
-                          onClick={submitRepayment}
-                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 disabled:opacity-60 transition-colors"
-                        >
-                          {repaying ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RefreshCcw className="w-4 h-4" />
-                          )}
-                          Confirm repayment
-                        </button>
+
+                      {/* AI Loan Monitoring */}
+                      <div className="rounded-xl border border-[#6393C4]/20 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Sparkles className="w-4 h-4 text-[#6393C4]" />
+                          <p className="text-xs font-bold uppercase tracking-wider text-[#6393C4]">
+                            Nexa AI Loan Monitoring
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                          {[
+                            { l: 'Credit Health', v: L.riskScore <= 35 ? 'Excellent' : L.riskScore <= 55 ? 'Good' : 'Watch' },
+                            { l: 'Repayment Behaviour', v: paid > 0 ? 'On Track' : 'New loan' },
+                            { l: 'Missed Payments', v: '0' },
+                            { l: 'Risk Score', v: L.riskLevel ?? riskLabel(L.riskScore) },
+                          ].map(({ l, v }) => (
+                            <div key={l} className="rounded-lg bg-white/80 dark:bg-white/5 border border-[#6393C4]/15 px-2.5 py-2">
+                              <p className="text-[10px] text-stone-400 dark:text-white/40">{l}</p>
+                              <p className="text-sm font-bold text-stone-800 dark:text-white">{v}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-stone-600 dark:text-white/65 leading-relaxed flex items-start gap-2">
+                          <Activity className="w-3.5 h-3.5 text-[#6393C4] flex-shrink-0 mt-0.5" />
+                          Continue making repayments to improve your cooperative reputation.
+                        </p>
                       </div>
+
+                      {/* Interest distribution log */}
+                      {distLog.length > 0 && (
+                        <div className="rounded-xl border border-stone-100 dark:border-white/8 p-4">
+                          <p className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide mb-3">
+                            Automatic interest distribution
+                          </p>
+                          <ul className="space-y-2">
+                            {distLog.map((line) => (
+                              <li
+                                key={line.id}
+                                className="flex items-center justify-between gap-3 text-sm"
+                              >
+                                <span className="text-stone-600 dark:text-white/65">{line.label}</span>
+                                <span
+                                  className={cn(
+                                    'font-bold tabular-nums',
+                                    line.tone === 'interest' || line.tone === 'savings'
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : 'text-stone-800 dark:text-white',
+                                  )}
+                                >
+                                  {formatCurrency(line.amount, currency)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Repayment history */}
+                      {history.length > 0 && (
+                        <div className="rounded-xl border border-stone-100 dark:border-white/8 p-4">
+                          <p className="text-xs font-semibold text-stone-500 dark:text-white/50 uppercase tracking-wide mb-3">
+                            Repayment History
+                          </p>
+                          <div className="space-y-2">
+                            {history.map((h) => (
+                              <div
+                                key={h.id}
+                                className="flex flex-wrap items-center justify-between gap-2 text-xs border-b border-stone-50 dark:border-white/4 pb-2 last:border-0 last:pb-0"
+                              >
+                                <span className="text-stone-400 dark:text-white/40">{formatDate(h.date)}</span>
+                                <span className="font-semibold text-stone-800 dark:text-white">
+                                  {formatCurrency(h.amount, currency)}
+                                </span>
+                                <span className="text-stone-400 dark:text-white/35 w-full sm:w-auto">
+                                  Principal {formatCurrency(h.principalPortion, currency)} · Interest{' '}
+                                  {formatCurrency(h.interestPortion, currency)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {repayError && (
-                      <p className="text-xs text-red-500 flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        {repayError}
-                      </p>
-                    )}
-                    {repaySuccess && (
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {repaySuccess}
-                      </p>
-                    )}
-                    <p className="text-[11px] text-stone-400 dark:text-white/30 mt-3">
-                      Partial payments allowed. Each payment: cash on hand ↑ and outstanding ↓ by the same amount. Full repayment closes the loan.
-                    </p>
-                  </div>
-                )}
+                  );
+                })()}
               </>
             )}
           </motion.section>
@@ -1092,6 +1291,64 @@ export default function Loans() {
                 className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 resize-none disabled:opacity-60"
               />
             </div>
+          </div>
+
+          {/* Interest schedule — shown before submit */}
+          <div className="mb-4 rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/80 dark:bg-[#2E3B4B]/25 p-4">
+            <p className="text-xs font-semibold text-stone-700 dark:text-white/75 mb-1">
+              Interest schedule
+            </p>
+            <p className="text-[11px] text-stone-400 dark:text-white/40 mb-3">
+              Longer terms carry higher simple interest on principal (from 5%). Review before applying.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
+              {LOAN_INTEREST_TABLE.map((row) => (
+                <button
+                  key={row.months}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, months: row.months }))}
+                  className={cn(
+                    'rounded-lg border px-2 py-2 text-center transition-colors',
+                    form.months === row.months
+                      ? 'border-[#6393C4] bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB]'
+                      : 'border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/55 hover:border-[#6393C4]/40',
+                  )}
+                >
+                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                    {row.months} mo
+                  </p>
+                  <p className="text-sm font-bold">{Math.round(row.rate * 100)}%</p>
+                </button>
+              ))}
+            </div>
+            {previewFinance && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="rounded-lg bg-white dark:bg-white/5 px-2.5 py-2 border border-stone-100 dark:border-white/6">
+                  <p className="text-stone-400 dark:text-white/35">Principal</p>
+                  <p className="font-bold text-stone-800 dark:text-white">
+                    {formatCurrency(previewFinance.principal, currency)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white dark:bg-white/5 px-2.5 py-2 border border-stone-100 dark:border-white/6">
+                  <p className="text-stone-400 dark:text-white/35">Interest</p>
+                  <p className="font-bold text-stone-800 dark:text-white">
+                    {formatCurrency(previewFinance.totalInterest, currency)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white dark:bg-white/5 px-2.5 py-2 border border-stone-100 dark:border-white/6">
+                  <p className="text-stone-400 dark:text-white/35">Total repayment</p>
+                  <p className="font-bold text-stone-800 dark:text-white">
+                    {formatCurrency(previewFinance.totalRepayment, currency)}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white dark:bg-white/5 px-2.5 py-2 border border-stone-100 dark:border-white/6">
+                  <p className="text-stone-400 dark:text-white/35">Monthly</p>
+                  <p className="font-bold text-stone-800 dark:text-white">
+                    {formatCurrency(previewFinance.monthlyPayment, currency)}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <label className="flex items-start gap-3 mb-4 cursor-pointer select-none">

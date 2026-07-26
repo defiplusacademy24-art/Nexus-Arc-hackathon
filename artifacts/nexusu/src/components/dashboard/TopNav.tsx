@@ -13,7 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/cooperatives': 'Cooperatives',
   '/dashboard/members': 'Members',
   '/dashboard/treasury': 'Treasury',
-  '/dashboard/savings': 'Savings',
+  '/dashboard/savings': 'Savings Vault',
   '/dashboard/loans': 'Loans',
   '/dashboard/nexa': 'Nexa AI',
   '/dashboard/governance': 'Governance',

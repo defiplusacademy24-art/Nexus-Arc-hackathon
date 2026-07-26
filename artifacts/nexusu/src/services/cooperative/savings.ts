@@ -1,21 +1,17 @@
 /**
- * Savings pools — localStorage until on-chain pools are integrated.
- * Starts empty; never seeds mock pools.
+ * Savings service — Cooperative Savings Vault only.
+ * Personal "create pool" UX has been removed.
  */
 
-import type { SavingsPool } from '@/types';
+export { buildSavingsVaultSnapshot, totalInterestEarned } from './savings-vault';
+export type { } from '@/types';
 
-const key = (coopId: string) => `nexusu:savings:${coopId}`;
-
-export function loadSavingsPools(cooperativeId: string): SavingsPool[] {
-  try {
-    const raw = localStorage.getItem(key(cooperativeId));
-    return raw ? (JSON.parse(raw) as SavingsPool[]) : [];
-  } catch {
-    return [];
-  }
+/** @deprecated Use buildSavingsVaultSnapshot — pools are no longer supported */
+export function loadSavingsPools(_cooperativeId: string): never[] {
+  return [];
 }
 
-export function saveSavingsPools(cooperativeId: string, pools: SavingsPool[]): void {
-  localStorage.setItem(key(cooperativeId), JSON.stringify(pools));
+/** @deprecated */
+export function saveSavingsPools(_cooperativeId: string, _pools: unknown[]): void {
+  // no-op
 }

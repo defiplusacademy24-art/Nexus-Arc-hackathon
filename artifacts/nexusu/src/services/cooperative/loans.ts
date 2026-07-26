@@ -1,11 +1,12 @@
 /**
  * Loan records — localStorage until Arc lending contracts are wired.
  * Starts empty; never seeds mock applications.
- * Supports partial and full repayment before due date.
+ * Supports partial and full repayment with interest before due date.
  */
 
-import type { Loan, AiLoanAssessment, LoanPurposeCategory, Member } from '@/types';
+import type { Loan, AiLoanAssessment, LoanPurposeCategory, Member, LoanRepaymentEntry } from '@/types';
 import { decisionToLoanStatus } from './lending-agent';
+import { computeLoanFinance, splitPayment } from './interest';
 
 const key = (coopId: string) => `nexusu:loans:${coopId}`;
 
@@ -22,11 +23,43 @@ export function saveLoans(cooperativeId: string, loans: Loan[]): void {
   localStorage.setItem(key(cooperativeId), JSON.stringify(loans));
 }
 
-/** Principal still owed on a loan (never negative). */
-export function remainingBalance(loan: Loan): number {
+/** Ensure older loans without interest fields still repay correctly. */
+export function ensureLoanFinance(loan: Loan): Loan {
+  if (
+    typeof loan.interestRate === 'number' &&
+    typeof loan.totalRepayment === 'number' &&
+    typeof loan.totalInterest === 'number'
+  ) {
+    return loan;
+  }
   const principal = loan.approvedAmount ?? loan.requestedAmount ?? 0;
-  const paid = loan.paidAmount ?? 0;
-  return Math.max(0, Math.round((principal - paid) * 100) / 100);
+  const fin = computeLoanFinance(principal, loan.repaymentMonths || 1);
+  return {
+    ...loan,
+    interestRate: fin.interestRate,
+    totalInterest: fin.totalInterest,
+    totalRepayment: fin.totalRepayment,
+    monthlyPayment: fin.monthlyPayment,
+  };
+}
+
+/** Total still owed (principal + interest − paid). */
+export function remainingBalance(loan: Loan): number {
+  const l = ensureLoanFinance(loan);
+  const total = l.totalRepayment ?? (l.approvedAmount ?? l.requestedAmount ?? 0);
+  const paid = l.paidAmount ?? 0;
+  return Math.max(0, Math.round((total - paid) * 100) / 100);
+}
+
+/** Principal still outstanding (excludes unpaid interest). */
+export function remainingPrincipal(loan: Loan): number {
+  const l = ensureLoanFinance(loan);
+  const principal = l.approvedAmount ?? l.requestedAmount ?? 0;
+  const totalInterest = l.totalInterest ?? 0;
+  const interestPaid = l.interestPaid ?? 0;
+  const remainingInt = Math.max(0, totalInterest - interestPaid);
+  const remTotal = remainingBalance(l);
+  return Math.max(0, Math.round((remTotal - remainingInt) * 100) / 100);
 }
 
 /** Whether the loan still has principal outstanding. */
@@ -118,10 +151,7 @@ export function createLoanFromAssessment(
     input;
   const status = decisionToLoanStatus(assessment.decision);
   const approved = assessment.decision === 'APPROVED' ? amount : undefined;
-  const monthlyPayment =
-    repaymentMonths > 0
-      ? Math.round(((approved ?? amount) / repaymentMonths) * 100) / 100
-      : amount;
+  const fin = computeLoanFinance(approved ?? amount, repaymentMonths);
 
   const initials =
     applicant.initials ||
@@ -152,7 +182,10 @@ export function createLoanFromAssessment(
     riskScore: assessment.riskScore,
     riskLevel: assessment.riskLevel,
     repaymentMonths,
-    monthlyPayment,
+    monthlyPayment: fin.monthlyPayment,
+    interestRate: fin.interestRate,
+    totalInterest: fin.totalInterest,
+    totalRepayment: fin.totalRepayment,
     status: status === 'approved' ? 'active' : status, // live book once approved
     aiDecision: assessment.decision,
     aiRecommendation: assessment.explanation,
@@ -168,6 +201,8 @@ export function createLoanFromAssessment(
     approvedByAi: assessment.decision === 'APPROVED',
     disbursementReady: assessment.decision === 'APPROVED',
     paidAmount: 0,
+    interestPaid: 0,
+    repaymentHistory: [],
     // Only true when caller actually reduced treasury cash for this principal
     cashDisbursedFromTreasury: disbursed,
     cashReturnedToTreasury: 0,
@@ -229,21 +264,24 @@ export type RepaymentResult = {
   amountPaid: number;
   remaining: number;
   fullyPaid: boolean;
+  principalPortion: number;
+  interestPortion: number;
   /**
-   * Cash to add back to treasuryBalance.
-   * 0 when the loan never reduced cash (legacy / earmark-only), so repay
-   * cannot inflate the total treasury.
+   * Principal cash restored to loan pool / treasury cash.
+   * 0 when the loan never reduced cash at disbursement.
    */
   cashToRestore: number;
+  /** Interest income credited as cooperative profit (always added to treasury). */
+  interestToTreasury: number;
 };
 
 /**
- * Apply a partial or full repayment.
+ * Apply a partial or full repayment (principal + interest).
  *
  * Cash rules:
- * - If cash was taken from treasury at disbursement → restore the same cash on repay
- * - If cash was never taken (legacy loans) → do NOT change treasury cash
- * - Outstanding always decreases by the payment amount
+ * - Principal portion → restores loan-pool cash if disbursed from treasury
+ * - Interest portion → cooperative profit into treasury (always)
+ * - Outstanding decreases by total payment
  */
 export function applyLoanRepayment(
   cooperativeId: string,
@@ -259,7 +297,7 @@ export function applyLoanRepayment(
   const idx = loans.findIndex((l) => l.id === loanId);
   if (idx === -1) throw new Error('Loan not found.');
 
-  const loan = loans[idx];
+  let loan = ensureLoanFinance(loans[idx]);
   if (loan.status === 'completed' || loan.status === 'rejected' || loan.status === 'defaulted') {
     throw new Error('This loan cannot accept repayments.');
   }
@@ -279,27 +317,48 @@ export function applyLoanRepayment(
   }
 
   const pay = Math.min(amount, remaining);
-  const newPaid = Math.round(((loan.paidAmount ?? 0) + pay) * 100) / 100;
-  const principal = loan.approvedAmount ?? loan.requestedAmount;
-  const fullyPaid = newPaid >= principal - 0.001;
+  const principal = loan.approvedAmount ?? loan.requestedAmount ?? 0;
+  const totalInterest = loan.totalInterest ?? 0;
+  const interestPaidSoFar = loan.interestPaid ?? 0;
+  const remInterest = Math.max(0, totalInterest - interestPaidSoFar);
+  const remPrincipal = Math.max(0, remaining - remInterest);
 
-  // Only restore cash that was actually taken from treasury at disbursement.
-  // Legacy loans (flag missing/false) never reduced cash → cashToRestore = 0.
+  const { principalPortion, interestPortion } = splitPayment(pay, remPrincipal, remInterest);
+
+  const newPaid = Math.round(((loan.paidAmount ?? 0) + pay) * 100) / 100;
+  const newInterestPaid = Math.round((interestPaidSoFar + interestPortion) * 100) / 100;
+  const totalDue = loan.totalRepayment ?? principal + totalInterest;
+  const fullyPaid = newPaid >= totalDue - 0.001;
+
+  // Principal restores cash only if disbursed from treasury
   let cashToRestore = 0;
   let cashReturned = loan.cashReturnedToTreasury ?? 0;
-  if (loan.cashDisbursedFromTreasury === true) {
-    const principalAmt = principal ?? 0;
-    const stillUnreturned = Math.max(0, principalAmt - cashReturned);
-    cashToRestore = Math.min(pay, stillUnreturned);
+  if (loan.cashDisbursedFromTreasury === true && principalPortion > 0) {
+    const stillUnreturned = Math.max(0, principal - cashReturned);
+    cashToRestore = Math.min(principalPortion, stillUnreturned);
     cashReturned = Math.round((cashReturned + cashToRestore) * 100) / 100;
   }
 
+  // Interest is always cooperative profit → treasury
+  const interestToTreasury = interestPortion;
+
+  const historyEntry: LoanRepaymentEntry = {
+    id: `rep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    date: new Date().toISOString(),
+    amount: pay,
+    principalPortion,
+    interestPortion,
+    remainingAfter: Math.max(0, Math.round((totalDue - newPaid) * 100) / 100),
+  };
+
   const updated: Loan = {
     ...loan,
-    paidAmount: fullyPaid ? principal : newPaid,
+    paidAmount: fullyPaid ? totalDue : newPaid,
+    interestPaid: fullyPaid ? totalInterest : newInterestPaid,
     status: fullyPaid ? 'completed' : 'active',
     disbursementReady: fullyPaid ? false : loan.disbursementReady,
     cashReturnedToTreasury: cashReturned,
+    repaymentHistory: [historyEntry, ...(loan.repaymentHistory ?? [])],
   };
 
   loans[idx] = updated;
@@ -311,6 +370,9 @@ export function applyLoanRepayment(
     amountPaid: pay,
     remaining: fullyPaid ? 0 : remainingBalance(updated),
     fullyPaid,
+    principalPortion,
+    interestPortion,
     cashToRestore,
+    interestToTreasury,
   };
 }

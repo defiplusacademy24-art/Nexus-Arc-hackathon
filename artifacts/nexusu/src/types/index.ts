@@ -133,6 +133,7 @@ export interface CashFlowPoint {
 
 export type SavingsStatus = 'active' | 'completed' | 'paused';
 
+/** @deprecated Personal pools removed — cooperative Savings Vault only */
 export interface SavingsPool {
   id: string;
   name: string;
@@ -145,6 +146,52 @@ export interface SavingsPool {
   progress: number; // 0–100
   status: SavingsStatus;
   aiRecommendation: string;
+}
+
+/** Cooperative Savings Vault lifecycle status */
+export type SavingsVaultStatus = 'active' | 'growing' | 'paused';
+
+export type SavingsLedgerKind =
+  | 'allocation'
+  | 'interest'
+  | 'profit_return'
+  | 'rebalance';
+
+export interface SavingsLedgerEntry {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  kind: SavingsLedgerKind;
+  status: 'completed' | 'pending';
+}
+
+export interface SavingsGrowthPoint {
+  label: string;
+  savings: number;
+  yield: number;
+  treasury: number;
+}
+
+export interface SavingsVaultSnapshot {
+  totalSavings: number;
+  allocationPct: number;
+  yieldEarned: number;
+  status: SavingsVaultStatus;
+  treasuryCash: number;
+  rotationFund: number;
+  loanPool: number;
+  emergencyReserve: number;
+  savingsVault: number;
+  ledger: SavingsLedgerEntry[];
+  growth: SavingsGrowthPoint[];
+  insights: string[];
+  projectedAnnualGrowthPct: number;
+  nextReviewDays: number;
+  treasuryHealth: 'Healthy' | 'Moderate' | 'Low';
+  riskLevel: 'Low' | 'Medium' | 'High';
+  recommendation: string;
+  recentDecision: string;
 }
 
 // ── Loans ──────────────────────────────────────────────────────────────────────
@@ -191,6 +238,16 @@ export interface AiLoanAssessment {
   loanPoolAvailable: number;
 }
 
+export interface LoanRepaymentEntry {
+  id: string;
+  date: string;
+  amount: number;
+  principalPortion: number;
+  interestPortion: number;
+  remainingAfter: number;
+  note?: string;
+}
+
 export interface Loan {
   id: string;
   borrowerId: string;
@@ -207,6 +264,12 @@ export interface Loan {
   riskLevel?: RiskLevelLabel;
   repaymentMonths: number;
   monthlyPayment: number;
+  /** Simple interest rate for the full term (e.g. 0.07 = 7%). */
+  interestRate?: number;
+  /** Principal + interest due over the full term. */
+  totalRepayment?: number;
+  /** Interest portion of total repayment. */
+  totalInterest?: number;
   status: LoanStatus;
   /** pending = governance review; approved = AI approved; rejected = declined */
   aiDecision?: AiLoanDecision;
@@ -217,6 +280,9 @@ export interface Loan {
   disbursedAt?: string;
   dueDate?: string;
   paidAmount?: number;
+  /** Interest portion already collected via repayments. */
+  interestPaid?: number;
+  repaymentHistory?: LoanRepaymentEntry[];
   approvedByAi?: boolean;
   disbursementReady?: boolean;
   /**
