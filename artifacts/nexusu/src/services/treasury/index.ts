@@ -11,12 +11,25 @@ export type TreasuryTxn = {
   createdAt: string;
 };
 
+/**
+ * Default off-chain treasury allocation (matches product policy):
+ * 60% Rotation Fund · 30% Loan Pool · 5% Emergency Reserve · 5% Savings / Investments
+ */
+export const TREASURY_ALLOCATION = {
+  rotation: 0.6,
+  loanPool: 0.3,
+  emergency: 0.05,
+  savings: 0.05,
+} as const;
+
 /** Empty snapshot — use buildSnapshotFromBalance / real API instead. */
 export const TREASURY_SNAPSHOT: TreasurySnapshot = {
   availableBalance: 0,
+  rotationFund: 0,
   reservedFunds: 0,
   loanPool: 0,
   emergencyReserve: 0,
+  savingsInvestment: 0,
   pendingContributions: 0,
   monthlyInflow: 0,
   monthlyOutflow: 0,
@@ -32,14 +45,21 @@ export function buildSnapshotFromBalance(
   monthlyInflow = 0,
   monthlyOutflow = 0,
 ): TreasurySnapshot {
-  const available = Math.round(Math.max(0, totalBalance) * 0.6 * 100) / 100;
-  const loanPool = Math.round(Math.max(0, totalBalance) * 0.3 * 100) / 100;
-  const reserved = Math.round((Math.max(0, totalBalance) - available - loanPool) * 100) / 100;
+  const cash = Math.max(0, totalBalance);
+  const rotationFund = Math.round(cash * TREASURY_ALLOCATION.rotation * 100) / 100;
+  const loanPool = Math.round(cash * TREASURY_ALLOCATION.loanPool * 100) / 100;
+  const emergencyReserve = Math.round(cash * TREASURY_ALLOCATION.emergency * 100) / 100;
+  // Remainder absorbs rounding so buckets sum to cash
+  const savingsInvestment =
+    Math.round((cash - rotationFund - loanPool - emergencyReserve) * 100) / 100;
+  const reserved = Math.round((emergencyReserve + savingsInvestment) * 100) / 100;
   return {
-    availableBalance: available,
+    availableBalance: rotationFund,
+    rotationFund,
     reservedFunds: reserved,
     loanPool,
-    emergencyReserve: reserved,
+    emergencyReserve,
+    savingsInvestment,
     pendingContributions: 0,
     monthlyInflow,
     monthlyOutflow,

@@ -108,10 +108,14 @@ export interface MemberActivity {
 // ── Treasury ───────────────────────────────────────────────────────────────────
 
 export interface TreasurySnapshot {
+  /** @deprecated Prefer rotationFund — 60% of cash */
   availableBalance: number;
+  /** Rotation fund (60% of cash on hand) */
+  rotationFund: number;
   reservedFunds: number;
   loanPool: number;
   emergencyReserve: number;
+  savingsInvestment: number;
   pendingContributions: number;
   monthlyInflow: number;
   monthlyOutflow: number;

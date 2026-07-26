@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Vault, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
+  Vault, TrendingUp, ArrowUpRight, ArrowDownRight,
   RefreshCw, ArrowDownLeft, Loader2, Banknote, CheckCircle2,
+  RotateCcw, Shield, PiggyBank,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { AreaChart } from '@/components/charts/AreaChart';
@@ -14,6 +15,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import {
   buildCashFlowFromTransactions,
   buildContributionTrend,
+  buildSnapshotFromBalance,
   sumMonthlyFlows,
 } from '@/services/treasury';
 import {
@@ -124,7 +126,10 @@ export default function Treasury() {
     [loans],
   );
 
-  const available = Math.round(totalBalance * 0.6 * 100) / 100;
+  const allocation = useMemo(
+    () => buildSnapshotFromBalance(totalBalance, monthlyInflow, monthlyOutflow),
+    [totalBalance, monthlyInflow, monthlyOutflow],
+  );
   const currency = activeCooperative?.currency ?? 'USD';
 
   const ensureBackendCoop = useCallback(async (wallet: string) => {
@@ -463,40 +468,70 @@ export default function Treasury() {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <TreasuryCard
-            label="Cash on hand"
-            value={totalBalance}
-            description="Liquid USDC / ledger cash"
-            color="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            icon={Vault}
-            delay={0.1}
-          />
-          <TreasuryCard
-            label="Loans receivable"
-            value={loansOutstanding}
-            description="Principal members still owe"
-            color="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB]"
-            icon={Banknote}
-            delay={0.15}
-          />
-          <TreasuryCard
-            label="Total disbursed (all-time)"
-            value={loansDisbursed}
-            description="Principal originally lent out"
-            color="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-            icon={TrendingUp}
-            delay={0.2}
-          />
-          <TreasuryCard
-            label="Operating buffer"
-            value={available}
-            description="~60% of cash for operations"
-            color="bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400"
-            icon={TrendingDown}
-            delay={0.25}
-          />
-        </div>
+        {/* Treasury allocation breakdown — policy split of cash on hand */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="mb-6"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
+                Treasury allocation
+              </h2>
+              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
+                Policy split of cash on hand · 60% / 30% / 5% / 5%
+              </p>
+            </div>
+            <p className="text-xs font-medium text-stone-500 dark:text-white/45">
+              Total cash {formatCurrency(totalBalance, currency)}
+            </p>
+          </div>
+
+          {/* Stacked bar */}
+          <div className="h-3 rounded-full overflow-hidden flex mb-4 bg-stone-100 dark:bg-white/8">
+            <div className="h-full bg-emerald-500" style={{ width: '60%' }} title="Rotation Fund 60%" />
+            <div className="h-full bg-[#6393C4]" style={{ width: '30%' }} title="Loan Pool 30%" />
+            <div className="h-full bg-amber-500" style={{ width: '5%' }} title="Emergency Reserve 5%" />
+            <div className="h-full bg-purple-500" style={{ width: '5%' }} title="Savings / Investments 5%" />
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <TreasuryCard
+              label="Rotation Fund · 60%"
+              value={allocation.rotationFund}
+              description="Member rotation / ROSCA payouts"
+              color="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              icon={RotateCcw}
+              delay={0.1}
+            />
+            <TreasuryCard
+              label="Loan Pool · 30%"
+              value={allocation.loanPool}
+              description="Capital available for member loans"
+              color="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB]"
+              icon={Banknote}
+              delay={0.15}
+            />
+            <TreasuryCard
+              label="Emergency Reserve · 5%"
+              value={allocation.emergencyReserve}
+              description="Hardship & contingency buffer"
+              color="bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              icon={Shield}
+              delay={0.2}
+            />
+            <TreasuryCard
+              label="Savings / Investments · 5%"
+              value={allocation.savingsInvestment}
+              description="Longer-term savings allocation"
+              color="bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400"
+              icon={PiggyBank}
+              delay={0.25}
+            />
+          </div>
+        </motion.div>
 
         {/* Loan portfolio — who received what from the cooperative */}
         <motion.div
