@@ -51,7 +51,7 @@ export default function WalletProfile() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-2xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-2xl mx-auto">
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
           <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Wallet Profile</h1>
@@ -62,26 +62,26 @@ export default function WalletProfile() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-7 mb-5 text-white relative overflow-hidden"
+          className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-5 sm:p-7 mb-5 text-white relative overflow-hidden"
         >
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 30%, white, transparent 60%)' }} />
 
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Wallet className="w-8 h-8 text-white" />
+          <div className="flex items-center gap-3 sm:gap-4 mb-5 sm:mb-6 min-w-0">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+              <Wallet className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl font-display font-bold">{identity.displayName}</h2>
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-display font-bold break-words">{identity.displayName}</h2>
               <p className="text-white/70 text-sm">{ARC_NETWORK_LABEL}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
             <CheckCircle2 className="w-4 h-4 text-white flex-shrink-0" />
-            <span className="text-sm font-semibold">
+            <span className="text-sm font-semibold min-w-0">
               {isOnArcTestnet ? 'Signed in · Arc Testnet' : 'Session not on Arc Testnet'}
             </span>
-            <span className="ml-auto text-xs text-white/70">USDC gas</span>
+            <span className="ml-auto text-xs text-white/70 flex-shrink-0">USDC gas</span>
           </div>
         </motion.div>
 

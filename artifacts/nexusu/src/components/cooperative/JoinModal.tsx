@@ -89,7 +89,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
       .join('')
       .toUpperCase();
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -99,7 +99,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="relative w-full max-w-sm bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl p-8 text-center shadow-2xl"
+          className="relative w-full max-w-sm mx-4 sm:mx-0 bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl p-6 sm:p-8 text-center shadow-2xl"
         >
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#6393C4]/25">
             <span className="text-white font-bold text-xl">{initials}</span>
@@ -137,7 +137,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -149,11 +149,11 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 20 }}
-        className="relative w-full max-w-md bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+        className="relative w-full sm:max-w-md h-[100dvh] sm:h-auto sm:max-h-[90vh] bg-white dark:bg-[#081827] border-0 sm:border border-stone-200 dark:border-[#1A2A3A] rounded-none sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-5 flex-shrink-0">
-          <div>
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-4 sm:pb-5 flex-shrink-0">
+          <div className="min-w-0">
             <h2 className="font-display font-bold text-stone-900 dark:text-white">
               Join a Cooperative
             </h2>
@@ -163,13 +163,13 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:bg-stone-100 dark:hover:bg-white/8 transition-colors"
+            className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:bg-stone-100 dark:hover:bg-white/8 transition-colors flex-shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="px-6 pb-6 space-y-5 overflow-y-auto">
+        <div className="px-4 sm:px-6 pb-6 space-y-5 overflow-y-auto flex-1">
           {/* Mode toggle */}
           <div className="flex gap-2 bg-stone-100 dark:bg-[#2E3B4B]/40 p-1 rounded-xl">
             {modes.map((m) => (

@@ -69,15 +69,15 @@ function StatCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all cursor-pointer group"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-3.5 sm:p-5 hover:shadow-md dark:hover:border-white/10 transition-all cursor-pointer group min-w-0"
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-100 dark:border-[#1A2A3A]')}>
-          <Icon className={cn('w-4.5 h-4.5', iconColor)} style={{ width: '1.125rem', height: '1.125rem' }} />
+      <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
+        <div className={cn('w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-100 dark:border-[#1A2A3A] flex-shrink-0')}>
+          <Icon className={cn('w-4 h-4 sm:w-[1.125rem] sm:h-[1.125rem]', iconColor)} />
         </div>
         {change !== undefined && !empty && (
           <div className={cn(
-            'flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full',
+            'flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0',
             change >= 0
               ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
               : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400',
@@ -88,13 +88,13 @@ function StatCard({
         )}
       </div>
 
-      <p className="text-2xl font-display font-bold text-stone-900 dark:text-white mb-1">
+      <p className="text-lg sm:text-2xl font-display font-bold text-stone-900 dark:text-white mb-1 tabular-nums break-words">
         {prefix}{formatted}{suffix}
       </p>
-      <p className="text-xs text-stone-400 dark:text-white/40 font-medium">
+      <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 font-medium leading-snug">
         {label}
         {changeLabel && !empty && (
-          <span className="ml-1 text-stone-300 dark:text-white/25">· {changeLabel}</span>
+          <span className="ml-1 text-stone-300 dark:text-white/25 block sm:inline">· {changeLabel}</span>
         )}
       </p>
     </motion.div>
@@ -379,7 +379,7 @@ export default function Overview() {
   if (!activeCooperative) {
     return (
       <DashboardLayout>
-        <div className="px-6 py-6 max-w-7xl mx-auto">
+        <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
             <h1 className="text-2xl font-display font-bold text-stone-900 dark:text-white">
               {greeting}, {displayName} 👋
@@ -431,7 +431,7 @@ export default function Overview() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
 
         {/* Header */}
         <motion.div
@@ -439,10 +439,10 @@ export default function Overview() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-7"
         >
-          <h1 className="text-2xl font-display font-bold text-stone-900 dark:text-white">
+          <h1 className="text-xl sm:text-2xl font-display font-bold text-stone-900 dark:text-white break-words">
             {greeting}, {displayName} 👋
           </h1>
-          <p className="text-sm text-stone-400 dark:text-white/40 mt-1">
+          <p className="text-sm text-stone-400 dark:text-white/40 mt-1 break-words">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             {' · '}{coopName}
             {summary && (
@@ -456,7 +456,7 @@ export default function Overview() {
         </motion.div>
 
         {/* Stat cards — live cooperative data */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6">
           <StatCard
             label="Cash on hand"
             value={treasury}
@@ -509,7 +509,7 @@ export default function Overview() {
           />
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6">
           <StatCard
             label="Net Flow (month)"
             value={Math.round((monthlyInflow - monthlyOutflow) * 100) / 100}

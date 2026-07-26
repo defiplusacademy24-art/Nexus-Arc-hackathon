@@ -58,21 +58,21 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-sm dark:hover:border-white/10 transition-all"
+      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-5 hover:shadow-sm dark:hover:border-white/10 transition-all min-w-0"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex flex-wrap gap-2">
-          <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize', TYPE_BADGE[proposal.type])}>
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 min-w-0">
+          <span className={cn('text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize', TYPE_BADGE[proposal.type])}>
             {proposal.type}
           </span>
-          <span className={cn('flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border', config.class)}>
-            <Icon className="w-3 h-3" />
+          <span className={cn('flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full border', config.class)}>
+            <Icon className="w-3 h-3 flex-shrink-0" />
             {config.label}
           </span>
         </div>
       </div>
 
-      <h3 className="font-display font-bold text-stone-900 dark:text-white text-sm mb-2">{proposal.title}</h3>
+      <h3 className="font-display font-bold text-stone-900 dark:text-white text-sm mb-2 break-words">{proposal.title}</h3>
       <p className="text-xs text-stone-500 dark:text-white/50 mb-4 leading-relaxed line-clamp-2">{proposal.description}</p>
 
       <p className="text-[11px] text-stone-400 dark:text-white/35 mb-4">
@@ -110,7 +110,7 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       )}
 
       {proposal.status === 'active' && (
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           {[
             { key: 'for' as const, label: 'For', icon: ThumbsUp, active: 'bg-emerald-500 text-white', base: 'border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/8' },
             { key: 'against' as const, label: 'Against', icon: ThumbsDown, active: 'bg-red-500 text-white', base: 'border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/8' },
@@ -121,11 +121,12 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
               type="button"
               onClick={() => setVoted(voted === key ? null : key)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border transition-all',
+                'flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-semibold border transition-all min-w-0',
                 voted === key ? active : base,
               )}
             >
-              <Ic className="w-3 h-3" /> {label}
+              <Ic className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">{label}</span>
             </button>
           ))}
         </div>
@@ -167,42 +168,57 @@ export default function Governance() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-4 mb-7">
-          <div className="flex-1">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 mb-6 sm:mb-7"
+        >
+          <div className="min-w-0 sm:flex-1">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Governance</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
               {activeCount} active proposal{activeCount === 1 ? '' : 's'}
               {activeCooperative ? ` · Score: ${govScore}/100` : ''}
             </p>
           </div>
-          <button type="button" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors w-full sm:w-auto flex-shrink-0"
+          >
             <Plus className="w-4 h-4" /> New Proposal
           </button>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-6"
+        >
           {[
             { l: 'Governance Score', v: `${govScore}/100`, c: 'text-purple-500' },
             { l: 'Active Proposals', v: String(activeCount), c: 'text-[#6393C4]' },
             { l: 'Proposals Passed', v: String(passedCount), c: 'text-emerald-500' },
             { l: 'Participation Rate', v: proposals.length === 0 ? '—' : `${participation}%`, c: 'text-blue-500' },
           ].map(({ l, v, c }) => (
-            <div key={l} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4">
-              <p className="text-xs text-stone-400 dark:text-white/40 mb-1">{l}</p>
-              <p className={cn('text-xl font-display font-bold', c)}>{v}</p>
+            <div
+              key={l}
+              className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-3 sm:p-4 min-w-0"
+            >
+              <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 mb-1 truncate">{l}</p>
+              <p className={cn('text-base sm:text-xl font-display font-bold tabular-nums', c)}>{v}</p>
             </div>
           ))}
         </motion.div>
 
-        <div className="flex gap-1 mb-6 bg-stone-100 dark:bg-[#2E3B4B]/40 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-6 bg-stone-100 dark:bg-[#2E3B4B]/40 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
           {(['all', 'active', 'passed'] as const).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
               className={cn(
-                'px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize',
+                'flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition-all capitalize whitespace-nowrap',
                 filter === f
                   ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-white shadow-sm'
                   : 'text-stone-400 dark:text-white/40',

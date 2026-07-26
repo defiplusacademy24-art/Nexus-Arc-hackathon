@@ -30,19 +30,20 @@ const CAPABILITIES = [
 export default function NexaPage() {
   return (
     <DashboardLayout>
-      <div className="flex h-[calc(100vh-3.5rem)]">
+      {/* Height: top nav 3.5rem + mobile bottom nav ~4.5rem + safe area */}
+      <div className="flex h-[calc(100dvh-3.5rem-5.5rem-env(safe-area-inset-bottom))] lg:h-[calc(100dvh-3.5rem)] min-h-0">
         {/* Chat area — takes most space */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center shadow-sm shadow-[#6393C4]/20 dark:shadow-[#6393C4]/25">
+          <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4 border-b border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center shadow-sm shadow-[#6393C4]/20 dark:shadow-[#6393C4]/25 flex-shrink-0">
               <Sparkles className="w-4.5 h-4.5 text-white" style={{ width: '1.125rem', height: '1.125rem' }} />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-sm font-bold text-stone-900 dark:text-white">Nexa AI</h1>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="text-[11px] text-emerald-500">Online · Monitoring cooperative</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                <span className="text-[11px] text-emerald-500 truncate">Online · Monitoring cooperative</span>
               </div>
             </div>
           </div>

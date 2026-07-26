@@ -9,12 +9,12 @@ function SettingRow({ label, description, children }: {
   label: string; description?: string; children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between py-4 border-b border-stone-50 dark:border-white/4 last:border-0">
-      <div className="flex-1 min-w-0 pr-4">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 border-b border-stone-50 dark:border-white/4 last:border-0">
+      <div className="flex-1 min-w-0 sm:pr-4">
         <p className="text-sm font-medium text-stone-800 dark:text-white">{label}</p>
         {description && <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">{description}</p>}
       </div>
-      {children}
+      <div className="flex-shrink-0 self-start sm:self-center">{children}</div>
     </div>
   );
 }
@@ -102,7 +102,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-2xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-2xl mx-auto">
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
           <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Settings</h1>

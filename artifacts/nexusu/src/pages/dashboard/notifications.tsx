@@ -50,7 +50,7 @@ function NotifItem({ notif, onRead }: { notif: AppNotification; onRead: (id: str
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
       className={cn(
-        'flex items-start gap-4 p-4 rounded-2xl border transition-all',
+        'flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border transition-all min-w-0',
         notif.read
           ? 'bg-white dark:bg-stone-900/40 border-stone-100 dark:border-white/4'
           : 'bg-[#6393C4]/3 dark:bg-[#6393C4]/5 border-[#6393C4]/15 dark:border-[#6393C4]/12',
@@ -60,7 +60,7 @@ function NotifItem({ notif, onRead }: { notif: AppNotification; onRead: (id: str
         <Icon className={cn('w-4 h-4', color.split(' ')[0])} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
+        <div className="flex items-center gap-2 mb-0.5 min-w-0">
           <p className="text-sm font-semibold text-stone-800 dark:text-white truncate">{notif.title}</p>
           {!notif.read && (
             <span className="w-2 h-2 rounded-full bg-[#6393C4] flex-shrink-0" />
@@ -149,11 +149,15 @@ export default function Notifications() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-3xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-3xl mx-auto">
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-7">
-          <div>
-            <div className="flex items-center gap-2">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-7"
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Notifications</h1>
               {live && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full">
@@ -169,11 +173,11 @@ export default function Notifications() {
                   : 'All caught up · transaction history lives here'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => void refresh()}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-sm text-stone-500 dark:text-white/50 hover:border-stone-300 dark:hover:border-white/20 transition-colors"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 rounded-xl border border-stone-200 dark:border-white/10 text-sm text-stone-500 dark:text-white/50 hover:border-stone-300 dark:hover:border-white/20 transition-colors"
               title="Refresh"
             >
               <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
@@ -182,7 +186,7 @@ export default function Notifications() {
               <button
                 type="button"
                 onClick={() => void markAllRead()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-sm text-stone-500 dark:text-white/50 hover:border-stone-300 dark:hover:border-white/20 transition-colors"
+                className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl border border-stone-200 dark:border-white/10 text-sm text-stone-500 dark:text-white/50 hover:border-stone-300 dark:hover:border-white/20 transition-colors whitespace-nowrap"
               >
                 <Check className="w-3.5 h-3.5" /> Mark all read
               </button>

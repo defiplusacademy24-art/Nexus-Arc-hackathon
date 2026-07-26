@@ -336,18 +336,22 @@ export default function Treasury() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
 
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-7">
-          <div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-7"
+        >
+          <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Treasury</h1>
-            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
+            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
               Live balances for {coopLabel} · history in Notifications
             </p>
           </div>
           <button
             onClick={() => void refresh()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-sm text-stone-500 dark:text-white/50 hover:border-stone-300 dark:hover:border-white/20 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl border border-stone-200 dark:border-white/10 text-sm text-stone-500 dark:text-white/50 hover:border-stone-300 dark:hover:border-white/20 transition-colors w-full sm:w-auto flex-shrink-0"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
@@ -426,11 +430,13 @@ export default function Treasury() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-7 mb-6 text-white relative overflow-hidden"
+          className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-5 sm:p-7 mb-6 text-white relative overflow-hidden"
         >
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
           <p className="text-sm font-medium text-white/70 mb-2">Cash on hand</p>
-          <p className="text-5xl font-display font-bold mb-1">{formatCurrency(totalBalance)}</p>
+          <p className="text-3xl sm:text-5xl font-display font-bold mb-1 tabular-nums break-all">
+            {formatCurrency(totalBalance)}
+          </p>
           <p className="text-xs text-white/65 mb-2 max-w-xl">
             Liquid funds only. Approved loans reduce cash; repayments restore cash. Amounts members still owe appear as loans receivable — not as cash.
           </p>

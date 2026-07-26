@@ -121,7 +121,12 @@ function DecisionBadge({ decision }: { decision: AiLoanAssessment['decision'] })
   } as const;
   const cfg = map[decision];
   return (
-    <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold tracking-wide border', cfg.class)}>
+    <span
+      className={cn(
+        'inline-flex items-center max-w-full px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-bold tracking-wide border text-center leading-tight',
+        cfg.class,
+      )}
+    >
       {cfg.label}
     </span>
   );
@@ -298,17 +303,22 @@ function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
       animate={{ opacity: 1, y: 0 }}
       className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all"
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2 mb-4 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
           <Avatar initials={loan.borrowerInitials} />
-          <div>
-            <p className="font-semibold text-stone-800 dark:text-white text-sm">{loan.borrowerName}</p>
+          <div className="min-w-0">
+            <p className="font-semibold text-stone-800 dark:text-white text-sm truncate">{loan.borrowerName}</p>
             <p className="text-xs text-stone-400 dark:text-white/40">{formatDate(loan.requestedAt)}</p>
           </div>
         </div>
-        <span className={cn('flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full border', config.class)}>
-          <Icon className="w-3 h-3" />
-          {statusLabel}
+        <span
+          className={cn(
+            'flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-1 rounded-full border flex-shrink-0 max-w-[45%] sm:max-w-none',
+            config.class,
+          )}
+        >
+          <Icon className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{statusLabel}</span>
         </span>
       </div>
 
@@ -695,7 +705,7 @@ export default function Loans() {
   if (!activeCooperative) {
     return (
       <DashboardLayout>
-        <div className="px-6 py-16 max-w-lg mx-auto text-center">
+        <div className="px-4 sm:px-6 py-12 sm:py-16 max-w-lg mx-auto text-center">
           <Banknote className="w-12 h-12 text-stone-200 dark:text-white/10 mx-auto mb-4" />
           <p className="font-display font-bold text-stone-800 dark:text-white mb-2">No cooperative</p>
           <p className="text-sm text-stone-400 dark:text-white/40">
@@ -708,20 +718,20 @@ export default function Loans() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap items-center justify-between gap-4 mb-7"
+          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 mb-6 sm:mb-7"
         >
-          <div>
+          <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Loans</h1>
-            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
+            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
               {formatCurrency(outstanding, currency)} receivable ·{' '}
               {formatCurrency(activeCooperative.treasuryBalance ?? 0, currency)} cash on hand
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => {
@@ -730,14 +740,15 @@ export default function Loans() {
                 setRepaySuccess('');
               }}
               className={cn(
-                'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors',
+                'inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-colors whitespace-nowrap',
                 !showRepay
                   ? 'bg-[#6393C4] text-white border-[#6393C4]'
                   : 'border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-white/5',
               )}
             >
-              <Banknote className="w-4 h-4" />
-              Apply for Loan
+              <Banknote className="w-4 h-4 flex-shrink-0" />
+              <span className="sm:hidden">Apply</span>
+              <span className="hidden sm:inline">Apply for Loan</span>
             </button>
             <button
               type="button"
@@ -747,14 +758,15 @@ export default function Loans() {
                 setAssessment(null);
               }}
               className={cn(
-                'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-colors',
+                'inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-colors whitespace-nowrap',
                 showRepay
                   ? 'bg-emerald-600 text-white border-emerald-600'
                   : 'border-stone-200 dark:border-white/10 text-stone-600 dark:text-white/60 hover:bg-stone-50 dark:hover:bg-white/5',
               )}
             >
-              <RefreshCcw className="w-4 h-4" />
-              Loan Repayment
+              <RefreshCcw className="w-4 h-4 flex-shrink-0" />
+              <span className="sm:hidden">Repay</span>
+              <span className="hidden sm:inline">Loan Repayment</span>
               {myOutstanding.length > 0 && (
                 <span className={cn(
                   'text-[10px] px-1.5 py-0.5 rounded-full font-bold',
@@ -772,7 +784,7 @@ export default function Loans() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.05 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-6"
         >
           {[
             {
@@ -802,10 +814,10 @@ export default function Loans() {
           ].map(({ label, value, color, bg }) => (
             <div
               key={label}
-              className={cn('rounded-2xl p-4 border border-stone-100 dark:border-[#1A2A3A]', bg)}
+              className={cn('rounded-2xl p-3 sm:p-4 border border-stone-100 dark:border-[#1A2A3A] min-w-0', bg)}
             >
-              <p className="text-xs text-stone-400 dark:text-white/40 mb-1">{label}</p>
-              <p className={cn('text-xl font-display font-bold', color)}>{value}</p>
+              <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 mb-1 truncate">{label}</p>
+              <p className={cn('text-base sm:text-xl font-display font-bold tabular-nums break-words', color)}>{value}</p>
             </div>
           ))}
         </motion.div>

@@ -40,28 +40,28 @@ function PoolCard({ pool, delay = 0 }: { pool: SavingsPool; delay?: number }) {
       transition={{ delay }}
       className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 hover:shadow-md dark:hover:border-white/10 transition-all"
     >
-      <div className="flex items-start justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#6393C4]/8 dark:bg-[#6393C4]/12 flex items-center justify-center">
+      <div className="flex items-start justify-between gap-2 mb-5 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-[#6393C4]/8 dark:bg-[#6393C4]/12 flex items-center justify-center flex-shrink-0">
             <PiggyBank className="w-4.5 h-4.5 text-[#6393C4]" style={{ width: '1.125rem', height: '1.125rem' }} />
           </div>
-          <div>
-            <h3 className="font-display font-bold text-stone-800 dark:text-white text-sm">{pool.name}</h3>
+          <div className="min-w-0">
+            <h3 className="font-display font-bold text-stone-800 dark:text-white text-sm truncate">{pool.name}</h3>
             <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize', STATUS_COLORS[pool.status])}>
               {pool.status}
             </span>
           </div>
         </div>
-        <div className="relative flex items-center justify-center">
+        <div className="relative flex items-center justify-center flex-shrink-0">
           <ProgressRing progress={pool.progress} />
           <span className="absolute text-xs font-bold text-stone-800 dark:text-white">{pool.progress}%</span>
         </div>
       </div>
 
       <div className="mb-4">
-        <div className="flex justify-between text-xs mb-1.5">
-          <span className="text-stone-400 dark:text-white/40">Progress</span>
-          <span className="font-semibold text-stone-700 dark:text-white/80">
+        <div className="flex justify-between text-xs mb-1.5 gap-2 min-w-0">
+          <span className="text-stone-400 dark:text-white/40 flex-shrink-0">Progress</span>
+          <span className="font-semibold text-stone-700 dark:text-white/80 tabular-nums text-right break-all">
             {formatCurrency(pool.balance)} / {formatCurrency(pool.target)}
           </span>
         </div>
@@ -137,30 +137,45 @@ export default function Savings() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-7">
-          <div>
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-7"
+        >
+          <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Savings</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
               {pools.length} pool{pools.length === 1 ? '' : 's'} · {formatCurrency(totalBalance, currency)} saved
             </p>
           </div>
-          <button type="button" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors w-full sm:w-auto flex-shrink-0"
+          >
             <Plus className="w-4 h-4" /> New Pool
           </button>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6"
+        >
           {[
             { label: 'Total Saved', value: formatCurrency(totalBalance, currency), sub: totalTarget > 0 ? `of ${formatCurrency(totalTarget, currency)} target` : 'No target set', color: 'text-[#6393C4]' },
             { label: 'Expected Monthly', value: formatCurrency(expectedMonthly, currency), sub: activeCooperative ? `${activeCooperative.contributionFrequency} schedule` : 'No cooperative', color: 'text-emerald-500' },
             { label: 'Active Pools', value: String(pools.filter((p) => p.status === 'active').length), sub: pools.length === 0 ? 'None yet' : 'Running now', color: 'text-blue-500' },
             { label: 'Overall Progress', value: totalTarget > 0 ? `${progressPct}%` : '—', sub: 'Across all pools', color: 'text-purple-500' },
           ].map(({ label, value, sub, color }) => (
-            <div key={label} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4">
-              <p className="text-xs text-stone-400 dark:text-white/40 mb-1">{label}</p>
-              <p className={`text-xl font-display font-bold ${color}`}>{value}</p>
-              <p className="text-[11px] text-stone-400 dark:text-white/35 mt-0.5">{sub}</p>
+            <div
+              key={label}
+              className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-3 sm:p-4 min-w-0"
+            >
+              <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 mb-1 truncate">{label}</p>
+              <p className={`text-base sm:text-xl font-display font-bold tabular-nums break-words ${color}`}>{value}</p>
+              <p className="text-[10px] sm:text-[11px] text-stone-400 dark:text-white/35 mt-0.5 line-clamp-2">{sub}</p>
             </div>
           ))}
         </motion.div>

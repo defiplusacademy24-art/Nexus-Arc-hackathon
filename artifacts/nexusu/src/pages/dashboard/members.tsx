@@ -187,9 +187,11 @@ function MemberDrawer({ member, onClose }: { member: Member; onClose: () => void
 
 function SummaryTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-xl p-4">
-      <p className="text-[11px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-sm font-display font-bold text-stone-800 dark:text-white">{value}</p>
+    <div className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-xl p-3 sm:p-4 min-w-0">
+      <p className="text-[10px] sm:text-[11px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-wider mb-1 leading-tight">
+        {label}
+      </p>
+      <p className="text-sm font-display font-bold text-stone-800 dark:text-white break-words">{value}</p>
     </div>
   );
 }
@@ -351,17 +353,21 @@ export default function Members() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-4 mb-7">
-          <div className="flex-1">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 mb-6 sm:mb-7"
+        >
+          <div className="min-w-0 sm:flex-1">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Members</h1>
-            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
+            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
               {activeCooperative.name} · {members.length} total · ordered by payout position
             </p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors">
+          <button className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors w-full sm:w-auto flex-shrink-0">
             <UserPlus className="w-4 h-4" /> Invite Member
           </button>
         </motion.div>
@@ -372,7 +378,7 @@ export default function Members() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6"
           >
             <SummaryTile
               label="Members"
@@ -427,23 +433,28 @@ export default function Members() {
         </motion.div>
 
         {/* Search + filters */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="flex-1 min-w-48 flex items-center gap-2 bg-white dark:bg-stone-900/60 border border-stone-200 dark:border-[#1A2A3A] rounded-xl px-3 py-2">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-5"
+        >
+          <div className="w-full sm:flex-1 sm:min-w-48 flex items-center gap-2 bg-white dark:bg-stone-900/60 border border-stone-200 dark:border-[#1A2A3A] rounded-xl px-3 py-2.5 sm:py-2 min-w-0">
             <Search className="w-4 h-4 text-stone-400 dark:text-white/30 flex-shrink-0" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search members…"
-              className="flex-1 bg-transparent text-sm text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/30 outline-none"
+              className="flex-1 min-w-0 bg-transparent text-sm text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/30 outline-none"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             {(['all', 'active', 'flagged'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={cn(
-                  'px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors border',
+                  'flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-colors border capitalize',
                   filter === f
                     ? 'bg-[#6393C4] text-white border-[#6393C4]'
                     : 'text-stone-400 dark:text-white/40 border-stone-200 dark:border-white/10 hover:border-stone-300 dark:hover:border-white/20',

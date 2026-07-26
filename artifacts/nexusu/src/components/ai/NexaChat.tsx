@@ -238,20 +238,20 @@ export function NexaChat({ compact = false }: NexaChatProps) {
         <div ref={endRef} />
       </div>
 
-      <div className="flex-shrink-0 border-t border-stone-100 dark:border-[#1A2A3A] px-3 py-3 space-y-2">
-        <div className="flex gap-1.5 flex-wrap">
+      <div className="flex-shrink-0 border-t border-stone-100 dark:border-[#1A2A3A] px-3 py-3 space-y-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-thin">
           {QUICK_PROMPTS.map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => void sendMessage(p)}
-              className="text-[10px] font-semibold px-2.5 py-1 rounded-full border border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/45 hover:border-[#6393C4]/40 hover:text-[#6393C4] transition-colors"
+              className="flex-shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-stone-200 dark:border-white/10 text-stone-500 dark:text-white/45 hover:border-[#6393C4]/40 hover:text-[#6393C4] transition-colors whitespace-nowrap"
             >
               {p}
             </button>
           ))}
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 min-w-0">
           <textarea
             ref={inputRef}
             value={input}
@@ -263,19 +263,19 @@ export function NexaChat({ compact = false }: NexaChatProps) {
               }
             }}
             rows={1}
-            placeholder="Ask Nexa anything about your cooperative…"
-            className="flex-1 resize-none bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10"
+            placeholder="Ask Nexa about your cooperative…"
+            className="flex-1 min-w-0 resize-none bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10"
           />
           <button
             type="button"
             onClick={() => void sendMessage(input)}
             disabled={!input.trim() || typing}
-            className="p-2.5 rounded-xl bg-[#6393C4] text-white disabled:opacity-40 hover:bg-[#5289B8] transition-colors"
+            className="p-2.5 rounded-xl bg-[#6393C4] text-white disabled:opacity-40 hover:bg-[#5289B8] transition-colors flex-shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-[10px] text-stone-400 dark:text-white/30 text-center">
+        <p className="text-[10px] text-stone-400 dark:text-white/30 text-center hidden sm:block">
           Nexa uses your live cooperative data. AI responses are advisory only.
         </p>
       </div>

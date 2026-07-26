@@ -514,32 +514,32 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
   const STEP_TITLES = ['Basic Information', 'Rules & Structure', 'Governance Model', 'Identity & Invitation'];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 20 }}
-        className="relative w-full max-w-lg max-h-[90vh] bg-white dark:bg-[#081827] border border-stone-200 dark:border-[#1A2A3A] rounded-2xl flex flex-col shadow-2xl"
+        className="relative w-full sm:max-w-lg h-[100dvh] sm:h-auto sm:max-h-[90vh] bg-white dark:bg-[#081827] border-0 sm:border border-stone-200 dark:border-[#1A2A3A] rounded-none sm:rounded-2xl flex flex-col shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#6393C4]/10 flex items-center justify-center">
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-[#6393C4]/10 flex items-center justify-center flex-shrink-0">
               <Building2 className="w-4 h-4 text-[#6393C4]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="font-display font-bold text-stone-900 dark:text-white text-sm">Create Cooperative</h2>
-              <p className="text-[11px] text-stone-400 dark:text-white/35">{STEP_TITLES[step - 1]}</p>
+              <p className="text-[11px] text-stone-400 dark:text-white/35 truncate">{STEP_TITLES[step - 1]}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:bg-stone-100 dark:hover:bg-white/8 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-stone-400 dark:text-white/30 hover:bg-stone-100 dark:hover:bg-white/8 transition-colors flex-shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
           <StepIndicator step={step} />
           <AnimatePresence mode="wait">
             <motion.div key={step} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.18 }}>
@@ -552,7 +552,7 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 pt-4 border-t border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
+        <div className="px-4 sm:px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-6 pt-4 border-t border-stone-100 dark:border-[#1A2A3A] flex-shrink-0">
           {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
           <div className="flex gap-3">
             {step > 1 && (
@@ -565,8 +565,18 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
               disabled={creating}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60 transition-colors"
             >
-              {creating ? 'Launching…' : step === 4 ? 'Launch Cooperative' : (
-                <><span>Continue</span><ChevronRight className="w-4 h-4" /></>
+              {creating ? (
+                'Launching…'
+              ) : step === 4 ? (
+                <>
+                  <span className="sm:hidden">Launch</span>
+                  <span className="hidden sm:inline">Launch Cooperative</span>
+                </>
+              ) : (
+                <>
+                  <span>Continue</span>
+                  <ChevronRight className="w-4 h-4" />
+                </>
               )}
             </button>
           </div>

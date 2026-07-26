@@ -148,7 +148,7 @@ export default function Analytics() {
 
   return (
     <DashboardLayout>
-      <div className="px-6 py-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
           <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Analytics</h1>
           <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
@@ -156,7 +156,12 @@ export default function Analytics() {
           </p>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.05 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6"
+        >
           {[
             {
               label: 'Treasury',
@@ -187,13 +192,16 @@ export default function Analytics() {
               color: 'text-purple-500',
             },
           ].map(({ label, value, sub, icon: Icon, color }) => (
-            <div key={label} className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Icon className={`w-4 h-4 ${color}`} />
-                <p className="text-xs text-stone-400 dark:text-white/40">{label}</p>
+            <div
+              key={label}
+              className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-3 sm:p-4 min-w-0"
+            >
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-2 min-w-0">
+                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${color}`} />
+                <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 truncate">{label}</p>
               </div>
-              <p className={`text-2xl font-display font-bold ${color}`}>{value}</p>
-              <p className="text-[11px] text-stone-400 dark:text-white/35 mt-0.5">{sub}</p>
+              <p className={`text-base sm:text-2xl font-display font-bold tabular-nums break-words ${color}`}>{value}</p>
+              <p className="text-[10px] sm:text-[11px] text-stone-400 dark:text-white/35 mt-0.5">{sub}</p>
             </div>
           ))}
         </motion.div>
