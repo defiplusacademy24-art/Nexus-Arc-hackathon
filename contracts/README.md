@@ -105,3 +105,27 @@ import { ARC_USDC_ERC20_ADDRESS } from '@/config/arc';
 ```
 
 ABI: `out/CooperativeTreasuryVault.sol/CooperativeTreasuryVault.json` after `forge build`.
+
+
+## Cooperative Loan Pool
+
+`src/CooperativeLoanPool.sol` — member loans with term-based interest (5–10%).
+
+### Deploy
+
+```bash
+source .env
+export TREASURY_VAULT=0x...   # optional: forward interest to treasury vault
+forge script script/DeployLoan.s.sol:DeployLoan \
+  --rpc-url https://rpc.testnet.arc.network \
+  --broadcast --legacy
+```
+
+### Flow
+
+1. Fund pool: `fundPool(amount)` (approve USDC first)
+2. Member: `applyForLoan(principal, termMonths, purpose)`
+3. Organizer / agent: `approveLoan(loanId)` → principal disbursed
+4. Member: `repay(loanId, amount)` → interest first, then principal
+
+Set frontend: `VITE_LOAN_POOL_ADDRESS=0x...`
