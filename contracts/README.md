@@ -21,12 +21,12 @@ Holds member **USDC** contributions, allocates them across configured buckets, t
 
 ### Allocation (basis points, sum = 10_000)
 
-Default (deploy script):
+Default (deploy script — matches Nexusu product policy):
 
-- Rotation Fund **70%**
-- Loan Pool **15%**
-- Emergency Reserve **10%**
-- Savings / Investment **5%**
+- Rotation Fund **60%** (`ROTATION_BPS=6000`)
+- Loan Pool **30%** (`LOAN_POOL_BPS=3000`)
+- Emergency Reserve **5%** (`EMERGENCY_BPS=500`)
+- Savings / Investment **5%** (`SAVINGS_BPS=500`)
 
 Payouts draw from the **Rotation Fund** share accumulated in the current cycle.
 

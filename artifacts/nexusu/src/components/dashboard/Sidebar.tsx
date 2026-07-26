@@ -34,7 +34,7 @@ const BASE_NAV_ITEMS: Omit<NavItem, 'badge'>[] = [
   { label: 'Cooperatives', href: '/dashboard/cooperatives', icon: Building2, section: 'Organisation' },
   { label: 'Members', href: '/dashboard/members', icon: Users },
   { label: 'Treasury', href: '/dashboard/treasury', icon: Vault, section: 'Finance' },
-  { label: 'Savings Vault', href: '/dashboard/savings', icon: PiggyBank },
+  { label: 'Savings', href: '/dashboard/savings', icon: PiggyBank },
   { label: 'Loans', href: '/dashboard/loans', icon: Banknote },
   { label: 'Nexa AI', href: '/dashboard/nexa', icon: Sparkles, section: 'Intelligence' },
   { label: 'Governance', href: '/dashboard/governance', icon: Scale },

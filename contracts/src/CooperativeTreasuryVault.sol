@@ -515,8 +515,8 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
             })
         );
 
-        // Advance rotation for next cycle
-        uint32 nextPos = _nextPositionAfter(recipientPos);
+        // Advance rotation for next cycle (skip inactive positions)
+        uint32 nextPos = _nextActivePositionAfter(recipientPos);
         uint32 nextCycle;
         unchecked {
             nextCycle = cycle + 1;
@@ -571,13 +571,19 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
 
     function getNextPayoutRecipient() external view returns (address recipient, uint32 position) {
         // After the current cycle payout, who is next (position-based strategies only).
-        uint32 nextPos = _nextPositionAfter(currentRecipientPosition);
+        uint32 nextPos = _nextActivePositionAfter(currentRecipientPosition);
         position = nextPos;
         if (
             payoutStrategy == PayoutStrategy.JoinOrder ||
             payoutStrategy == PayoutStrategy.OrganizerAssigned
         ) {
             recipient = memberByPosition[nextPos];
+            if (recipient != address(0) && !_members[recipient].active) {
+                recipient = _firstActiveFromPosition(nextPos);
+                if (recipient != address(0)) {
+                    position = _members[recipient].joinPosition;
+                }
+            }
         } else {
             // RandomDraw / GovernanceVote cannot be known until the cycle resolves.
             recipient = address(0);
@@ -700,14 +706,20 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         PayoutStrategy strategy = payoutStrategy;
 
         if (strategy == PayoutStrategy.JoinOrder) {
-            return memberByPosition[currentRecipientPosition];
+            // Skip inactive / empty slots so deactivated members never receive payouts.
+            return _firstActiveFromPosition(currentRecipientPosition);
         }
 
         if (strategy == PayoutStrategy.OrganizerAssigned) {
             if (organizerNextRecipient != address(0)) {
-                return organizerNextRecipient;
+                if (
+                    _members[organizerNextRecipient].exists
+                        && _members[organizerNextRecipient].active
+                ) {
+                    return organizerNextRecipient;
+                }
             }
-            return memberByPosition[currentRecipientPosition];
+            return _firstActiveFromPosition(currentRecipientPosition);
         }
 
         if (strategy == PayoutStrategy.RandomDraw) {
@@ -718,6 +730,24 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
             return _governanceWinner(cycle);
         }
 
+        return address(0);
+    }
+
+    /**
+     * @dev Walk join positions starting at `startPos` (1-based), wrap once, return first active.
+     */
+    function _firstActiveFromPosition(uint32 startPos) internal view returns (address) {
+        uint32 count = memberCount;
+        if (count == 0) return address(0);
+        uint32 pos = startPos == 0 || startPos > count ? 1 : startPos;
+        for (uint32 i = 0; i < count; ) {
+            address m = memberByPosition[pos];
+            if (m != address(0) && _members[m].active) return m;
+            unchecked {
+                pos = pos >= count ? 1 : pos + 1;
+                ++i;
+            }
+        }
         return address(0);
     }
 
@@ -786,5 +816,21 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         unchecked {
             return position + 1;
         }
+    }
+
+    /// @dev Next 1-based position that maps to an active member (wraps). Falls back to 1.
+    function _nextActivePositionAfter(uint32 position) internal view returns (uint32) {
+        uint32 count = memberCount;
+        if (count == 0) return 1;
+        uint32 pos = position >= count ? 1 : position + 1;
+        for (uint32 i = 0; i < count; ) {
+            address m = memberByPosition[pos];
+            if (m != address(0) && _members[m].active) return pos;
+            unchecked {
+                pos = pos >= count ? 1 : pos + 1;
+                ++i;
+            }
+        }
+        return 1;
     }
 }

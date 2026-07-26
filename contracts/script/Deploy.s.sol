@@ -30,11 +30,12 @@ contract Deploy is Script {
         // Default 100 USDC (6 decimals)
         uint256 contributionAmount = vm.envOr("CONTRIBUTION_AMOUNT", uint256(100e6));
 
+        // Product policy default: 60% rotation · 30% loan · 5% emergency · 5% savings
         CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
             .AllocationConfig({
-            rotationBps: uint16(vm.envOr("ROTATION_BPS", uint256(7000))),
-            loanPoolBps: uint16(vm.envOr("LOAN_POOL_BPS", uint256(1500))),
-            emergencyBps: uint16(vm.envOr("EMERGENCY_BPS", uint256(1000))),
+            rotationBps: uint16(vm.envOr("ROTATION_BPS", uint256(6000))),
+            loanPoolBps: uint16(vm.envOr("LOAN_POOL_BPS", uint256(3000))),
+            emergencyBps: uint16(vm.envOr("EMERGENCY_BPS", uint256(500))),
             savingsBps: uint16(vm.envOr("SAVINGS_BPS", uint256(500)))
         });
 
@@ -42,6 +43,10 @@ contract Deploy is Script {
         console2.log("Organizer:", organizer);
         console2.log("USDC:", ARC_USDC);
         console2.log("Contribution:", contributionAmount);
+        console2.log("rotationBps:", uint256(alloc.rotationBps));
+        console2.log("loanPoolBps:", uint256(alloc.loanPoolBps));
+        console2.log("emergencyBps:", uint256(alloc.emergencyBps));
+        console2.log("savingsBps:", uint256(alloc.savingsBps));
 
         vm.startBroadcast(pk);
 

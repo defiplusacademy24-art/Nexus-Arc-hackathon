@@ -18,11 +18,12 @@ contract CooperativeTreasuryVaultTest is Test {
 
     function setUp() public {
         usdc = new MockUSDC();
+        // Matches product policy: 60% / 30% / 5% / 5%
         CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
             .AllocationConfig({
-            rotationBps: 7000,
-            loanPoolBps: 1500,
-            emergencyBps: 1000,
+            rotationBps: 6000,
+            loanPoolBps: 3000,
+            emergencyBps: 500,
             savingsBps: 500
         });
 
@@ -79,9 +80,9 @@ contract CooperativeTreasuryVaultTest is Test {
         assertEq(vault.getTreasuryBalance(), CONTRIB);
 
         CooperativeTreasuryVault.TreasuryBreakdown memory b = vault.getTreasuryAllocationBreakdown();
-        assertEq(b.rotationFund, (CONTRIB * 7000) / 10_000);
-        assertEq(b.loanPool, (CONTRIB * 1500) / 10_000);
-        assertEq(b.emergencyReserve, (CONTRIB * 1000) / 10_000);
+        assertEq(b.rotationFund, (CONTRIB * 6000) / 10_000);
+        assertEq(b.loanPool, (CONTRIB * 3000) / 10_000);
+        assertEq(b.emergencyReserve, (CONTRIB * 500) / 10_000);
         assertEq(b.savingsInvestment, (CONTRIB * 500) / 10_000);
 
         CooperativeTreasuryVault.ContributionRecord[] memory hist = vault.getMemberContributionHistory(alice);
@@ -117,7 +118,7 @@ contract CooperativeTreasuryVaultTest is Test {
         assertEq(current, alice); // position #1
 
         uint256 aliceBefore = usdc.balanceOf(alice);
-        uint256 expectedPayout = (CONTRIB * 7000 / 10_000) * 3; // rotation share * 3 members
+        uint256 expectedPayout = (CONTRIB * 6000 / 10_000) * 3; // rotation share * 3 members
 
         vault.triggerPayout();
 
