@@ -156,6 +156,9 @@ export function friendlyVaultError(err: unknown): string {
   if (/NotOrganizer|not organizer/i.test(msg)) {
     return 'Only the vault organizer (founder) can update contribution rules.';
   }
+  if (/API parameter invalid|parameter invalid|invalid parameter/i.test(msg)) {
+    return 'Wallet service rejected the request (bad parameters). Redeploy the latest app and try Deposit again.';
+  }
   if (/user rejected|denied|rejected the request/i.test(msg)) {
     return 'Transaction was cancelled in the wallet.';
   }
@@ -577,12 +580,10 @@ export async function depositToVault(opts?: {
     functionName: 'deposit',
   });
 
-  // Prefer abiFunctionSignature for Circle; fall back to callData for injected.
+  // Use raw callData only (viem-encoded) — most reliable for Circle contractExecution
   const approve = await writeContract({
     contractAddress: usdc,
     callData: approveData,
-    abiFunctionSignature: session ? 'approve(address,uint256)' : undefined,
-    abiParameters: session ? [vault, amount.toString()] : undefined,
     refId: `approve-vault-${Date.now()}`,
     ucSession: session,
     waitForTx: true,
@@ -591,8 +592,6 @@ export async function depositToVault(opts?: {
   const deposit = await writeContract({
     contractAddress: vault,
     callData: depositData,
-    abiFunctionSignature: session ? 'deposit()' : undefined,
-    abiParameters: session ? [] : undefined,
     refId: `deposit-vault-${Date.now()}`,
     ucSession: session,
     waitForTx: true,

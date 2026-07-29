@@ -128,13 +128,18 @@ function execPayload(opts: {
   abiParameters?: unknown[];
   callData?: string;
 }) {
-  if (opts.callData) {
+  // Prefer raw callData when present (always valid hex from viem).
+  // abiFunctionSignature path is optional; Circle rejects bad param shapes.
+  if (opts.callData && /^0x[0-9a-fA-F]*$/.test(opts.callData) && opts.callData.length >= 10) {
     return { callData: opts.callData as `0x${string}` };
   }
-  return {
-    abiFunctionSignature: opts.abiFunctionSignature,
-    abiParameters: (opts.abiParameters ?? []) as string[],
-  };
+  if (opts.abiFunctionSignature) {
+    return {
+      abiFunctionSignature: opts.abiFunctionSignature,
+      abiParameters: (opts.abiParameters ?? []) as unknown[],
+    };
+  }
+  throw new Error('Contract execution requires callData or abiFunctionSignature');
 }
 
 export async function contractExecutionChallengeByToken(
@@ -149,20 +154,25 @@ export async function contractExecutionChallengeByToken(
   },
 ) {
   const c = uc();
+  // Do NOT pass `blockchain` together with `walletId` — Circle treats them as
+  // mutually exclusive and returns "API parameter invalid".
+  // The wallet was already created on ARC-TESTNET (see pinSetup / createWallet).
   const res = await c.createUserTransactionContractExecutionChallenge({
     userToken,
     walletId,
     contractAddress,
     ...execPayload(opts),
-    // Arc Testnet SCA — explicit chain so Circle broadcasts to the right network
-    blockchain: BLOCKCHAIN,
-    refId: opts.refId,
+    ...(opts.refId ? { refId: opts.refId } : {}),
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
     idempotencyKey: randomUUID(),
   } as Parameters<
     CircleUserControlledWalletsClient['createUserTransactionContractExecutionChallenge']
   >[0]);
-  return { challengeId: res.data?.challengeId };
+  const challengeId = res.data?.challengeId;
+  if (!challengeId) {
+    throw new Error('Circle did not return a challengeId for contract execution');
+  }
+  return { challengeId };
 }
 
 export async function contractExecutionChallenge(
@@ -182,14 +192,17 @@ export async function contractExecutionChallenge(
     walletId,
     contractAddress,
     ...execPayload(opts),
-    blockchain: BLOCKCHAIN,
-    refId: opts.refId,
+    ...(opts.refId ? { refId: opts.refId } : {}),
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
     idempotencyKey: randomUUID(),
   } as Parameters<
     CircleUserControlledWalletsClient['createUserTransactionContractExecutionChallenge']
   >[0]);
-  return { challengeId: res.data?.challengeId };
+  const challengeId = res.data?.challengeId;
+  if (!challengeId) {
+    throw new Error('Circle did not return a challengeId for contract execution');
+  }
+  return { challengeId };
 }
 
 /**
