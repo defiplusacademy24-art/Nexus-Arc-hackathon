@@ -104,14 +104,8 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
     setSuccess(null);
     try {
       const result = await depositToVault({ walletAddress });
-      const link = result.explorerUrl
-        ? ` View: ${result.explorerUrl}`
-        : result.depositTxHash
-          ? ` Tx: ${result.depositTxHash.slice(0, 10)}…`
-          : '';
-      setSuccess(
-        `Deposited ${formatCurrency(result.amount)} on Arc (confirmed).${link}`,
-      );
+      const link = result.explorerUrl ? ` · ${result.explorerUrl}` : '';
+      setSuccess(`Deposited ${formatCurrency(result.amount)} confirmed on Arc.${link}`);
       if (onDepositSuccess) {
         await onDepositSuccess({ amount: result.amount });
       }

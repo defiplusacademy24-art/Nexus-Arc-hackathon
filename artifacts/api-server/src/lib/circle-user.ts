@@ -163,7 +163,8 @@ export async function contractExecutionChallengeByToken(
     contractAddress,
     ...execPayload(opts),
     ...(opts.refId ? { refId: opts.refId } : {}),
-    fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+    // HIGH fee reduces stuck QUEUED txs on busy testnets
+    fee: { type: 'level', config: { feeLevel: 'HIGH' } },
     idempotencyKey: randomUUID(),
   } as Parameters<
     CircleUserControlledWalletsClient['createUserTransactionContractExecutionChallenge']
@@ -193,7 +194,7 @@ export async function contractExecutionChallenge(
     contractAddress,
     ...execPayload(opts),
     ...(opts.refId ? { refId: opts.refId } : {}),
-    fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+    fee: { type: 'level', config: { feeLevel: 'HIGH' } },
     idempotencyKey: randomUUID(),
   } as Parameters<
     CircleUserControlledWalletsClient['createUserTransactionContractExecutionChallenge']
@@ -211,24 +212,46 @@ export async function contractExecutionChallenge(
 export async function listUserTransactions(
   userToken: string,
   walletId: string,
-  pageSize = 10,
+  pageSize = 15,
 ) {
   const c = uc();
-  const res = await c.listTransactions({
-    userToken,
-    walletIds: [walletId],
-    blockchain: BLOCKCHAIN,
-    pageSize,
-    order: 'DESC',
-  } as unknown as Parameters<CircleUserControlledWalletsClient['listTransactions']>[0]);
-  const rows = (res.data as { transactions?: Array<Record<string, unknown>> })?.transactions ?? [];
+  // Try a few shapes — Circle client versions differ on walletIds typing
+  let rows: Array<Record<string, unknown>> = [];
+  const attempts: unknown[] = [
+    { userToken, walletIds: [walletId], pageSize, order: 'DESC' },
+    { userToken, walletIds: walletId, pageSize, order: 'DESC' },
+    { userToken, pageSize, order: 'DESC' },
+  ];
+  let lastErr: unknown;
+  for (const input of attempts) {
+    try {
+      const res = await c.listTransactions(
+        input as Parameters<CircleUserControlledWalletsClient['listTransactions']>[0],
+      );
+      rows =
+        (res.data as { transactions?: Array<Record<string, unknown>> })?.transactions ??
+        [];
+      if (rows.length > 0) break;
+      // empty list is still a valid response — use it
+      lastErr = null;
+      break;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (lastErr && rows.length === 0) {
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  }
   return rows.map((t) => ({
     id: String(t.id ?? ''),
     state: String(t.state ?? ''),
     txHash: (t.txHash as string | undefined) ?? null,
     operation: (t.operation as string | undefined) ?? null,
     destinationAddress: (t.destinationAddress as string | undefined) ?? null,
-    errorReason: (t.errorReason as string | undefined) ?? null,
+    errorReason:
+      (t.errorReason as string | undefined) ||
+      (t.errorDetails as string | undefined) ||
+      null,
     createDate: String(t.createDate ?? ''),
   }));
 }

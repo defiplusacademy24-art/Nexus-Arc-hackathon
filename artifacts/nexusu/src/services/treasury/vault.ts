@@ -423,11 +423,41 @@ async function writeContract(params: {
   return { txHash: txHash ?? null };
 }
 
+async function sleepMs(ms: number) {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+/** Wait until ERC-20 allowance for vault ≥ amount (approve confirmed on Arc). */
+async function waitForAllowance(
+  usdc: Address,
+  owner: Address,
+  spender: Address,
+  minAmount: bigint,
+  timeoutMs = 90_000,
+): Promise<boolean> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    try {
+      const allowance = (await publicClient.readContract({
+        address: usdc,
+        abi: erc20ApproveAbi,
+        functionName: 'allowance',
+        args: [owner, spender],
+      })) as bigint;
+      if (allowance >= minAmount) return true;
+    } catch {
+      /* rate limit */
+    }
+    await sleepMs(4_000);
+  }
+  return false;
+}
+
 /** Wait until contribution status is Paid for this wallet (true on-chain deposit). */
 async function waitForContributionPaid(
   vault: Address,
   member: Address,
-  timeoutMs = 90_000,
+  timeoutMs = 120_000,
 ): Promise<boolean> {
   const started = Date.now();
   // Sparse polls — public Arc RPC rate-limits burst eth_call
@@ -443,10 +473,10 @@ async function waitForContributionPaid(
       if (Number(status) === 1) return true;
     } catch {
       /* rpc blip / rate limit — wait longer */
-      await new Promise((r) => setTimeout(r, 4_000));
+      await sleepMs(4_000);
       continue;
     }
-    await new Promise((r) => setTimeout(r, 4_000));
+    await sleepMs(4_000);
   }
   return false;
 }
@@ -580,7 +610,7 @@ export async function depositToVault(opts?: {
     functionName: 'deposit',
   });
 
-  // Use raw callData only (viem-encoded) — most reliable for Circle contractExecution
+  // 1) Approve USDC (PIN #1). Confirm via on-chain allowance — not Circle hash alone.
   const approve = await writeContract({
     contractAddress: usdc,
     callData: approveData,
@@ -589,6 +619,15 @@ export async function depositToVault(opts?: {
     waitForTx: true,
   });
 
+  const allowed = await waitForAllowance(usdc, wallet, vault, amount, 90_000);
+  if (!allowed) {
+    const hint = approve.txHash ? ` ${ARC_EXPLORER_URL}/tx/${approve.txHash}` : '';
+    throw new Error(
+      `USDC approve did not land on Arc after PIN.${hint} Open Circle activity for failures, wait, and try again.`,
+    );
+  }
+
+  // 2) Deposit (PIN #2). Confirm via vault Paid status.
   const deposit = await writeContract({
     contractAddress: vault,
     callData: depositData,
@@ -597,14 +636,15 @@ export async function depositToVault(opts?: {
     waitForTx: true,
   });
 
-  // Hard gate: contribution must show Paid on-chain
-  const paid = await waitForContributionPaid(vault, wallet);
+  const paid = await waitForContributionPaid(vault, wallet, 120_000);
   if (!paid) {
     const hint = deposit.txHash
-      ? ` Last tx: ${ARC_EXPLORER_URL}/tx/${deposit.txHash}`
-      : '';
+      ? ` ${ARC_EXPLORER_URL}/tx/${deposit.txHash}`
+      : approve.txHash
+        ? ` Approve ok: ${ARC_EXPLORER_URL}/tx/${approve.txHash}`
+        : '';
     throw new Error(
-      `Deposit did not confirm on Arc (vault still shows unpaid).${hint} Check Arc explorer and try again.`,
+      `Deposit PIN finished but vault still shows unpaid.${hint} Check Arc explorer / Circle activity and try Deposit again.`,
     );
   }
 
@@ -614,7 +654,9 @@ export async function depositToVault(opts?: {
     txKind: session ? 'circle' : 'injected',
     approveTxHash: approve.txHash,
     depositTxHash,
-    explorerUrl: depositTxHash ? `${ARC_EXPLORER_URL}/tx/${depositTxHash}` : null,
+    explorerUrl: depositTxHash
+      ? `${ARC_EXPLORER_URL}/tx/${depositTxHash}`
+      : `${ARC_EXPLORER_URL}/address/${vault}`,
   };
 }
 

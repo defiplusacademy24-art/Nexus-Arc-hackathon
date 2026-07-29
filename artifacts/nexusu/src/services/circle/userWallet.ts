@@ -158,14 +158,16 @@ async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms));
 }
 
-/** Poll Circle for the latest COMPLETE tx with a hash (after PIN challenge). */
+/** Poll Circle for a recent tx hash (SENT / CONFIRMED / COMPLETE). Soft timeout. */
 export async function waitForCircleTxHash(
   session: UcSession,
   opts?: { sinceMs?: number; timeoutMs?: number },
-): Promise<string | null> {
-  const timeoutMs = opts?.timeoutMs ?? 90_000;
-  const sinceMs = opts?.sinceMs ?? Date.now() - 30_000;
+): Promise<{ txHash: string | null; lastState: string | null; lastError: string | null }> {
+  const timeoutMs = opts?.timeoutMs ?? 45_000;
+  const sinceMs = opts?.sinceMs ?? Date.now() - 60_000;
   const started = Date.now();
+  let lastState: string | null = null;
+  let lastError: string | null = null;
   while (Date.now() - started < timeoutMs) {
     try {
       const data = await api<{
@@ -182,24 +184,29 @@ export async function waitForCircleTxHash(
       const txs = data.transactions ?? [];
       for (const t of txs) {
         const created = t.createDate ? new Date(t.createDate).getTime() : 0;
-        if (created && created < sinceMs - 5_000) continue;
+        if (created && created < sinceMs - 15_000) continue;
+        lastState = t.state ?? lastState;
         if (t.state === 'FAILED' || t.state === 'DENIED' || t.state === 'CANCELLED') {
-          throw new Error(t.errorReason || `Transaction ${t.state}`);
+          lastError = t.errorReason || `Transaction ${t.state}`;
+          throw new Error(lastError);
         }
-        if (
-          (t.state === 'COMPLETE' || t.state === 'CONFIRMED') &&
-          t.txHash
-        ) {
-          return t.txHash;
+        // Hash can appear as soon as SENT
+        if (t.txHash && /SENT|CONFIRMED|COMPLETE|COMPLETED/i.test(String(t.state ?? ''))) {
+          return { txHash: t.txHash, lastState: t.state ?? null, lastError: null };
+        }
+        if (t.txHash) {
+          return { txHash: t.txHash, lastState: t.state ?? null, lastError: null };
         }
       }
     } catch (e) {
-      if (e instanceof Error && /Transaction /.test(e.message)) throw e;
-      /* keep polling on network blips */
+      if (e instanceof Error && (/Transaction |FAILED|DENIED|CANCELLED/i.test(e.message))) {
+        throw e;
+      }
+      /* keep polling */
     }
-    await sleep(2500);
+    await sleep(3000);
   }
-  return null;
+  return { txHash: null, lastState, lastError };
 }
 
 async function walletByToken(
@@ -337,17 +344,24 @@ export async function ucWrite(
   const sdk = await makeSdk(session.userToken, session.encryptionKey);
   await runChallenge(sdk, challengeId);
 
+  // Soft wait for Circle hash — on-chain verification is the real gate in depositToVault
   if (params.waitForTx === false) {
     return { txHash: null };
   }
 
-  const txHash = await waitForCircleTxHash(session, { sinceMs, timeoutMs: 90_000 });
-  if (!txHash) {
-    throw new Error(
-      'PIN completed but no transaction hash on Arc yet. The deposit may have failed — check your Circle wallet activity and try again.',
-    );
+  try {
+    const { txHash, lastState, lastError } = await waitForCircleTxHash(session, {
+      sinceMs,
+      timeoutMs: 45_000,
+    });
+    if (txHash) return { txHash };
+    // No hash yet — not fatal; caller should confirm on-chain
+    console.warn('[ucWrite] no txHash after PIN', { lastState, lastError });
+    return { txHash: null };
+  } catch (e) {
+    // Explicit Circle FAILED is fatal
+    throw e instanceof Error ? e : new Error(String(e));
   }
-  return { txHash };
 }
 
 export async function checkUcBackendEnabled(): Promise<boolean> {
