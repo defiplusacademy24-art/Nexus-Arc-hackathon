@@ -294,7 +294,11 @@ forge script script/Deploy.s.sol:Deploy --rpc-url <ARC_RPC> --broadcast --legacy
    - `VITE_LOAN_POOL_ADDRESS` — loan pool on Arc  
    - `VITE_COOPERATIVE_REGISTRY_ADDRESS` — multi-coop registry on Arc  
    - `VITE_ROTATION_MANAGER_ADDRESS` — rotation orchestrator on Arc  
+   - `TREASURY_VAULT_ADDRESS` — same vault address (server runtime)  
+   - `VAULT_OPERATOR_PRIVATE_KEY` — forge deploy key (server only) so Circle wallets can self-register on the vault  
    - Leave `VITE_API_URL` empty for same-origin `/api/*`  
+
+   **Circle vs deploy key:** the app logs in with Circle wallets; forge deploy uses a different EOA as vault `organizer`. Without `VAULT_OPERATOR_PRIVATE_KEY`, Circle founders see “Not registered on vault”. One-time alternative: `contracts/script/BootstrapCircleFounder.s.sol` with `CIRCLE_FOUNDER=<your Circle address>`.
 
    After changing any `VITE_*` variable, **redeploy** so the frontend rebuild picks them up.
 

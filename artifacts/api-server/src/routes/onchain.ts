@@ -11,6 +11,10 @@ import {
 import { notifyOnchainTransfer } from "../lib/notify";
 import { scanWalletTransfers } from "../lib/arc-scan";
 import { requireWallet } from "../lib/wallet";
+import {
+  bootstrapVaultMember,
+  vaultOperatorConfigured,
+} from "../lib/vault-operator";
 
 const router: IRouter = Router();
 
@@ -214,6 +218,43 @@ router.post("/transfers", async (req: Request, res: Response) => {
       created: results.filter((r) => r.created).length,
       results,
     });
+  } catch (e) {
+    sendError(res, e);
+  }
+});
+
+/**
+ * GET /api/onchain/vault/operator-status
+ * Whether the server can register Circle wallets on the treasury vault.
+ */
+router.get("/vault/operator-status", (_req: Request, res: Response) => {
+  res.json({
+    configured: vaultOperatorConfigured(),
+    vault:
+      process.env.TREASURY_VAULT_ADDRESS?.trim() ||
+      process.env.VITE_TREASURY_VAULT_ADDRESS?.trim() ||
+      null,
+  });
+});
+
+/**
+ * POST /api/onchain/vault/register
+ * Body: { claimOrganizer?: boolean }
+ *
+ * Registers the caller's Circle wallet (x-wallet-address) on CooperativeTreasuryVault
+ * using VAULT_OPERATOR_PRIVATE_KEY (deploy key). Optionally transfers organizer so the
+ * Circle founder can register future members and update rules from the app.
+ */
+router.post("/vault/register", async (req: Request, res: Response) => {
+  try {
+    const wallet = requireWallet(req);
+    const body = (req.body ?? {}) as { claimOrganizer?: boolean };
+    const claimOrganizer = body.claimOrganizer !== false; // default true for founders
+    const result = await bootstrapVaultMember({
+      member: wallet,
+      claimOrganizer,
+    });
+    res.json(result);
   } catch (e) {
     sendError(res, e);
   }

@@ -567,6 +567,67 @@ export async function registerMemberOnVault(
   });
 }
 
+export type VaultBootstrapResult = {
+  vault: string;
+  member: string;
+  alreadyMember: boolean;
+  registered: boolean;
+  organizer: string;
+  operator: string;
+  organizerTransferred: boolean;
+  registerTxHash: string | null;
+  transferTxHash: string | null;
+  message: string;
+};
+
+/**
+ * Server-side register (and optional organizer transfer) for Circle wallets.
+ * Uses VAULT_OPERATOR_PRIVATE_KEY on the API — the deploy EOA — so members can
+ * onboard without signing as the deploy key in the browser.
+ */
+export async function bootstrapCircleWalletOnVault(
+  circleWallet: string,
+  opts?: { claimOrganizer?: boolean },
+): Promise<VaultBootstrapResult> {
+  const res = await fetch('/api/onchain/vault/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'x-wallet-address': circleWallet,
+    },
+    body: JSON.stringify({
+      claimOrganizer: opts?.claimOrganizer !== false,
+    }),
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) msg = data.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg || `HTTP ${res.status}`);
+  }
+  return (await res.json()) as VaultBootstrapResult;
+}
+
+export async function fetchVaultOperatorStatus(): Promise<{
+  configured: boolean;
+  vault: string | null;
+}> {
+  try {
+    const res = await fetch('/api/onchain/vault/operator-status', {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return { configured: false, vault: null };
+    return (await res.json()) as { configured: boolean; vault: string | null };
+  } catch {
+    return { configured: false, vault: null };
+  }
+}
+
 /** Whether coop founder rules differ from on-chain vault settings. */
 export function rulesOutOfSync(
   snap: VaultSnapshot | null,
