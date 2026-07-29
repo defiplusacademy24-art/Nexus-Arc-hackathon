@@ -17,7 +17,7 @@ import {
 import { useWallet } from '@/providers/WalletProvider';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { formatCurrency } from '@/utils/format';
-import { ARC_EXPLORER_URL, ARC_FAUCET_URL } from '@/config/arc';
+import { ARC_EXPLORER_URL } from '@/config/arc';
 import { TREASURY_VAULT_ADDRESS, MIN_CONTRIBUTION_USDC } from '@/config/treasury-vault';
 import {
   applyCoopRulesToVault,
@@ -118,12 +118,16 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
   };
 
   const onPayout = async () => {
+    if (!isConnected) {
+      setError('Connect your wallet first');
+      return;
+    }
     setBusy('payout');
     setError(null);
     setSuccess(null);
     try {
-      await triggerVaultPayout();
-      setSuccess('Payout submitted.');
+      await triggerVaultPayout({ walletAddress });
+      setSuccess('Payout claimed.');
       await new Promise((r) => setTimeout(r, 2500));
       await refresh({ softRateLimit: true });
     } catch (e) {
@@ -173,20 +177,11 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
           </div>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-              On-chain Treasury
+              Treasury Vault
             </h2>
             <p className="text-xs text-stone-500 dark:text-white/45 mt-1">
-              Set <code className="font-mono text-[11px]">VITE_TREASURY_VAULT_ADDRESS</code> after
-              deploy.
+              Vault not configured.
             </p>
-            <a
-              href={ARC_FAUCET_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-[#6393C4] hover:underline"
-            >
-              Get testnet USDC <ExternalLink className="w-3 h-3" />
-            </a>
           </div>
         </div>
       </motion.div>
@@ -296,6 +291,18 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
         </p>
       )}
 
+      {snap && !snap.canPayout && (
+        <p className="text-xs text-stone-500 dark:text-white/45 mb-3">
+          {!snap.allMembersPaid
+            ? `${snap.paidCount}/${snap.requiredCount || '—'} paid this period`
+            : snap.currentRecipient
+              ? `Claim available for ${shortAddr(snap.currentRecipient)}${
+                  snap.currentPosition ? ` · #${snap.currentPosition}` : ''
+                }`
+              : 'Waiting for payout recipient'}
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -317,6 +324,13 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
           type="button"
           disabled={!snap?.canPayout || busy !== null}
           onClick={() => void onPayout()}
+          title={
+            !snap?.allMembersPaid
+              ? `Waiting for all members to contribute (${snap?.paidCount ?? 0}/${snap?.requiredCount ?? '—'} paid)`
+              : !snap?.isCurrentRecipient
+                ? 'Only the current payout-queue recipient can claim'
+                : 'Claim your full cycle pot'
+          }
           className={cn(
             'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6393C4] hover:bg-[#5289B8] transition-colors disabled:opacity-50',
           )}
@@ -326,7 +340,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
           ) : (
             <Zap className="w-4 h-4" />
           )}
-          Trigger payout
+          Claim payout
         </button>
       </div>
 

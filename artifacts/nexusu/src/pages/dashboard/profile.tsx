@@ -23,7 +23,7 @@ function NotConnected() {
           Not signed in
         </h2>
         <p className="text-sm text-stone-400 dark:text-white/40 mb-6 max-w-xs">
-          Sign in with email to view your Nexusu identity and Arc wallet profile.
+          Sign in to view your profile.
         </p>
         <Link
           href="/app"

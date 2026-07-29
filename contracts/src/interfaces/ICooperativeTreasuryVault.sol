@@ -26,6 +26,11 @@ interface ICooperativeTreasuryVault {
         view
         returns (bool ready, uint32 required, uint32 paid);
 
+    function canClaimPayout(address account)
+        external
+        view
+        returns (bool canClaim, uint32 required, uint32 paid, address recipient);
+
     function currentCycle() external view returns (uint32);
 
     function currentRecipientPosition() external view returns (uint32);

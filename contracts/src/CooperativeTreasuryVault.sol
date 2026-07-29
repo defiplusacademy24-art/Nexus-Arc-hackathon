@@ -207,6 +207,7 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     error CycleAlreadyPaid();
     error ContributionsIncomplete();
     error NoEligibleRecipient();
+    error NotPayoutRecipient();
     error VaultNotReady();
     error MemberInactive();
     error NothingToPayout();
@@ -547,8 +548,10 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     // ── Payout ───────────────────────────────────────────────────────────────
 
     /**
-     * @notice Execute the cycle payout when all required members have contributed.
-     * @dev Permissionless: anyone may trigger once conditions are met.
+     * @notice Claim the cycle payout once every required member has contributed.
+     * @dev Only the current payout-queue head (join order / strategy recipient) may
+     *      call this. Ensures the recipient receives the full cycle rotation pot
+     *      after all weekly / bi-weekly / monthly contributions are in.
      *      Prevents double payouts per cycle.
      */
     function triggerPayout() external nonReentrant {
@@ -563,6 +566,8 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
 
         address recipient = _resolveRecipient(cycle);
         if (recipient == address(0)) revert NoEligibleRecipient();
+        // Only the person at the front of the payout queue may claim.
+        if (msg.sender != recipient) revert NotPayoutRecipient();
 
         uint256 payoutAmount = cycleRotationAccumulated[cycle];
         if (payoutAmount == 0) revert NothingToPayout();
@@ -606,7 +611,7 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         );
         emit CycleCompleted(cycle, nextCycle, nextPos);
 
-        // Interaction
+        // Interaction — full cycle pot to the claiming recipient
         usdc.safeTransfer(recipient, payoutAmount);
     }
 
@@ -723,13 +728,33 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     }
 
     /**
-     * @notice Whether the current cycle is ready for payout.
+     * @notice Whether every required member has contributed this cycle (payout pot complete).
+     * @dev Does not check caller identity — use `canClaimPayout` for recipient-gated UI.
      */
     function canTriggerPayout() external view returns (bool ready, uint32 required, uint32 paid) {
         if (cyclePayoutCompleted[currentCycle] || memberCount == 0) {
             return (false, 0, 0);
         }
         return _contributionProgress(currentCycle);
+    }
+
+    /**
+     * @notice Whether `account` may claim the cycle payout right now.
+     * @dev Ready only when all non-exempt active members have paid AND
+     *      `account` is the current payout-queue recipient.
+     */
+    function canClaimPayout(address account)
+        external
+        view
+        returns (bool canClaim, uint32 required, uint32 paid, address recipient)
+    {
+        if (cyclePayoutCompleted[currentCycle] || memberCount == 0) {
+            return (false, 0, 0, address(0));
+        }
+        (bool ready, uint32 req, uint32 p) = _contributionProgress(currentCycle);
+        recipient = _resolveRecipient(currentCycle);
+        canClaim = ready && recipient != address(0) && account == recipient;
+        return (canClaim, req, p, recipient);
     }
 
     function isMember(address account) external view returns (bool) {

@@ -19,12 +19,12 @@ const AGENTS = [
 ];
 
 const CAPABILITIES = [
-  { icon: BarChart3, title: 'Treasury Analysis', desc: 'Real-time cash flow insights, forecasts, and recommendations' },
-  { icon: Users, title: 'Member Intelligence', desc: 'Contribution compliance, risk scoring, and member health' },
-  { icon: Zap, title: 'Loan Decisions', desc: 'AI-powered risk assessment and repayment forecasting' },
-  { icon: ShieldCheck, title: 'Fraud Detection', desc: 'Continuous monitoring for anomalies and suspicious patterns' },
-  { icon: FileText, title: 'Automated Reports', desc: 'Monthly summaries, board reports, and audit trails' },
-  { icon: TrendingUp, title: 'Governance Insights', desc: 'Proposal analysis, voting predictions, and policy advice' },
+  { icon: BarChart3, title: 'Treasury Analysis', desc: 'Cash flow and forecasts' },
+  { icon: Users, title: 'Member Intelligence', desc: 'Compliance and risk scores' },
+  { icon: Zap, title: 'Loan Decisions', desc: 'Risk and repayment forecasts' },
+  { icon: ShieldCheck, title: 'Fraud Detection', desc: 'Anomaly monitoring' },
+  { icon: FileText, title: 'Automated Reports', desc: 'Summaries and audit trails' },
+  { icon: TrendingUp, title: 'Governance Insights', desc: 'Proposal and policy analysis' },
 ];
 
 export default function NexaPage() {
@@ -43,7 +43,7 @@ export default function NexaPage() {
               <h1 className="text-sm font-bold text-stone-900 dark:text-white">Nexa AI</h1>
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                <span className="text-[11px] text-emerald-500 truncate">Online · Monitoring cooperative</span>
+                <span className="text-[11px] text-emerald-500 truncate">Online</span>
               </div>
             </div>
           </div>
@@ -54,9 +54,8 @@ export default function NexaPage() {
         {/* Right panel — agents & capabilities */}
         <aside className="hidden xl:flex flex-col w-72 border-l border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] overflow-y-auto flex-shrink-0">
           <div className="p-5">
-            {/* Autonomous Agents */}
             <h2 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-3">
-              Autonomous Agents
+              Agents
             </h2>
             <div className="space-y-2 mb-6">
               {AGENTS.map(({ agent, icon: Icon, color }) => (
@@ -91,10 +90,9 @@ export default function NexaPage() {
               ))}
             </div>
 
-            {/* Footer */}
             <div className="mt-6 bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-stone-400 dark:text-white/30 leading-relaxed">
-                Nexa analyses your cooperative data to provide intelligent recommendations. AI advice is advisory only.
+              <p className="text-[10px] text-stone-400 dark:text-white/30">
+                AI recommendations are advisory only.
               </p>
             </div>
           </div>

@@ -63,7 +63,15 @@ export type VaultSnapshot = {
   isOrganizer: boolean;
   organizer: Address | null;
   contributionStatus: 'waiting' | 'paid' | 'exempt' | 'unknown';
+  /** True when every required member has paid this cycle (pot is complete). */
+  allMembersPaid: boolean;
+  /**
+   * True when the connected wallet may claim: all members paid AND wallet is
+   * the current payout-queue recipient.
+   */
   canPayout: boolean;
+  /** Whether the connected wallet is the current payout-queue head. */
+  isCurrentRecipient: boolean;
   paidCount: number;
   requiredCount: number;
   breakdown: VaultBreakdown | null;
@@ -147,6 +155,12 @@ export function friendlyVaultError(err: unknown): string {
   if (/AlreadyContributed|already contributed/i.test(msg)) {
     return 'You already contributed this cycle.';
   }
+  if (/ContributionsIncomplete|contributions incomplete/i.test(msg)) {
+    return 'Payout is locked until every member in the group has contributed for this period.';
+  }
+  if (/NotPayoutRecipient|not payout recipient|Not the payout/i.test(msg)) {
+    return 'Only the first person in the payout queue (this cycle’s recipient) can claim once everyone has paid.';
+  }
   if (/ContributionTooEarly|too_early_for_frequency|too early/i.test(msg)) {
     return 'Too early to contribute again. Wait until the next weekly / bi-weekly / monthly window set by the founder.';
   }
@@ -189,7 +203,9 @@ function emptySnapshot(): VaultSnapshot {
     isOrganizer: false,
     organizer: null,
     contributionStatus: 'unknown',
+    allMembersPaid: false,
     canPayout: false,
+    isCurrentRecipient: false,
     paidCount: 0,
     requiredCount: 0,
     breakdown: null,
@@ -227,6 +243,7 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
       { address: vault, abi: treasuryVaultAbi, functionName: 'organizer' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionFrequency' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionPeriodSeconds' },
+      { address: vault, abi: treasuryVaultAbi, functionName: 'getCurrentPayoutRecipient' },
     ],
   });
 
@@ -237,6 +254,7 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   const organizerRaw = resultValue<Address>(core[4]);
   const freqRaw = resultValue<number | bigint>(core[5]);
   const periodRaw = resultValue<bigint | number>(core[6]);
+  const currentPayee = resultValue<readonly [Address, number | bigint]>(core[7]);
 
   // If core amount failed entirely, surface a soft rate-limit style failure upstream
   if (contribRaw == null && balRaw == null) {
@@ -253,9 +271,19 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   let nextContributionAt: number | null = null;
   let canDepositNow: boolean | null = null;
   let canDepositReason: string | null = null;
+  let canClaimOnChain: boolean | null = null;
   const organizer = organizerRaw ?? null;
   const isOrganizer = Boolean(
     account && organizer && account.toLowerCase() === organizer.toLowerCase(),
+  );
+
+  const currentRecipientAddr = currentPayee?.[0] ?? null;
+  const currentPositionNum =
+    currentPayee != null ? Number(currentPayee[1]) : 0;
+  const isCurrentRecipient = Boolean(
+    account &&
+      currentRecipientAddr &&
+      account.toLowerCase() === currentRecipientAddr.toLowerCase(),
   );
 
   if (account) {
@@ -288,6 +316,12 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
             functionName: 'nextContributionAt',
             args: [account],
           },
+          {
+            address: vault,
+            abi: treasuryVaultAbi,
+            functionName: 'canClaimPayout',
+            args: [account],
+          },
         ],
       });
 
@@ -308,6 +342,11 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
         // Not registered yet — still allow deposit attempt (auto-join / bootstrap)
         canDepositNow = true;
       }
+
+      const claim = resultValue<readonly [boolean, number, number, Address]>(memberCore[4]);
+      if (claim) {
+        canClaimOnChain = Boolean(claim[0]);
+      }
     } catch {
       /* member views optional when RPC is throttled */
       canDepositNow = true;
@@ -315,6 +354,13 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   }
 
   const [ready, required, paid] = canPay ?? [false, 0, 0];
+  const allMembersPaid = Boolean(ready);
+  // Prefer on-chain canClaimPayout when available; fall back to ready + recipient match
+  // (older vaults without canClaimPayout still gate on all-paid + queue head).
+  const canPayout =
+    canClaimOnChain != null
+      ? canClaimOnChain
+      : allMembersPaid && isCurrentRecipient;
 
   return {
     configured: true,
@@ -324,15 +370,17 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
     contributionAmountRaw: contribRaw ?? 0n,
     contributionFrequency,
     currentCycle: cycle != null ? Number(cycle) : 0,
-    currentRecipient: null,
-    currentPosition: 0,
+    currentRecipient: currentRecipientAddr,
+    currentPosition: currentPositionNum,
     nextRecipient: null,
     nextPosition: 0,
     isMember,
     isOrganizer,
     organizer,
     contributionStatus,
-    canPayout: Boolean(ready),
+    allMembersPaid,
+    canPayout,
+    isCurrentRecipient,
     paidCount: Number(paid),
     requiredCount: Number(required),
     breakdown: null,
@@ -713,14 +761,83 @@ export async function applyCoopRulesToVault(params: {
   }
 }
 
+/**
+ * Claim the cycle payout. On-chain rules:
+ *  - every required member must have contributed this period
+ *  - only the current payout-queue recipient may call
+ */
 export async function triggerVaultPayout(opts?: {
   ucSession?: UcSession | null;
+  walletAddress?: string | null;
 }): Promise<void> {
   const vault = getVaultAddress();
   if (!vault) {
     throw new Error(
       'Vault not configured. Deploy the contract and set VITE_TREASURY_VAULT_ADDRESS.',
     );
+  }
+
+  // Preflight: avoid a doomed PIN / wallet prompt when pot is incomplete or wrong caller
+  const session = opts?.ucSession ?? loadStoredUcSession();
+  const wallet = (opts?.walletAddress || session?.address || null) as Address | null;
+  if (wallet) {
+    try {
+      const claim = (await publicClient.readContract({
+        address: vault,
+        abi: treasuryVaultAbi,
+        functionName: 'canClaimPayout',
+        args: [wallet],
+      })) as readonly [boolean, number, number, Address];
+      const [canClaim, required, paid, recipient] = claim;
+      if (!canClaim) {
+        if (Number(paid) < Number(required) || Number(required) === 0) {
+          throw new Error(
+            `Payout is locked until every member has contributed this period (${paid}/${required} paid).`,
+          );
+        }
+        if (
+          recipient &&
+          recipient !== '0x0000000000000000000000000000000000000000' &&
+          wallet.toLowerCase() !== recipient.toLowerCase()
+        ) {
+          throw new Error(
+            `Only the current payout recipient (${recipient.slice(0, 6)}…${recipient.slice(-4)}) can claim once everyone has paid.`,
+          );
+        }
+        throw new Error(
+          'Payout is not available yet. Wait until every member has contributed for this period.',
+        );
+      }
+    } catch (e) {
+      // Re-throw our preflight errors; ignore missing canClaimPayout on older vaults
+      if (e instanceof Error && /Payout is|Only the current/i.test(e.message)) throw e;
+      try {
+        const progress = (await publicClient.readContract({
+          address: vault,
+          abi: treasuryVaultAbi,
+          functionName: 'canTriggerPayout',
+        })) as readonly [boolean, number, number];
+        if (!progress[0]) {
+          throw new Error(
+            `Payout is locked until every member has contributed this period (${progress[2]}/${progress[1]} paid).`,
+          );
+        }
+        const payee = (await publicClient.readContract({
+          address: vault,
+          abi: treasuryVaultAbi,
+          functionName: 'getCurrentPayoutRecipient',
+        })) as readonly [Address, number];
+        if (payee[0] && wallet.toLowerCase() !== payee[0].toLowerCase()) {
+          throw new Error(
+            `Only the current payout recipient (${payee[0].slice(0, 6)}…${payee[0].slice(-4)}) can claim once everyone has paid.`,
+          );
+        }
+      } catch (inner) {
+        if (inner instanceof Error && /Payout is|Only the current/i.test(inner.message)) {
+          throw inner;
+        }
+      }
+    }
   }
 
   const callData = encodeFunctionData({
@@ -731,7 +848,7 @@ export async function triggerVaultPayout(opts?: {
   await writeContract({
     contractAddress: vault,
     callData,
-    ucSession: opts?.ucSession ?? loadStoredUcSession(),
+    ucSession: session,
   });
 }
 

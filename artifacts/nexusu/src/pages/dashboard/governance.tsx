@@ -233,9 +233,6 @@ export default function Governance() {
           <div className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl py-16 text-center px-6">
             <Scale className="w-10 h-10 text-stone-200 dark:text-white/10 mx-auto mb-3" />
             <p className="font-semibold text-stone-700 dark:text-white/70 mb-1">No proposals yet</p>
-            <p className="text-sm text-stone-400 dark:text-white/40 max-w-md mx-auto">
-              Governance stays empty until your cooperative creates real proposals. Prepared for on-chain voting and AI governance agents.
-            </p>
           </div>
         ) : (
           <div className="grid lg:grid-cols-2 gap-4">

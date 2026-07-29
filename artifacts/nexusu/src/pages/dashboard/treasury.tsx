@@ -353,7 +353,7 @@ export default function Treasury() {
           <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Treasury</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
-              Live balances for {coopLabel} · history in Notifications
+              {coopLabel}
             </p>
           </div>
           <button
@@ -389,15 +389,10 @@ export default function Treasury() {
         >
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
           <p className="text-sm font-medium text-white/70 mb-2">
-            Cash on hand{isVaultConfigured() ? ' (on-chain vault)' : ''}
+            Cash on hand
           </p>
           <p className="text-3xl sm:text-5xl font-display font-bold mb-1 tabular-nums break-all">
             {formatCurrency(totalBalance)}
-          </p>
-          <p className="text-xs text-white/65 mb-2 max-w-xl">
-            {isVaultConfigured()
-              ? 'Balance from the Arc vault contract — not offline bookkeeping.'
-              : 'Liquid funds only. Approved loans reduce cash; repayments restore cash.'}
           </p>
           <div className="flex items-center gap-2 text-sm text-white/80">
             <TrendingUp className="w-4 h-4" />
@@ -421,7 +416,7 @@ export default function Treasury() {
               </div>
             </div>
             <div>
-              <p className="text-white/60 text-xs mb-1">Loans receivable</p>
+              <p className="text-white/60 text-xs mb-1">Outstanding loans</p>
               <span className="text-lg font-bold">{formatCurrency(loansOutstanding)}</span>
             </div>
             <div>
@@ -441,16 +436,11 @@ export default function Treasury() {
           className="mb-6"
         >
           <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
-            <div>
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-                Treasury allocation
-              </h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-                Policy split of cash on hand · 60% / 30% / 5% / 5%
-              </p>
-            </div>
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
+              Treasury allocation
+            </h2>
             <p className="text-xs font-medium text-stone-500 dark:text-white/45">
-              Total cash {formatCurrency(totalBalance, currency)}
+              {formatCurrency(totalBalance, currency)}
             </p>
           </div>
 
@@ -466,7 +456,6 @@ export default function Treasury() {
             <TreasuryCard
               label="Rotation Fund · 60%"
               value={allocation.rotationFund}
-              description="Member rotation / ROSCA payouts"
               color="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
               icon={RotateCcw}
               delay={0.1}
@@ -474,7 +463,6 @@ export default function Treasury() {
             <TreasuryCard
               label="Loan Pool · 30%"
               value={allocation.loanPool}
-              description="Capital available for member loans"
               color="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB]"
               icon={Banknote}
               delay={0.15}
@@ -482,7 +470,6 @@ export default function Treasury() {
             <TreasuryCard
               label="Emergency Reserve · 5%"
               value={allocation.emergencyReserve}
-              description="Hardship & contingency buffer"
               color="bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
               icon={Shield}
               delay={0.2}
@@ -490,7 +477,6 @@ export default function Treasury() {
             <TreasuryCard
               label="Savings / Investments · 5%"
               value={allocation.savingsInvestment}
-              description="Longer-term savings allocation"
               color="bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400"
               icon={PiggyBank}
               delay={0.25}
@@ -498,7 +484,7 @@ export default function Treasury() {
           </div>
         </motion.div>
 
-        {/* Loan portfolio — who received what from the cooperative */}
+        {/* Loan portfolio */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -506,12 +492,7 @@ export default function Treasury() {
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-6"
         >
           <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Loan portfolio</h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-                Disbursement reduces cash · repayment restores cash · receivable = unpaid principal
-              </p>
-            </div>
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Loan portfolio</h2>
             <Link
               href="/dashboard/loans"
               className="text-xs font-semibold text-[#6393C4] hover:underline"
@@ -520,21 +501,15 @@ export default function Treasury() {
             </Link>
           </div>
 
-          <div className="mb-4 rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50 dark:bg-[#2E3B4B]/30 px-4 py-3 text-[11px] text-stone-500 dark:text-white/45 leading-relaxed">
-            <strong className="text-stone-700 dark:text-white/70">Example:</strong>{' '}
-            Treasury cash $1,000 → approve $200 loan → cash $800, receivable $200.
-            Member repays $50 → cash $850, receivable $150. Full repay → cash $1,000, receivable $0.
-          </div>
-
           <div className="grid sm:grid-cols-3 gap-3 mb-4">
             <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">Originally disbursed</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">Disbursed</p>
               <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
                 {formatCurrency(loansDisbursed, currency)}
               </p>
             </div>
             <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">Still owed (receivable)</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">Outstanding</p>
               <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
                 {formatCurrency(loansOutstanding, currency)}
               </p>
@@ -550,7 +525,7 @@ export default function Treasury() {
           <div className="mb-4">
             <div className="flex justify-between text-[11px] mb-1.5">
               <span className="text-stone-400 dark:text-white/40 font-medium">
-                Receivable share of (cash + loans)
+                Outstanding share
               </span>
               <span className="font-semibold text-stone-600 dark:text-white/60">{deployedPct}%</span>
             </div>
@@ -560,19 +535,12 @@ export default function Treasury() {
                 style={{ width: `${deployedPct}%` }}
               />
             </div>
-            <p className="text-[10px] text-stone-400 dark:text-white/30 mt-1.5">
-              {formatCurrency(loansOutstanding, currency)} still out with members ·{' '}
-              {formatCurrency(totalBalance, currency)} liquid
-            </p>
           </div>
 
           {disbursedLoans.length === 0 ? (
             <div className="py-8 text-center border border-dashed border-stone-200 dark:border-white/10 rounded-xl">
               <Banknote className="w-8 h-8 text-stone-200 dark:text-white/10 mx-auto mb-2" />
-              <p className="text-sm text-stone-500 dark:text-white/45 font-medium">No loans granted yet</p>
-              <p className="text-xs text-stone-400 dark:text-white/30 mt-1 max-w-sm mx-auto">
-                When the AI Lending Agent approves a member application, the amount and member appear here for full cooperative transparency.
-              </p>
+              <p className="text-sm text-stone-500 dark:text-white/45 font-medium">No loans yet</p>
             </div>
           ) : (
             <>
@@ -674,7 +642,6 @@ export default function Treasury() {
           >
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Cash Flow</h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">From recorded deposits, contributions, and withdrawals</p>
             </div>
             {cashFlow.length === 0 ? (
               <div className="h-[260px] flex flex-col items-center justify-center text-center">
@@ -704,7 +671,6 @@ export default function Treasury() {
           >
             <div className="mb-5">
               <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Contribution Trend</h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">Monthly inflows from the ledger</p>
             </div>
             {contributionTrend.length === 0 || contributionTrend.every((p) => p.value === 0) ? (
               <div className="h-[260px] flex flex-col items-center justify-center text-center">

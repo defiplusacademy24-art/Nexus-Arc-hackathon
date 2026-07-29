@@ -288,17 +288,12 @@ export default function Notifications() {
             )}
             <p className="text-stone-400 dark:text-white/40 text-sm">
               {!isConnected
-                ? 'Connect a wallet to see live notifications'
+                ? 'Connect a wallet to see notifications'
                 : unreadOnly
                   ? `No unread ${tab === 'transactions' ? 'transactions' : 'system'} notifications`
                   : tab === 'transactions'
-                    ? 'No transaction notifications yet'
-                    : 'No system notifications yet'}
-            </p>
-            <p className="text-stone-300 dark:text-white/25 text-xs mt-2 max-w-sm mx-auto">
-              {tab === 'transactions'
-                ? 'USDC deposits, withdrawals, and contributions will show here — your transaction history feed.'
-                : 'Cooperative created, members joining, governance, and platform alerts appear in Systems.'}
+                    ? 'No transactions yet'
+                    : 'No notifications yet'}
             </p>
           </div>
         )}

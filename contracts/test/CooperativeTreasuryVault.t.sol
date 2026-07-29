@@ -170,9 +170,31 @@ contract CooperativeTreasuryVaultTest is Test {
     function test_PayoutRequiresAllMembers() public {
         _approveAndDeposit(alice);
         _approveAndDeposit(bob);
-        // carol missing
+        // carol missing — even the queue head cannot claim an incomplete pot
+        vm.prank(alice);
         vm.expectRevert(CooperativeTreasuryVault.ContributionsIncomplete.selector);
         vault.triggerPayout();
+    }
+
+    function test_OnlyQueueHeadCanClaimPayout() public {
+        _approveAndDeposit(alice);
+        _approveAndDeposit(bob);
+        _approveAndDeposit(carol);
+
+        // Non-recipient (bob, position #2) cannot claim while alice is #1
+        vm.prank(bob);
+        vm.expectRevert(CooperativeTreasuryVault.NotPayoutRecipient.selector);
+        vault.triggerPayout();
+
+        // Stranger cannot claim
+        vm.prank(makeAddr("stranger"));
+        vm.expectRevert(CooperativeTreasuryVault.NotPayoutRecipient.selector);
+        vault.triggerPayout();
+
+        (bool canAlice,,,) = vault.canClaimPayout(alice);
+        (bool canBob,,,) = vault.canClaimPayout(bob);
+        assertTrue(canAlice);
+        assertFalse(canBob);
     }
 
     function test_JoinOrderPayoutAndRotation() public {
@@ -186,6 +208,8 @@ contract CooperativeTreasuryVaultTest is Test {
         uint256 aliceBefore = usdc.balanceOf(alice);
         uint256 expectedPayout = (CONTRIB * 6000 / 10_000) * 3; // rotation share * 3 members
 
+        // Only position #1 claims once everyone has paid
+        vm.prank(alice);
         vault.triggerPayout();
 
         assertEq(usdc.balanceOf(alice) - aliceBefore, expectedPayout);
@@ -205,10 +229,12 @@ contract CooperativeTreasuryVaultTest is Test {
         _approveAndDeposit(alice);
         _approveAndDeposit(bob);
         _approveAndDeposit(carol);
+        vm.prank(alice);
         vault.triggerPayout();
 
         // cycle advanced; trying to pay cycle 1 again is impossible via trigger
         // (state is cycle 2). Deposit again for cycle 2 incomplete → cannot double-pay.
+        vm.prank(bob);
         vm.expectRevert(CooperativeTreasuryVault.ContributionsIncomplete.selector);
         vault.triggerPayout();
     }
@@ -216,6 +242,7 @@ contract CooperativeTreasuryVaultTest is Test {
     function test_RotationWrapsAfterLastMember() public {
         // Three full cycles: alice, bob, carol, then alice again
         // Warp past founder frequency between cycles (monthly = 30 days in setUp)
+        address[3] memory order = [alice, bob, carol];
         for (uint256 round = 0; round < 3; round++) {
             if (round > 0) {
                 vm.warp(block.timestamp + vault.contributionPeriodSeconds());
@@ -223,6 +250,7 @@ contract CooperativeTreasuryVaultTest is Test {
             _approveAndDeposit(alice);
             _approveAndDeposit(bob);
             _approveAndDeposit(carol);
+            vm.prank(order[round]);
             vault.triggerPayout();
         }
         assertEq(vault.currentCycle(), 4);
@@ -237,7 +265,8 @@ contract CooperativeTreasuryVaultTest is Test {
 
         _approveAndDeposit(alice);
         _approveAndDeposit(bob);
-        // carol exempt — should still be able to pay out
+        // carol exempt — queue head can claim once required members paid
+        vm.prank(alice);
         vault.triggerPayout();
         assertEq(vault.currentCycle(), 2);
     }
@@ -253,6 +282,8 @@ contract CooperativeTreasuryVaultTest is Test {
         _approveAndDeposit(carol);
 
         uint256 carolBefore = usdc.balanceOf(carol);
+        // Organizer-assigned recipient (carol) claims — not alice
+        vm.prank(carol);
         vault.triggerPayout();
         assertGt(usdc.balanceOf(carol), carolBefore);
     }
@@ -273,6 +304,8 @@ contract CooperativeTreasuryVaultTest is Test {
         _approveAndDeposit(carol);
 
         uint256 bobBefore = usdc.balanceOf(bob);
+        // Vote winner (bob) claims
+        vm.prank(bob);
         vault.triggerPayout();
         assertGt(usdc.balanceOf(bob), bobBefore);
     }
@@ -369,6 +402,7 @@ contract CooperativeTreasuryVaultTest is Test {
         usdc.approve(address(v), type(uint256).max);
         v.deposit();
         vm.stopPrank();
+        vm.prank(alice);
         v.triggerPayout();
 
         // Same day — next cycle open but frequency blocks alice
@@ -492,6 +526,7 @@ contract CooperativeTreasuryVaultTest is Test {
         usdc.approve(address(v), type(uint256).max);
         v.deposit();
         vm.stopPrank();
+        vm.prank(alice);
         v.triggerPayout();
 
         // Day 3 of next cycle — still too early for weekly schedule
@@ -516,6 +551,7 @@ contract CooperativeTreasuryVaultTest is Test {
         _approveAndDeposit(alice);
         _approveAndDeposit(bob);
         _approveAndDeposit(carol);
+        vm.prank(alice);
         vault.triggerPayout();
 
         vm.warp(block.timestamp + 29 days);

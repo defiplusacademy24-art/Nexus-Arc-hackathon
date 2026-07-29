@@ -207,13 +207,13 @@ function Step1({ form, set }: { form: WizardForm; set: (k: keyof WizardForm, v: 
   return (
     <div className="space-y-4">
       <Field label="Cooperative Name" required>
-        <Input value={form.name} onChange={(v) => set('name', v)} placeholder="e.g. Community Savers Cooperative" />
+        <Input value={form.name} onChange={(v) => set('name', v)} placeholder="Cooperative name" />
       </Field>
       <Field label="Description" required>
         <textarea
           value={form.description}
           onChange={(e) => set('description', e.target.value)}
-          placeholder="What is the purpose of this cooperative?"
+          placeholder="Brief description"
           rows={3}
           className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all resize-none"
         />
@@ -255,11 +255,7 @@ function Step2({ form, set }: { form: WizardForm; set: (k: keyof WizardForm, v: 
   ];
   return (
     <div className="space-y-5">
-      <Field
-        label="Contribution Frequency"
-        required
-        hint="Members contribute once per period. On-chain vault enforces the same schedule."
-      >
+      <Field label="Contribution Frequency" required>
         <div className="space-y-2">
           {freqs.map((f) => (
             <RadioCard
@@ -276,44 +272,31 @@ function Step2({ form, set }: { form: WizardForm; set: (k: keyof WizardForm, v: 
       <Field
         label={`Contribution Amount (${form.currency})`}
         required
-        hint={`Platform minimum is $${MIN_CONTRIBUTION_USDC}. This exact amount is what each member must deposit per cycle on Arc (not more, not less).`}
+        hint={`Minimum $${MIN_CONTRIBUTION_USDC}`}
       >
         <div className="space-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/25">
-              Min ${MIN_CONTRIBUTION_USDC} {form.currency}
-            </span>
-            <span className="text-[11px] text-stone-400 dark:text-white/35">
-              Fixed per cycle · splits 60% / 30% / 5% / 5% on-chain
-            </span>
-          </div>
           <Input
             value={form.contributionAmount}
             onChange={(v) => set('contributionAmount', v)}
             type="number"
             min={MIN_CONTRIBUTION_USDC}
             step="1"
-            placeholder={`e.g. ${MIN_CONTRIBUTION_USDC} or 50`}
+            placeholder={`${MIN_CONTRIBUTION_USDC}`}
           />
           {form.contributionAmount !== '' &&
             !Number.isNaN(Number(form.contributionAmount)) &&
             Number(form.contributionAmount) > 0 &&
             Number(form.contributionAmount) < MIN_CONTRIBUTION_USDC && (
               <p className="text-xs text-red-500">
-                Amount must be at least ${MIN_CONTRIBUTION_USDC}. The platform and vault reject lower
-                contributions.
+                Amount must be at least ${MIN_CONTRIBUTION_USDC}.
               </p>
             )}
         </div>
       </Field>
-      <Field label="Maximum Members" hint="Leave blank for unlimited">
-        <Input value={form.maxMembers} onChange={(v) => set('maxMembers', v)} type="number" placeholder="e.g. 30" />
+      <Field label="Maximum Members" hint="Optional">
+        <Input value={form.maxMembers} onChange={(v) => set('maxMembers', v)} type="number" placeholder="30" />
       </Field>
-      <Field
-        label="Payout Strategy"
-        required
-        hint="Only Join Order is available for MVP. Other strategies are prepared for a later release."
-      >
+      <Field label="Payout Strategy" required>
         <div className="space-y-2">
           {ROTATION_OPTIONS.map((mode) => {
             const implemented = isRotationModeImplemented(mode);
@@ -379,7 +362,7 @@ function Step3({ form, set, setNum }: { form: WizardForm; set: (k: keyof WizardF
           {VOTING_MODELS.map((m) => <RadioCard key={m.value} value={m.value} current={form.votingModel} onChange={(v) => set('votingModel', v)} label={m.label} desc={m.desc} />)}
         </div>
       </Field>
-      <Field label={`Approval Threshold — ${form.approvalThreshold}%`} hint="Percentage of votes required to pass a proposal">
+      <Field label={`Approval Threshold — ${form.approvalThreshold}%`}>
         <input
           type="range" min={50} max={100} step={1} value={form.approvalThreshold}
           onChange={(e) => setNum('approvalThreshold', Number(e.target.value))}
@@ -408,7 +391,6 @@ function Step3({ form, set, setNum }: { form: WizardForm; set: (k: keyof WizardF
           <Sparkles className={cn('w-4 h-4', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-400')} />
           <div className="flex-1 text-left">
             <p className={cn('text-sm font-semibold', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-600 dark:text-white/60')}>Nexa AI Assistance</p>
-            <p className="text-[11px] text-stone-400 dark:text-white/35">AI-powered insights, risk assessment, and governance recommendations</p>
           </div>
           <div className={cn('w-10 h-6 rounded-full transition-all flex items-center px-0.5', form.aiGovernanceEnabled ? 'bg-[#6393C4]' : 'bg-stone-200 dark:bg-white/10')}>
             <div className={cn('w-5 h-5 rounded-full bg-white shadow-sm transition-all', form.aiGovernanceEnabled ? 'translate-x-4' : 'translate-x-0')} />

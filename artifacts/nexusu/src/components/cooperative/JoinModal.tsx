@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, QrCode, Link2, Hash, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, Link2, Hash, CheckCircle2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { useWallet } from '@/providers/WalletProvider';
@@ -79,7 +79,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
   };
 
   const modes: { id: JoinMode; label: string; icon: React.ElementType; placeholder: string }[] = [
-    { id: 'code', label: 'Invite Code', icon: Hash, placeholder: 'e.g. ABC-DEF-GH1' },
+    { id: 'code', label: 'Invite Code', icon: Hash, placeholder: 'ABC-DEF-GH1' },
     { id: 'link', label: 'Invite Link', icon: Link2, placeholder: 'https://nexusu.app/join/…' },
   ];
 
@@ -109,23 +109,17 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
           </div>
           <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-3" />
           <h3 className="font-display font-bold text-stone-900 dark:text-white text-lg mb-1">
-            🎉 Welcome to the cooperative!
+            Joined {coop.name}
           </h3>
-          <p className="text-stone-500 dark:text-white/50 text-sm mb-1">{coop.name}</p>
           <p className="text-stone-400 dark:text-white/30 text-xs mb-5">
             {coop.type} · {coop.country}
           </p>
 
-          <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4 mb-6 text-left space-y-2">
-            <p className="text-xs text-stone-500 dark:text-white/50">You have been assigned:</p>
+          <div className="bg-stone-50 dark:bg-[#2E3B4B]/35 rounded-xl p-4 mb-6 text-center">
+            <p className="text-xs text-stone-500 dark:text-white/50 mb-1">Payout position</p>
             <p className="text-lg font-display font-bold text-[#6393C4]">
-              Payout Position #{joinPosition || '—'}
+              #{joinPosition || '—'}
             </p>
-            {joinPosition > 0 && (
-              <p className="text-[11px] text-stone-400 dark:text-white/35 leading-relaxed">
-                You will receive the pooled contribution during Cycle {joinPosition}.
-              </p>
-            )}
           </div>
 
           <button
@@ -160,9 +154,6 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
             <h2 className="font-display font-bold text-stone-900 dark:text-white">
               Join a Cooperative
             </h2>
-            <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-              Register and claim your payout position
-            </p>
           </div>
           <button
             onClick={onClose}
@@ -226,7 +217,7 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
                   setDisplayName(e.target.value);
                   setError('');
                 }}
-                placeholder="e.g. Mary Okonkwo"
+                placeholder="Display name"
                 className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
               />
             </div>
@@ -263,25 +254,6 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
               {error}
             </p>
           )}
-
-          {/* QR placeholder */}
-          <div className="border-2 border-dashed border-stone-200 dark:border-white/10 rounded-xl p-5 text-center">
-            <QrCode className="w-6 h-6 text-stone-300 dark:text-white/20 mx-auto mb-2" />
-            <p className="text-xs text-stone-400 dark:text-white/30 font-semibold">QR Code Scan</p>
-            <p className="text-[11px] text-stone-300 dark:text-white/20 mt-0.5">
-              Camera QR scanning coming soon via Sphere Messaging
-            </p>
-          </div>
-
-          {/* Info box */}
-          <div className="bg-stone-50 dark:bg-[#2E3B4B]/30 rounded-xl p-4 space-y-1">
-            <p className="text-xs font-semibold text-stone-500 dark:text-white/40">How it works</p>
-            <ul className="text-[11px] text-stone-400 dark:text-white/30 space-y-0.5 list-disc list-inside">
-              <li>Your wallet and email must be unique in the cooperative</li>
-              <li>You receive a permanent payout position based on join order</li>
-              <li>The cooperative admin is notified when you join</li>
-            </ul>
-          </div>
 
           <button
             onClick={handleJoin}

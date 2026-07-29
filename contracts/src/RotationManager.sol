@@ -132,9 +132,15 @@ contract RotationManager is Ownable, ReentrancyGuard, Pausable {
     // ── Payout execution ─────────────────────────────────────────────────────
 
     /**
-     * @notice Execute rotation payout via the cooperative's Treasury Vault.
-     * @dev Calls `triggerPayout()` on the vault (permissionless when contributions complete),
-     *      then syncs registry join-order index and stores payout history.
+     * @notice Execute rotation payout via the cooperative's Treasury Vault (registry sync).
+     * @dev Production vaults require the **current payout-queue head** to claim directly
+     *      on `CooperativeTreasuryVault.triggerPayout()` once every member has contributed
+     *      for the period (weekly / bi-weekly / monthly). That call cannot be proxied here
+     *      because the vault checks `msg.sender == recipient`.
+     *
+     *      This entrypoint still works with permissionless mock vaults in tests. Against a
+     *      real recipient-gated vault, call `vault.triggerPayout()` as the recipient, then
+     *      use `manualAdvance` / `syncFromVault` for registry bookkeeping.
      * @param coopId Cooperative id in the registry
      * @return recipient Address paid
      * @return amount Rotation USDC amount transferred by the vault
@@ -161,7 +167,8 @@ contract RotationManager is Ownable, ReentrancyGuard, Pausable {
         uint256 rotationBefore = tv.rotationFund();
         uint32 cycleBefore = tv.currentCycle();
 
-        // Execute on-chain USDC payout from treasury rotation fund
+        // Mock/legacy vaults: permissionless trigger. Real vaults: reverts unless
+        // this contract is the recipient (it never is) — claim on vault instead.
         tv.triggerPayout();
 
         // Infer amount from rotation fund delta (vault decreases rotationFund)

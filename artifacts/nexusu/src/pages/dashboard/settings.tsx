@@ -78,7 +78,7 @@ const SETTINGS: SettingsSection[] = [
   {
     section: 'AI & Automation',
     rows: [
-      { label: 'Nexa AI assistant', description: 'Enable AI-powered insights and recommendations', type: 'toggle', defaultOn: true },
+      { label: 'Nexa AI assistant', description: 'Insights and recommendations', type: 'toggle', defaultOn: true },
       { label: 'Auto-reminders', description: 'Automatically send contribution reminders to members', type: 'toggle', defaultOn: false },
       { label: 'Fraud monitoring', description: 'Continuous AI monitoring for suspicious activity', type: 'toggle', defaultOn: true },
       { label: 'AI loan scoring', description: 'Use AI risk scores when reviewing loan applications', type: 'toggle', defaultOn: true },

@@ -166,6 +166,18 @@ export const treasuryVaultAbi = [
   },
   {
     type: 'function',
+    name: 'canClaimPayout',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [
+      { name: 'canClaim', type: 'bool' },
+      { name: 'required', type: 'uint32' },
+      { name: 'paid', type: 'uint32' },
+      { name: 'recipient', type: 'address' },
+    ],
+  },
+  {
+    type: 'function',
     name: 'contributionAmount',
     stateMutability: 'view',
     inputs: [],

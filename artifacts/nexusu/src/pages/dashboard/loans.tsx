@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Banknote, Clock, CheckCircle2, XCircle, TrendingUp, Sparkles,
   Loader2, Shield, AlertTriangle, RefreshCcw, ArrowDownToLine,
-  Download, Activity,
+  Download,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useCooperative } from '@/providers/CooperativeProvider';
@@ -239,11 +239,8 @@ function AiEvaluationCard({
           </div>
           <div>
             <h3 className="font-display font-bold text-stone-900 dark:text-white text-base">
-              AI Lending Agent Assessment
+              AI Assessment
             </h3>
-            <p className="text-[11px] text-stone-400 dark:text-white/40">
-              Autonomous underwriting · contribution, treasury & policy rules
-            </p>
           </div>
         </div>
         <DecisionBadge decision={assessment.decision} />
@@ -296,15 +293,12 @@ function AiEvaluationCard({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-3 py-1.5 rounded-full">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Approved by AI Lending Agent
+            Approved
           </span>
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5289B8] dark:text-[#77A6DB] bg-[#6393C4]/10 border border-[#6393C4]/20 px-3 py-1.5 rounded-full">
             <Banknote className="w-3.5 h-3.5" />
             Disbursement Ready
           </span>
-          <p className="w-full text-[11px] text-stone-400 dark:text-white/35 mt-1">
-            Future integration will transfer USDC automatically on Arc.
-          </p>
         </div>
       )}
     </motion.div>
@@ -1023,7 +1017,7 @@ export default function Loans() {
           <Banknote className="w-12 h-12 text-stone-200 dark:text-white/10 mx-auto mb-4" />
           <p className="font-display font-bold text-stone-800 dark:text-white mb-2">No cooperative</p>
           <p className="text-sm text-stone-400 dark:text-white/40">
-            Create or join a cooperative to apply for loans and run the AI Lending Agent.
+            Create or join a cooperative to apply for loans.
           </p>
         </div>
       </DashboardLayout>
@@ -1049,7 +1043,7 @@ export default function Loans() {
                 </>
               ) : (
                 <>
-                  {formatCurrency(outstanding, currency)} receivable ·{' '}
+                  {formatCurrency(outstanding, currency)} outstanding ·{' '}
                   {formatCurrency(activeCooperative.treasuryBalance ?? 0, currency)} cash on hand
                 </>
               )}
@@ -1115,12 +1109,10 @@ export default function Loans() {
                 <Shield className="w-4 h-4 text-[#6393C4] mt-0.5 flex-shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-stone-800 dark:text-white">
-                    On-chain Loan Pool (Arc)
+                    Loan Pool
                   </p>
-                  <p className="text-[11px] text-stone-500 dark:text-white/45 mt-0.5 leading-relaxed">
-                    Apply, approve, disburse, and repay in USDC on Arc — not local storage.
-                    Eligible borrowers only · one open loan · interest 5–10% by term · max{' '}
-                    {((poolSnap?.maxLoanBps ?? 2500) / 100).toFixed(0)}% of liquidity.
+                  <p className="text-[11px] text-stone-500 dark:text-white/45 mt-0.5">
+                    Max {((poolSnap?.maxLoanBps ?? 2500) / 100).toFixed(0)}% of pool liquidity
                   </p>
                 </div>
               </div>
@@ -1172,7 +1164,7 @@ export default function Loans() {
                     step="0.01"
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
-                    placeholder="e.g. 500"
+                    placeholder="500"
                     className="mt-1 w-full rounded-xl border border-stone-200 dark:border-white/10 bg-white dark:bg-[#2E3B4B]/40 px-3 py-2 text-sm outline-none focus:border-[#6393C4]/50"
                   />
                 </div>
@@ -1196,8 +1188,7 @@ export default function Loans() {
             )}
             {!poolSnap?.isEligibleBorrower && poolSnap?.configured && isConnected && (
               <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-3">
-                You are not eligible yet. If the pool uses a membership vault, register on the treasury vault first.
-                Otherwise the organizer must register your wallet as a borrower.
+                Not eligible — register on the vault or ask the organizer to add your wallet.
               </p>
             )}
             {chainMsg && (
@@ -1206,9 +1197,7 @@ export default function Loans() {
           </motion.div>
         ) : (
           <div className="mb-6 rounded-2xl border border-amber-200 dark:border-amber-500/20 bg-amber-50/80 dark:bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
-            Loan pool contract not configured. Set <code className="font-mono">VITE_LOAN_POOL_ADDRESS</code> after
-            deploying <code className="font-mono">CooperativeLoanPool</code> to use real on-chain loans. Until then,
-            this page uses local records only.
+            Loan pool not configured. Using local records.
           </div>
         )}
 
@@ -1272,33 +1261,17 @@ export default function Loans() {
                 <h2 className="font-display font-bold text-stone-900 dark:text-white text-base">
                   Loan Repayment
                 </h2>
-                <p className="text-xs text-stone-400 dark:text-white/40 mt-1 max-w-2xl leading-relaxed">
-                  Pay in full or in parts before the due date. When the loan was approved, cash left the treasury;
-                  each repayment returns that cash. Outstanding is what you still owe — not double-counted as cash.
-                </p>
               </div>
-            </div>
-
-            <div className="mb-5 rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50 dark:bg-[#2E3B4B]/30 px-4 py-3 text-[11px] text-stone-500 dark:text-white/45 leading-relaxed">
-              <p className="font-semibold text-stone-600 dark:text-white/60 mb-1">How the numbers work</p>
-              <ol className="list-decimal list-inside space-y-0.5">
-                <li><strong className="text-stone-700 dark:text-white/70">Approve</strong> — cash leaves the treasury (e.g. $70 → $65 if $5 lent).</li>
-                <li><strong className="text-stone-700 dark:text-white/70">Outstanding</strong> — what the member still owes (receivable), not extra cash.</li>
-                <li><strong className="text-stone-700 dark:text-white/70">Repay</strong> — cash comes back only if it left on approve. Outstanding always falls.</li>
-              </ol>
             </div>
 
             {!walletAddress ? (
               <p className="text-sm text-amber-600 dark:text-amber-400">
-                Connect your wallet to see and repay your loans.
+                Connect your wallet to repay loans.
               </p>
             ) : myOutstanding.length === 0 ? (
               <div className="py-10 text-center border border-dashed border-stone-200 dark:border-white/10 rounded-xl">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400/80 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-stone-700 dark:text-white/70">No outstanding loans</p>
-                <p className="text-xs text-stone-400 dark:text-white/35 mt-1">
-                  When you have an approved loan with a remaining balance, it will appear here.
-                </p>
               </div>
             ) : (
               <>
@@ -1486,25 +1459,22 @@ export default function Loans() {
                             {repaySuccess}
                           </p>
                         )}
-                        <p className="text-[11px] text-stone-400 dark:text-white/30 mt-3">
-                          Interest is collected first, then principal returns to the loan pool. Interest strengthens the cooperative treasury and savings policy.
-                        </p>
                       </div>
 
-                      {/* AI Loan Monitoring */}
+                      {/* Loan monitoring */}
                       <div className="rounded-xl border border-[#6393C4]/20 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <Sparkles className="w-4 h-4 text-[#6393C4]" />
                           <p className="text-xs font-bold uppercase tracking-wider text-[#6393C4]">
-                            Nexa AI Loan Monitoring
+                            Loan status
                           </p>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {[
                             { l: 'Credit Health', v: L.riskScore <= 35 ? 'Excellent' : L.riskScore <= 55 ? 'Good' : 'Watch' },
-                            { l: 'Repayment Behaviour', v: paid > 0 ? 'On Track' : 'New loan' },
-                            { l: 'Missed Payments', v: '0' },
-                            { l: 'Risk Score', v: L.riskLevel ?? riskLabel(L.riskScore) },
+                            { l: 'Repayment', v: paid > 0 ? 'On Track' : 'New loan' },
+                            { l: 'Missed', v: '0' },
+                            { l: 'Risk', v: L.riskLevel ?? riskLabel(L.riskScore) },
                           ].map(({ l, v }) => (
                             <div key={l} className="rounded-lg bg-white/80 dark:bg-white/5 border border-[#6393C4]/15 px-2.5 py-2">
                               <p className="text-[10px] text-stone-400 dark:text-white/40">{l}</p>
@@ -1512,10 +1482,6 @@ export default function Loans() {
                             </div>
                           ))}
                         </div>
-                        <p className="text-xs text-stone-600 dark:text-white/65 leading-relaxed flex items-start gap-2">
-                          <Activity className="w-3.5 h-3.5 text-[#6393C4] flex-shrink-0 mt-0.5" />
-                          Continue making repayments to improve your cooperative reputation.
-                        </p>
                       </div>
 
                       {/* Interest distribution log */}
@@ -1596,10 +1562,6 @@ export default function Loans() {
               <h2 className="font-display font-bold text-stone-900 dark:text-white text-base">
                 Apply for Loan
               </h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-1 max-w-2xl leading-relaxed">
-                Request a cooperative loan. AI agents will evaluate your application using your
-                contribution history, treasury health, cooperative reputation, and lending rules.
-              </p>
             </div>
           </div>
 
@@ -1614,7 +1576,7 @@ export default function Loans() {
                 step="0.01"
                 value={form.amount}
                 onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                placeholder="e.g. 200"
+                placeholder="200"
                 disabled={evaluating}
                 className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 disabled:opacity-60"
               />
@@ -1668,19 +1630,16 @@ export default function Loans() {
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                 rows={3}
                 disabled={evaluating}
-                placeholder="Explain how you will use the funds and repay on schedule…"
+                placeholder="Loan purpose"
                 className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 resize-none disabled:opacity-60"
               />
             </div>
           </div>
 
-          {/* Interest schedule — shown before submit */}
+          {/* Interest schedule */}
           <div className="mb-4 rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/80 dark:bg-[#2E3B4B]/25 p-4">
-            <p className="text-xs font-semibold text-stone-700 dark:text-white/75 mb-1">
+            <p className="text-xs font-semibold text-stone-700 dark:text-white/75 mb-3">
               Interest schedule
-            </p>
-            <p className="text-[11px] text-stone-400 dark:text-white/40 mb-3">
-              Longer terms carry higher simple interest on principal (from 5%). Review before applying.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
               {LOAN_INTEREST_TABLE.map((row) => (
@@ -1780,14 +1739,9 @@ export default function Loans() {
                 className="mt-5 flex items-center gap-3 rounded-xl border border-[#6393C4]/20 bg-[#6393C4]/5 dark:bg-[#6393C4]/10 px-4 py-3"
               >
                 <Loader2 className="w-5 h-5 text-[#6393C4] animate-spin flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-[#5289B8] dark:text-[#77A6DB]">
-                    Lending Agent is evaluating your request…
-                  </p>
-                  <p className="text-[11px] text-stone-400 dark:text-white/35 mt-0.5">
-                    Checking contribution history, treasury health, reputation, and lending policy
-                  </p>
-                </div>
+                <p className="text-sm font-semibold text-[#5289B8] dark:text-[#77A6DB]">
+                  Evaluating application…
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1920,10 +1874,7 @@ export default function Loans() {
         {displayed.length === 0 ? (
           <div className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl py-16 text-center px-6">
             <Banknote className="w-10 h-10 text-stone-200 dark:text-white/10 mx-auto mb-3" />
-            <p className="font-semibold text-stone-700 dark:text-white/70 mb-1">No loan applications yet</p>
-            <p className="text-sm text-stone-400 dark:text-white/40 max-w-md mx-auto">
-              Submit a request above. The AI Lending Agent will underwrite using live cooperative data.
-            </p>
+            <p className="font-semibold text-stone-700 dark:text-white/70 mb-1">No applications yet</p>
           </div>
         ) : (
           <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4 md:hidden">

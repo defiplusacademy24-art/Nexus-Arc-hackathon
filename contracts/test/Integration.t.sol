@@ -83,15 +83,27 @@ contract IntegrationTest is Test {
         assertEq(b.rotationFund, (CONTRIB * 3 * 6000) / 10_000);
         assertEq(b.loanPool, (CONTRIB * 3 * 3000) / 10_000);
 
-        // Rotation via RotationManager → vault.triggerPayout
+        // Queue head (organizer, position #1) claims only after everyone paid.
+        // Real vaults cannot be proxied through RotationManager — recipient claims on vault.
         uint256 coopId = _registerCoopOnChain();
+        assertTrue(coopId > 0);
         uint256 orgBefore = usdc.balanceOf(organizer);
+        uint256 expected = (CONTRIB * 3 * 6000) / 10_000;
 
-        (address paid, uint256 amount) = rotation.executeRotation(coopId);
-        assertEq(paid, organizer); // join position #1
-        assertEq(amount, (CONTRIB * 3 * 6000) / 10_000);
-        assertEq(usdc.balanceOf(organizer) - orgBefore, amount);
+        // Incomplete claim path already covered in vault unit tests; here: non-recipient blocked
+        vm.prank(alice);
+        vm.expectRevert(CooperativeTreasuryVault.NotPayoutRecipient.selector);
+        vault.triggerPayout();
+
+        // Position #1 claims the full cycle rotation pot
+        vm.prank(organizer);
+        vault.triggerPayout();
+        assertEq(usdc.balanceOf(organizer) - orgBefore, expected);
         assertEq(vault.currentCycle(), 2);
+
+        // Registry bookkeeping after on-vault claim
+        vm.prank(organizer);
+        rotation.manualAdvance(coopId);
     }
 
     function test_ExactContributionEnforced() public {
@@ -144,6 +156,8 @@ contract IntegrationTest is Test {
         _deposit(alice);
         _deposit(bob);
         _deposit(organizer);
+        // Position #1 (organizer) claims after all members paid
+        vm.prank(organizer);
         vault.triggerPayout();
 
         // Next cycle open but bi-weekly blocks

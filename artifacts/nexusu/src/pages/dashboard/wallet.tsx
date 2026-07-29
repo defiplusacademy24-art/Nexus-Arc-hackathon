@@ -54,8 +54,8 @@ export default function WalletProfile() {
       <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-2xl mx-auto">
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
-          <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Wallet Profile</h1>
-          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">Your Circle email wallet on Arc Testnet</p>
+          <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Wallet</h1>
+          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">{ARC_NETWORK_LABEL}</p>
         </motion.div>
 
         <motion.div

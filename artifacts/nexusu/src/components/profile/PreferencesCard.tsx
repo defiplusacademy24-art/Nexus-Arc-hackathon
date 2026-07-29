@@ -102,12 +102,9 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
               };
               saveProfilePrefs(next);
             }}
-            placeholder="e.g. Rita"
+            placeholder="Display name"
             className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] text-sm text-stone-700 dark:text-white placeholder:text-stone-300 dark:placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-[#6393C4]/30 transition-all"
           />
-          <p className="text-[10px] text-stone-400 dark:text-white/25 mt-1">
-            Shown on Overview (e.g. “Good afternoon, Rita”). Does not change your on-chain identity.
-          </p>
         </div>
 
         {/* Language */}

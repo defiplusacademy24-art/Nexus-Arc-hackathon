@@ -452,9 +452,8 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                     </SettingsField>
                   </div>
                   <div className="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 border border-[#6393C4]/20 dark:border-[#6393C4]/20 rounded-xl p-4">
-                    <p className="text-xs font-semibold text-[#5289B8] dark:text-[#77A6DB] mb-1">Cooperative ID & Invite Code</p>
-                    <p className="text-[11px] text-[#6393C4] dark:text-[#77A6DB]/80">These are permanent identifiers and cannot be changed after creation. Share the invite code with members to grow your cooperative.</p>
-                    <div className="mt-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-[#5289B8] dark:text-[#77A6DB] mb-3">Identifiers</p>
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-[#6393C4]/70 dark:text-[#77A6DB]/60">Cooperative ID</span>
                         <span className="font-mono text-xs font-bold text-[#5289B8] dark:text-[#77A6DB]">{coop.cooperativeId ?? '—'}</span>
@@ -472,7 +471,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                 <>
                   <SettingsField
                     label={`Contribution Amount (${form.currency})`}
-                    hint={`Exact amount each member must deposit per cycle (min $${MIN_CONTRIBUTION_USDC}). On-chain vault rejects more or less.`}
+                    hint={`Min $${MIN_CONTRIBUTION_USDC}`}
                   >
                     <SettingsInput
                       value={form.contributionAmount}
@@ -481,21 +480,21 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                         setRulesError(null);
                       }}
                       type="number"
-                      placeholder={`e.g. ${MIN_CONTRIBUTION_USDC} or 50`}
+                      placeholder={`${MIN_CONTRIBUTION_USDC}`}
                     />
                   </SettingsField>
                   {rulesError && (
                     <p className="text-xs text-rose-500 dark:text-rose-400 -mt-2 mb-2">{rulesError}</p>
                   )}
-                  <SettingsField label="Contribution Frequency" hint="Weekly / bi-weekly / monthly schedule enforced on-chain after you sync vault rules.">
+                  <SettingsField label="Contribution Frequency">
                     <div className="space-y-2">
-                      {([['weekly', 'Weekly', 'Contributions every week'], ['bi-weekly', 'Bi-Weekly', 'Every two weeks'], ['monthly', 'Monthly', 'Once a month']] as [ContributionFrequency, string, string][]).map(([v, l, d]) => (
+                      {([['weekly', 'Weekly', 'Every week'], ['bi-weekly', 'Bi-Weekly', 'Every two weeks'], ['monthly', 'Monthly', 'Once a month']] as [ContributionFrequency, string, string][]).map(([v, l, d]) => (
                         <SettingsRadio key={v} value={v} current={form.contributionFrequency} onChange={(val) => set('contributionFrequency', val)} label={l} desc={d} />
                       ))}
                     </div>
                   </SettingsField>
-                  <SettingsField label="Maximum Members" hint="Leave blank for unlimited">
-                    <SettingsInput value={form.maxMembers} onChange={(v) => set('maxMembers', v)} type="number" placeholder="e.g. 30" />
+                  <SettingsField label="Maximum Members">
+                    <SettingsInput value={form.maxMembers} onChange={(v) => set('maxMembers', v)} type="number" placeholder="30" />
                   </SettingsField>
                   <SettingsField label="Privacy">
                     <div className="space-y-2">
@@ -516,7 +515,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                       ))}
                     </div>
                   </SettingsField>
-                  <SettingsField label={`Approval Threshold — ${form.approvalThreshold}%`} hint="Percentage of votes required to pass a proposal">
+                  <SettingsField label={`Approval Threshold — ${form.approvalThreshold}%`}>
                     <input type="range" min={50} max={100} step={1} value={form.approvalThreshold}
                       onChange={(e) => set('approvalThreshold', Number(e.target.value))}
                       className="w-full h-2 bg-stone-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#6393C4]" />
@@ -537,7 +536,6 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
                       <Sparkles className={cn('w-4 h-4', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-400')} />
                       <div className="flex-1 text-left">
                         <p className={cn('text-sm font-semibold', form.aiGovernanceEnabled ? 'text-[#6393C4]' : 'text-stone-600 dark:text-white/60')}>Nexa AI Assistance</p>
-                        <p className="text-[11px] text-stone-400 dark:text-white/35">AI-powered insights, risk assessment, and governance recommendations</p>
                       </div>
                       <div className={cn('w-10 h-6 rounded-full transition-all flex items-center px-0.5', form.aiGovernanceEnabled ? 'bg-[#6393C4]' : 'bg-stone-200 dark:bg-white/10')}>
                         <div className={cn('w-5 h-5 rounded-full bg-white shadow-sm transition-all', form.aiGovernanceEnabled ? 'translate-x-4' : 'translate-x-0')} />
@@ -870,9 +868,9 @@ export default function Cooperatives() {
             {canStart && (
               <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#6393C4]/25 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-stone-800 dark:text-white">Ready to begin cycles?</p>
+                  <p className="text-sm font-semibold text-stone-800 dark:text-white">Start cooperative</p>
                   <p className="text-[11px] text-stone-500 dark:text-white/40 mt-0.5">
-                    Starting closes joining permanently and locks the payout order.
+                    Closes joining and locks payout order.
                   </p>
                 </div>
                 <button

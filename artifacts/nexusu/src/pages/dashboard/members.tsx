@@ -364,7 +364,7 @@ export default function Members() {
           <div className="min-w-0 sm:flex-1">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Members</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
-              {activeCooperative.name} · {members.length} total · ordered by payout position
+              {activeCooperative.name} · {members.length} members
             </p>
           </div>
           <button className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors w-full sm:w-auto flex-shrink-0">

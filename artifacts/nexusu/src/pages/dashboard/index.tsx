@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Users, Vault, Banknote,
   PiggyBank, Scale, Sparkles, Activity, ArrowRight,
-  Building2, Plus, UserPlus,
+  Building2, Plus,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { AreaChart } from '@/components/charts/AreaChart';
@@ -135,17 +135,17 @@ function buildLiveInsights(input: {
   if (memberCount <= 1) {
     insights.push({
       id: 'invite',
-      title: 'Invite members to grow',
-      body: `${coopName} has ${memberCount} member${memberCount === 1 ? '' : 's'}. Share your invite code so others can join and claim payout positions.`,
+      title: 'Invite members',
+      body: `Share the invite code to grow ${coopName}.`,
       severity: 'info',
     });
   } else {
     insights.push({
       id: 'roster',
-      title: `${memberCount} members enrolled`,
+      title: `${memberCount} members`,
       body: maxMembers
-        ? `${memberCount} of ${maxMembers} seats filled. Payout strategy: ${rotationLabel}.`
-        : `${memberCount} members active. Payout strategy: ${rotationLabel}.`,
+        ? `${memberCount} of ${maxMembers} · ${rotationLabel}`
+        : `${rotationLabel}`,
       severity: 'success',
     });
   }
@@ -153,15 +153,15 @@ function buildLiveInsights(input: {
   if (treasury <= 0) {
     insights.push({
       id: 'treasury-empty',
-      title: 'Treasury is empty',
-      body: `Record the first deposit or contribution (${formatCurrency(contributionAmount, currency)} per cycle) from the Treasury page.`,
+      title: 'Treasury empty',
+      body: `First contribution: ${formatCurrency(contributionAmount, currency)} per cycle.`,
       severity: 'warning',
     });
   } else {
     insights.push({
       id: 'treasury-live',
-      title: 'Treasury balance',
-      body: `${formatCurrency(treasury, currency)} on hand${monthlyInflow > 0 ? ` · ${formatCurrency(monthlyInflow, currency)} inflow this month` : ''}.`,
+      title: 'Treasury',
+      body: `${formatCurrency(treasury, currency)}${monthlyInflow > 0 ? ` · ${formatCurrency(monthlyInflow, currency)} this month` : ''}`,
       severity: 'success',
     });
   }
@@ -169,15 +169,15 @@ function buildLiveInsights(input: {
   if (status === 'open' || status === 'draft') {
     insights.push({
       id: 'status-open',
-      title: 'Cooperative is open for joining',
-      body: 'Start the cooperative when your roster is ready to lock the payout order and begin contribution cycles.',
+      title: 'Open for joining',
+      body: 'Start when the roster is ready to lock payout order.',
       severity: 'info',
     });
   } else if (status === 'active') {
     insights.push({
       id: 'status-active',
-      title: 'Contribution cycles are live',
-      body: 'Joining is closed. Members contribute on schedule; payouts follow join order.',
+      title: 'Active',
+      body: 'Joining closed · contributions on schedule.',
       severity: 'success',
     });
   }
@@ -448,7 +448,7 @@ export default function Overview() {
               No cooperative yet
             </h2>
             <p className="text-sm text-stone-400 dark:text-white/40 mb-6 max-w-md mx-auto">
-              Create a cooperative or join with an invite code. Overview stats will update from your live treasury, members, and activity — no demo data.
+              Create a cooperative or join with an invite code.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link
@@ -458,11 +458,6 @@ export default function Overview() {
                 <Plus className="w-4 h-4" /> Create or join
               </Link>
             </div>
-            {cooperatives.length === 0 && (
-              <p className="text-[11px] text-stone-300 dark:text-white/25 mt-4 flex items-center justify-center gap-1">
-                <UserPlus className="w-3 h-3" /> Workspaces stay empty until you create or join one
-              </p>
-            )}
           </motion.div>
         </div>
       </DashboardLayout>
@@ -503,7 +498,7 @@ export default function Overview() {
             format="currency"
             changeLabel={
               loansOutstanding > 0
-                ? `+ ${formatCurrency(loansOutstanding, currency)} loan receivable`
+                ? `+ ${formatCurrency(loansOutstanding, currency)} outstanding`
                 : undefined
             }
             icon={Vault}
@@ -594,12 +589,7 @@ export default function Overview() {
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-6"
         >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Lending overview</h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-                Approve reduces cash · repay restores cash · outstanding = still owed by members
-              </p>
-            </div>
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Lending overview</h2>
             <Link
               href="/dashboard/loans"
               className="text-xs font-semibold text-[#6393C4] hover:underline flex items-center gap-1"
@@ -611,8 +601,8 @@ export default function Overview() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             {[
               { l: 'Cash on hand', v: formatCurrency(treasury, currency) },
-              { l: 'Still owed (receivable)', v: formatCurrency(loansOutstanding, currency) },
-              { l: 'Originally disbursed', v: formatCurrency(loansDisbursed, currency) },
+              { l: 'Outstanding', v: formatCurrency(loansOutstanding, currency) },
+              { l: 'Disbursed', v: formatCurrency(loansDisbursed, currency) },
               { l: 'Cash + loans', v: formatCurrency(treasury + loansOutstanding, currency) },
             ].map(({ l, v }) => (
               <div
@@ -629,7 +619,7 @@ export default function Overview() {
 
           {approvedLoans.length === 0 ? (
             <p className="text-xs text-stone-400 dark:text-white/35 py-2">
-              No loans granted yet. When the AI Lending Agent approves an application, disbursements appear here and in Treasury.
+              No loans yet
             </p>
           ) : (
             <div className="divide-y divide-stone-100 dark:divide-white/5">
@@ -670,12 +660,7 @@ export default function Overview() {
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-6"
         >
           <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Treasury Growth</h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-                From live deposits, contributions, and withdrawals
-              </p>
-            </div>
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Treasury Growth</h2>
             <Link href="/dashboard/treasury" className="text-xs text-[#6393C4] font-semibold flex items-center gap-1 hover:underline">
               View all <ArrowRight className="w-3 h-3" />
             </Link>
@@ -683,10 +668,7 @@ export default function Overview() {
           {cashFlow.length === 0 ? (
             <div className="h-[220px] flex flex-col items-center justify-center text-center px-6">
               <Vault className="w-8 h-8 text-stone-200 dark:text-white/10 mb-3" />
-              <p className="text-sm font-medium text-stone-500 dark:text-white/45">No treasury activity yet</p>
-              <p className="text-xs text-stone-400 dark:text-white/30 mt-1 max-w-xs">
-                Deposits and contributions will populate this chart in real time.
-              </p>
+              <p className="text-sm font-medium text-stone-500 dark:text-white/45">No activity yet</p>
               <Link
                 href="/dashboard/treasury"
                 className="mt-4 text-xs font-semibold text-[#6393C4] hover:underline"

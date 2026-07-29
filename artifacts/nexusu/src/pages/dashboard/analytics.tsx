@@ -35,7 +35,7 @@ function ChartCard({ title, subtitle, children, delay = 0, className = '', empty
       {empty ? (
         <div className="h-[200px] flex flex-col items-center justify-center text-center px-4">
           <BarChart3 className="w-8 h-8 text-stone-200 dark:text-white/10 mb-2" />
-          <p className="text-xs text-stone-400 dark:text-white/35">No real activity recorded yet</p>
+          <p className="text-xs text-stone-400 dark:text-white/35">No data yet</p>
         </div>
       ) : children}
     </motion.div>
@@ -152,7 +152,7 @@ export default function Analytics() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
           <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Analytics</h1>
           <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
-            Live performance for {coopName} — zeros until real on-chain / off-chain activity exists
+            {coopName}
           </p>
         </motion.div>
 

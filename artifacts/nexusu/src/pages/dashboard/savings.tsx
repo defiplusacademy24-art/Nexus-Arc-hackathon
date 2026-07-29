@@ -7,8 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   PiggyBank, Sparkles, Shield, Banknote, RotateCcw, TrendingUp,
-  ArrowDown, Users, Vault, Leaf, Scale, RefreshCw, CheckCircle2,
-  Activity, AlertCircle, Landmark, HandCoins, Coins,
+  ArrowDown, Leaf, CheckCircle2, Activity,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { AreaChart } from '@/components/charts/AreaChart';
@@ -75,50 +74,6 @@ const ALLOCATION_ROWS = [
     icon: PiggyBank,
   },
 ] as const;
-
-const FLOW_STEPS = [
-  { title: 'Member Contributions', desc: 'Members deposit USDC on schedule', icon: Users },
-  { title: 'Treasury receives funds', desc: 'Cash lands in the cooperative ledger', icon: Vault },
-  {
-    title: '5% auto-allocated to Savings Vault',
-    desc: 'Policy split runs on every contribution',
-    icon: PiggyBank,
-  },
-  { title: 'Savings continue to grow', desc: 'Vault balance compounds with allocations', icon: TrendingUp },
-  {
-    title: 'Profit from cooperative lending',
-    desc: 'Interest on repaid loans becomes income',
-    icon: Coins,
-  },
-  {
-    title: 'Profit returns to Treasury',
-    desc: 'Income strengthens cash, reserves & growth',
-    icon: RefreshCw,
-  },
-];
-
-const PROFIT_USES = [
-  {
-    title: 'Reinvest into Treasury',
-    desc: 'Grow liquid cash for cycles and operations',
-    icon: Landmark,
-  },
-  {
-    title: 'Increase Loan Pool',
-    desc: 'Expand credit capacity for members',
-    icon: HandCoins,
-  },
-  {
-    title: 'Increase Emergency Reserve',
-    desc: 'Buffer hardship and unexpected shocks',
-    icon: Shield,
-  },
-  {
-    title: 'Distribute to Members',
-    desc: 'Share surplus after governance approval',
-    icon: Scale,
-  },
-];
 
 function SummaryCard({
   label,
@@ -219,9 +174,6 @@ export default function Savings() {
           <h1 className="text-xl sm:text-2xl font-display font-bold text-stone-900 dark:text-white">
             Savings Vault
           </h1>
-          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 max-w-2xl">
-            AI-managed cooperative savings and long-term capital growth.
-          </p>
         </motion.div>
 
         {/* Overview cards */}
@@ -229,7 +181,6 @@ export default function Savings() {
           <SummaryCard
             label="Total Savings Vault"
             value={formatCurrency(vault.totalSavings, currency)}
-            sub="Allocated long-term capital"
             icon={PiggyBank}
             delay={0.05}
             accent="text-[#6393C4]"
@@ -237,7 +188,6 @@ export default function Savings() {
           <SummaryCard
             label="Treasury Allocation"
             value={`${vault.allocationPct}% of Treasury`}
-            sub="Policy share of cash on hand"
             icon={Leaf}
             delay={0.1}
             accent="text-teal-600 dark:text-teal-400"
@@ -245,7 +195,6 @@ export default function Savings() {
           <SummaryCard
             label="Yield Earned"
             value={formatCurrency(vault.yieldEarned, currency)}
-            sub="From cooperative loan interest"
             icon={TrendingUp}
             delay={0.15}
             accent="text-emerald-600 dark:text-emerald-400"
@@ -265,9 +214,6 @@ export default function Savings() {
               <span className="w-1.5 h-1.5 rounded-full bg-current" />
               {statusCfg.label}
             </span>
-            <p className="text-[10px] sm:text-[11px] text-stone-400 dark:text-white/35 mt-2">
-              Policy-driven · not member pools
-            </p>
           </SummaryCard>
         </div>
 
@@ -282,9 +228,6 @@ export default function Savings() {
             <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
               Treasury Allocation
             </h2>
-            <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-              How every contribution is split · cooperative policy
-            </p>
           </div>
 
           <div className="flex flex-col items-center mb-5">
@@ -345,170 +288,83 @@ export default function Savings() {
           </div>
         </motion.section>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* How it works timeline */}
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.16 }}
-            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-6 shadow-sm"
-          >
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-white mb-1">
-              How the Savings Vault Works
+        {/* Nexa AI Agent */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16 }}
+          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-6 shadow-sm"
+        >
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center shadow-md shadow-[#6393C4]/25">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
+              Nexa AI
             </h2>
-            <p className="text-xs text-stone-400 dark:text-white/40 mb-5">
-              End-to-end flow from contribution to profit return
-            </p>
-            <ol className="relative space-y-0">
-              {FLOW_STEPS.map((step, i) => {
-                const Icon = step.icon;
-                const last = i === FLOW_STEPS.length - 1;
-                return (
-                  <li key={step.title} className="flex gap-3 relative">
-                    <div className="flex flex-col items-center flex-shrink-0">
-                      <div className="w-9 h-9 rounded-xl bg-[#6393C4]/10 border border-[#6393C4]/20 flex items-center justify-center z-10">
-                        <Icon className="w-4 h-4 text-[#6393C4]" />
-                      </div>
-                      {!last && (
-                        <div className="w-px flex-1 min-h-[1.25rem] bg-gradient-to-b from-[#6393C4]/40 to-stone-200 dark:to-white/10 my-1" />
-                      )}
-                    </div>
-                    <div className={cn('pb-5 min-w-0', last && 'pb-0')}>
-                      <p className="text-sm font-semibold text-stone-800 dark:text-white">
-                        {step.title}
-                      </p>
-                      <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5 leading-relaxed">
-                        {step.desc}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </motion.section>
+          </div>
 
-          {/* Nexa AI Agent */}
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-6 shadow-sm"
-          >
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6393C4] to-[#77A6DB] flex items-center justify-center shadow-md shadow-[#6393C4]/25">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-                  Nexa AI Treasury Agent
-                </h2>
-                <p className="text-[11px] text-stone-400 dark:text-white/40">
-                  Autonomous monitoring · policy compliance
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+            {[
+              { l: 'Treasury Health', v: vault.treasuryHealth },
+              { l: 'Risk Level', v: vault.riskLevel },
+              { l: 'Projected Growth', v: `+${vault.projectedAnnualGrowthPct}% annually` },
+              { l: 'Next Review', v: `${vault.nextReviewDays} days` },
+            ].map(({ l, v }) => (
+              <div
+                key={l}
+                className="rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/80 dark:bg-[#2E3B4B]/30 px-3 py-2.5 min-w-0"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
+                  {l}
+                </p>
+                <p className="text-sm font-bold text-stone-800 dark:text-white mt-0.5 break-words">
+                  {v}
                 </p>
               </div>
-            </div>
+            ))}
+          </div>
 
-            <div className="grid grid-cols-2 gap-2.5 mb-4">
-              {[
-                { l: 'Treasury Health', v: vault.treasuryHealth },
-                { l: 'Risk Level', v: vault.riskLevel },
-                { l: 'Projected Growth', v: `+${vault.projectedAnnualGrowthPct}% annually` },
-                { l: 'Next Review', v: `${vault.nextReviewDays} days` },
-              ].map(({ l, v }) => (
-                <div
-                  key={l}
-                  className="rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/80 dark:bg-[#2E3B4B]/30 px-3 py-2.5 min-w-0"
-                >
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
-                    {l}
-                  </p>
-                  <p className="text-sm font-bold text-stone-800 dark:text-white mt-0.5 break-words">
-                    {v}
-                  </p>
-                </div>
-              ))}
+          {(vault.recommendation || vault.recentDecision) && (
+            <div className="rounded-xl border border-[#6393C4]/20 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 px-4 py-3">
+              {vault.recommendation && (
+                <p className="text-sm text-stone-700 dark:text-white/75">{vault.recommendation}</p>
+              )}
+              {vault.recentDecision && (
+                <p className="text-xs text-stone-500 dark:text-white/45 mt-2">
+                  {vault.recentDecision}
+                </p>
+              )}
             </div>
+          )}
+        </motion.section>
 
-            <div className="rounded-xl border border-[#6393C4]/20 bg-[#6393C4]/5 dark:bg-[#6393C4]/8 px-4 py-3 mb-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#6393C4] mb-1">
-                Savings Recommendation
-              </p>
-              <p className="text-sm text-stone-700 dark:text-white/75 leading-relaxed">
-                {vault.recommendation}
-              </p>
-            </div>
-            <div className="flex items-start gap-2 text-xs text-stone-500 dark:text-white/45">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
-              <span>
-                <strong className="text-stone-700 dark:text-white/70">Recent decision:</strong>{' '}
-                {vault.recentDecision}
-              </span>
-            </div>
-          </motion.section>
-        </div>
-
-        {/* Chart + Yield explanation */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:col-span-2 bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-6 shadow-sm"
-          >
-            <div className="mb-4">
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-                Savings Growth
-              </h2>
-              <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-                Savings balance · monthly yield · treasury growth
-              </p>
-            </div>
-            <AreaChart
-              data={vault.growth}
-              xKey="label"
-              areas={[
-                { key: 'savings', label: 'Savings', color: '#6393C4', fillOpacity: 0.18 },
-                { key: 'yield', label: 'Yield', color: '#10b981', fillOpacity: 0.12 },
-                { key: 'treasury', label: 'Treasury', color: '#77A6DB', fillOpacity: 0.08 },
-              ]}
-              height={260}
-              formatY={(v) =>
-                v >= 1000 ? `${(v / 1000).toFixed(1)}K` : `${Math.round(v)}`
-              }
-            />
-          </motion.section>
-
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.22 }}
-            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-6 shadow-sm"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle className="w-4 h-4 text-[#6393C4]" />
-              <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-                Where does the yield come from?
-              </h2>
-            </div>
-            <div className="space-y-3 text-sm text-stone-600 dark:text-white/65 leading-relaxed">
-              <p>
-                The Savings Vault does <strong className="text-stone-800 dark:text-white">not</strong>{' '}
-                generate money automatically.
-              </p>
-              <p>
-                Yield is generated from <strong className="text-stone-800 dark:text-white">loan repayments</strong>{' '}
-                made by cooperative members.
-              </p>
-              <p>
-                When members repay loans, a small interest payment is added according to the loan duration.
-                Those interest payments become cooperative income and strengthen the treasury.
-              </p>
-              <p className="text-xs text-stone-400 dark:text-white/40 pt-2 border-t border-stone-100 dark:border-white/8">
-                Future versions may also support external low-risk investment strategies approved by the cooperative.
-              </p>
-            </div>
-          </motion.section>
-        </div>
+        {/* Growth chart */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-6 shadow-sm"
+        >
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
+              Savings Growth
+            </h2>
+          </div>
+          <AreaChart
+            data={vault.growth}
+            xKey="label"
+            areas={[
+              { key: 'savings', label: 'Savings', color: '#6393C4', fillOpacity: 0.18 },
+              { key: 'yield', label: 'Yield', color: '#10b981', fillOpacity: 0.12 },
+              { key: 'treasury', label: 'Treasury', color: '#77A6DB', fillOpacity: 0.08 },
+            ]}
+            height={260}
+            formatY={(v) =>
+              v >= 1000 ? `${(v / 1000).toFixed(1)}K` : `${Math.round(v)}`
+            }
+          />
+        </motion.section>
 
         {/* Savings history */}
         <motion.section
@@ -519,9 +375,6 @@ export default function Savings() {
         >
           <div className="px-4 sm:px-6 py-4 border-b border-stone-50 dark:border-white/4">
             <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Savings History</h2>
-            <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-              Ledger of automatic allocations and interest income
-            </p>
           </div>
 
           {/* Desktop table */}
@@ -612,40 +465,6 @@ export default function Savings() {
           </ul>
         </motion.section>
 
-        {/* Profit distribution policy */}
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.28 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-4 sm:p-6 shadow-sm"
-        >
-          <div className="mb-5">
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-              How Cooperative Profits Are Used
-            </h2>
-            <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
-              Profit distribution is determined by cooperative governance and AI recommendations.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {PROFIT_USES.map(({ title, desc, icon: Icon }) => (
-              <div
-                key={title}
-                className="rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/70 dark:bg-[#2E3B4B]/30 p-4"
-              >
-                <div className="w-9 h-9 rounded-xl bg-[#6393C4]/10 flex items-center justify-center mb-3">
-                  <Icon className="w-4 h-4 text-[#6393C4]" />
-                </div>
-                <p className="text-sm font-semibold text-stone-800 dark:text-white mb-1">{title}</p>
-                <p className="text-xs text-stone-400 dark:text-white/40 leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-[11px] text-stone-400 dark:text-white/35 flex items-start gap-2">
-            <Scale className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-[#6393C4]" />
-            Members can vote on surplus use under Governance. Nexa recommends; the cooperative decides.
-          </p>
-        </motion.section>
       </div>
     </DashboardLayout>
   );
