@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Vault, TrendingUp, ArrowUpRight, ArrowDownRight,
-  RefreshCw, Banknote, CheckCircle2,
+  Banknote, CheckCircle2,
   RotateCcw, Shield, PiggyBank,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
@@ -348,20 +348,12 @@ export default function Treasury() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-7"
+          className="mb-6 sm:mb-7"
         >
-          <div className="min-w-0">
-            <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Treasury</h1>
-            <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
-              {coopLabel}
-            </p>
-          </div>
-          <button
-            onClick={() => void refresh()}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl border border-stone-200 dark:border-white/10 text-sm text-stone-500 dark:text-white/50 hover:border-stone-300 dark:hover:border-white/20 transition-colors w-full sm:w-auto flex-shrink-0"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </button>
+          <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Treasury</h1>
+          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
+            {coopLabel}
+          </p>
         </motion.div>
 
         {/* Primary path: on-chain deposit (founder rules enforced by vault) */}
