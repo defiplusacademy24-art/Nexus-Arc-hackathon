@@ -239,17 +239,19 @@ router.get("/vault/operator-status", (_req: Request, res: Response) => {
 
 /**
  * POST /api/onchain/vault/register
- * Body: { claimOrganizer?: boolean }
+ * Body: { claimOrganizer?: boolean }  — default false; keep deploy key as organizer
  *
  * Registers the caller's Circle wallet (x-wallet-address) on CooperativeTreasuryVault
- * using VAULT_OPERATOR_PRIVATE_KEY (deploy key). Optionally transfers organizer so the
- * Circle founder can register future members and update rules from the app.
+ * using VAULT_OPERATOR_PRIVATE_KEY (the forge deploy key). The operator must remain
+ * organizer so every create/join/deposit can auto-register new Circle wallets.
+ * Do not transfer organizer away unless you know what you're doing.
  */
 router.post("/vault/register", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
     const body = (req.body ?? {}) as { claimOrganizer?: boolean };
-    const claimOrganizer = body.claimOrganizer !== false; // default true for founders
+    // Default false: Vercel operator key must stay organizer for all future members
+    const claimOrganizer = body.claimOrganizer === true;
     const result = await bootstrapVaultMember({
       member: wallet,
       claimOrganizer,

@@ -660,7 +660,8 @@ export async function bootstrapCircleWalletOnVault(
       'x-wallet-address': circleWallet,
     },
     body: JSON.stringify({
-      claimOrganizer: opts?.claimOrganizer !== false,
+      // Keep deploy/operator key as organizer so Vercel can register every Circle wallet
+      claimOrganizer: opts?.claimOrganizer === true,
     }),
   });
   if (!res.ok) {

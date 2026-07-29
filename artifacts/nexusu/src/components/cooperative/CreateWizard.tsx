@@ -570,10 +570,11 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
         inviteCode: preview.inviteCode,
         cooperativeId: preview.cooperativeId,
       }, wallet);
-      // Silent vault membership so founder can deposit without a separate step
+      // Silent vault membership so founder can deposit without a separate step.
+      // Operator (deploy) key stays organizer — never transfer on create.
       if (wallet) {
         const { ensureVaultMembership } = await import('@/services/treasury/vault');
-        await ensureVaultMembership(wallet, { claimOrganizer: true }).catch(() => null);
+        await ensureVaultMembership(wallet).catch(() => null);
       }
       onClose();
     } catch {
