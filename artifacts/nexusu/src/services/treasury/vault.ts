@@ -11,16 +11,16 @@ import {
   createPublicClient,
   encodeFunctionData,
   formatUnits,
-  http,
   parseUnits,
   type Address,
   type Hex,
 } from 'viem';
 import { arcTestnet } from 'viem/chains';
 import {
-  ARC_RPC_URL,
+  ARC_EXPLORER_URL,
   ARC_USDC_ERC20_ADDRESS,
   ARC_TESTNET_CHAIN_ID,
+  createArcTransport,
 } from '@/config/arc';
 import {
   TREASURY_VAULT_ADDRESS,
@@ -36,7 +36,6 @@ import {
 } from '@/services/circle/userWallet';
 import { ensureArcTestnet, getInjectedProvider } from '@/services/wallet/arc-network';
 import type { ContributionFrequency } from '@/types';
-import { ARC_EXPLORER_URL } from '@/config/arc';
 
 export type VaultBreakdown = {
   totalBalance: number;
@@ -121,11 +120,7 @@ export function getVaultAddress(): Address | null {
 
 const publicClient = createPublicClient({
   chain: arcTestnet,
-  transport: http(ARC_RPC_URL, {
-    retryCount: 2,
-    retryDelay: 800,
-    timeout: 20_000,
-  }),
+  transport: createArcTransport(),
 });
 
 function usdcToNumber(raw: bigint): number {
@@ -144,7 +139,7 @@ export function friendlyVaultError(err: unknown): string {
     /request limit reached|rate limit|429|too many requests/i.test(msg) ||
     (/RPC Request failed/i.test(msg) && /limit|429/i.test(msg))
   ) {
-    return 'Arc testnet RPC is busy (rate limited). Wait a few seconds and tap Refresh.';
+    return 'Arc public RPC is busy. Wait 10–15 seconds, then try again. (Your deposit may still complete — check Arc explorer.)';
   }
   if (/NotMember|not a member|Not registered/i.test(msg)) {
     return 'Could not join the vault automatically. Try again, or redeploy the vault with joinVault support.';
@@ -218,17 +213,14 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
 
   const account = wallet && /^0x[a-fA-F0-9]{40}$/i.test(wallet) ? (wallet as Address) : null;
 
-  // One multicall for core state (instead of 8+ parallel eth_calls that hit rate limits)
+  // Minimal multicall — fewer eth_calls = fewer rate limits on public Arc RPC
   const core = await publicClient.multicall({
     allowFailure: true,
     contracts: [
       { address: vault, abi: treasuryVaultAbi, functionName: 'getTreasuryBalance' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionAmount' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'currentCycle' },
-      { address: vault, abi: treasuryVaultAbi, functionName: 'getCurrentPayoutRecipient' },
-      { address: vault, abi: treasuryVaultAbi, functionName: 'getNextPayoutRecipient' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'canTriggerPayout' },
-      { address: vault, abi: treasuryVaultAbi, functionName: 'getTreasuryAllocationBreakdown' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'organizer' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionFrequency' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionPeriodSeconds' },
@@ -238,19 +230,10 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   const balRaw = resultValue<bigint>(core[0]);
   const contribRaw = resultValue<bigint>(core[1]);
   const cycle = resultValue<number | bigint>(core[2]);
-  const currentPair = resultValue<readonly [Address, number]>(core[3]);
-  const nextPair = resultValue<readonly [Address, number]>(core[4]);
-  const canPay = resultValue<readonly [boolean, number, number]>(core[5]);
-  const breakdownRaw = resultValue<{
-    totalBalance: bigint;
-    rotationFund: bigint;
-    loanPool: bigint;
-    emergencyReserve: bigint;
-    savingsInvestment: bigint;
-  }>(core[6]);
-  const organizerRaw = resultValue<Address>(core[7]);
-  const freqRaw = resultValue<number | bigint>(core[8]);
-  const periodRaw = resultValue<bigint | number>(core[9]);
+  const canPay = resultValue<readonly [boolean, number, number]>(core[3]);
+  const organizerRaw = resultValue<Address>(core[4]);
+  const freqRaw = resultValue<number | bigint>(core[5]);
+  const periodRaw = resultValue<bigint | number>(core[6]);
 
   // If core amount failed entirely, surface a soft rate-limit style failure upstream
   if (contribRaw == null && balRaw == null) {
@@ -274,6 +257,7 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
 
   if (account) {
     try {
+      // One small multicall for wallet-specific state only
       const memberCore = await publicClient.multicall({
         allowFailure: true,
         contracts: [
@@ -292,19 +276,13 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
           {
             address: vault,
             abi: treasuryVaultAbi,
-            functionName: 'getMemberRotationPosition',
+            functionName: 'canDeposit',
             args: [account],
           },
           {
             address: vault,
             abi: treasuryVaultAbi,
             functionName: 'nextContributionAt',
-            args: [account],
-          },
-          {
-            address: vault,
-            abi: treasuryVaultAbi,
-            functionName: 'canDeposit',
             args: [account],
           },
         ],
@@ -316,74 +294,24 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
         if (status != null) {
           contributionStatus = STATUS_MAP[Number(status)] ?? 'unknown';
         }
-        const pos = resultValue<number | bigint>(memberCore[2]);
-        if (pos != null) joinPosition = Number(pos);
-        const nextAt = resultValue<number | bigint>(memberCore[3]);
-        nextContributionAt = nextAt != null && Number(nextAt) > 0 ? Number(nextAt) : null;
-        const can = resultValue<readonly [boolean, string]>(memberCore[4]);
+        const can = resultValue<readonly [boolean, string]>(memberCore[2]);
         if (can) {
           canDepositNow = Boolean(can[0]);
           canDepositReason = can[1] || null;
         }
+        const nextAt = resultValue<number | bigint>(memberCore[3]);
+        nextContributionAt = nextAt != null && Number(nextAt) > 0 ? Number(nextAt) : null;
+      } else {
+        // Not registered yet — still allow deposit attempt (auto-join / bootstrap)
+        canDepositNow = true;
       }
     } catch {
       /* member views optional when RPC is throttled */
+      canDepositNow = true;
     }
   }
 
   const [ready, required, paid] = canPay ?? [false, 0, 0];
-  let [curRecipient, curPos] = currentPair ?? (['0x0000000000000000000000000000000000000000', 0] as const);
-  let [nxtRecipient, nxtPos] = nextPair ?? (['0x0000000000000000000000000000000000000000', 0] as const);
-
-  // Resolve join positions from the recipient addresses (slot index can lag inactive members)
-  try {
-    const posCalls: {
-      address: Address;
-      abi: typeof treasuryVaultAbi;
-      functionName: 'getMemberRotationPosition';
-      args: [Address];
-    }[] = [];
-    if (curRecipient && curRecipient !== '0x0000000000000000000000000000000000000000') {
-      posCalls.push({
-        address: vault,
-        abi: treasuryVaultAbi,
-        functionName: 'getMemberRotationPosition',
-        args: [curRecipient],
-      });
-    }
-    if (
-      nxtRecipient &&
-      nxtRecipient !== '0x0000000000000000000000000000000000000000' &&
-      nxtRecipient.toLowerCase() !== curRecipient?.toLowerCase()
-    ) {
-      posCalls.push({
-        address: vault,
-        abi: treasuryVaultAbi,
-        functionName: 'getMemberRotationPosition',
-        args: [nxtRecipient],
-      });
-    }
-    if (posCalls.length > 0) {
-      const posRes = await publicClient.multicall({ allowFailure: true, contracts: posCalls });
-      let i = 0;
-      if (curRecipient && curRecipient !== '0x0000000000000000000000000000000000000000') {
-        const p = resultValue<number | bigint>(posRes[i++]);
-        if (p != null && Number(p) > 0) curPos = Number(p) as typeof curPos;
-      }
-      if (
-        nxtRecipient &&
-        nxtRecipient !== '0x0000000000000000000000000000000000000000' &&
-        nxtRecipient.toLowerCase() !== curRecipient?.toLowerCase()
-      ) {
-        const p = resultValue<number | bigint>(posRes[i]);
-        if (p != null && Number(p) > 0) nxtPos = Number(p) as typeof nxtPos;
-      }
-    }
-  } catch {
-    /* optional */
-  }
-
-  const bd = breakdownRaw;
 
   return {
     configured: true,
@@ -393,13 +321,10 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
     contributionAmountRaw: contribRaw ?? 0n,
     contributionFrequency,
     currentCycle: cycle != null ? Number(cycle) : 0,
-    currentRecipient: curRecipient,
-    currentPosition: Number(curPos),
-    nextRecipient:
-      nxtRecipient && nxtRecipient !== '0x0000000000000000000000000000000000000000'
-        ? nxtRecipient
-        : null,
-    nextPosition: Number(nxtPos),
+    currentRecipient: null,
+    currentPosition: 0,
+    nextRecipient: null,
+    nextPosition: 0,
     isMember,
     isOrganizer,
     organizer,
@@ -407,15 +332,7 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
     canPayout: Boolean(ready),
     paidCount: Number(paid),
     requiredCount: Number(required),
-    breakdown: bd
-      ? {
-          totalBalance: usdcToNumber(bd.totalBalance),
-          rotationFund: usdcToNumber(bd.rotationFund),
-          loanPool: usdcToNumber(bd.loanPool),
-          emergencyReserve: usdcToNumber(bd.emergencyReserve),
-          savingsInvestment: usdcToNumber(bd.savingsInvestment),
-        }
-      : null,
+    breakdown: null,
     joinPosition,
     nextContributionAt,
     canDepositNow,
@@ -510,6 +427,7 @@ async function waitForContributionPaid(
   timeoutMs = 90_000,
 ): Promise<boolean> {
   const started = Date.now();
+  // Sparse polls — public Arc RPC rate-limits burst eth_call
   while (Date.now() - started < timeoutMs) {
     try {
       const status = (await publicClient.readContract({
@@ -521,9 +439,11 @@ async function waitForContributionPaid(
       // 0=waiting 1=paid 2=exempt
       if (Number(status) === 1) return true;
     } catch {
-      /* rpc blip */
+      /* rpc blip / rate limit — wait longer */
+      await new Promise((r) => setTimeout(r, 4_000));
+      continue;
     }
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 4_000));
   }
   return false;
 }

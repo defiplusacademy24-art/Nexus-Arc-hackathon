@@ -9,16 +9,15 @@ import {
   createPublicClient,
   encodeFunctionData,
   formatUnits,
-  http,
   parseUnits,
   type Address,
   type Hex,
 } from 'viem';
 import { arcTestnet } from 'viem/chains';
 import {
-  ARC_RPC_URL,
   ARC_USDC_ERC20_ADDRESS,
   ARC_TESTNET_CHAIN_ID,
+  createArcTransport,
 } from '@/config/arc';
 import {
   LOAN_POOL_ADDRESS,
@@ -75,11 +74,7 @@ export type OnChainLoanRaw = {
 
 const publicClient = createPublicClient({
   chain: arcTestnet,
-  transport: http(ARC_RPC_URL, {
-    retryCount: 2,
-    retryDelay: 800,
-    timeout: 20_000,
-  }),
+  transport: createArcTransport(),
 });
 
 function usdcToNumber(raw: bigint): number {

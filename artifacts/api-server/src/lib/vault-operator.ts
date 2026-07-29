@@ -12,6 +12,7 @@
 import {
   createPublicClient,
   createWalletClient,
+  fallback,
   http,
   isAddress,
   type Address,
@@ -51,12 +52,18 @@ const vaultAbi = [
   },
 ] as const;
 
-function rpcUrl(): string {
-  return (
+function rpcUrls(): string[] {
+  const primary =
     process.env.ARC_RPC_URL?.trim() ||
     process.env.VITE_ARC_RPC_URL?.trim() ||
-    "https://rpc.testnet.arc.network"
-  );
+    "https://rpc.testnet.arc.network";
+  return [
+    primary,
+    "https://rpc.testnet.arc.network",
+    "https://arc-testnet.drpc.org",
+    "https://rpc.drpc.testnet.arc.io",
+    "https://5042002.rpc.thirdweb.com",
+  ].filter((u, i, a) => Boolean(u) && a.indexOf(u) === i);
 }
 
 function vaultAddress(): Address | null {
@@ -117,7 +124,12 @@ export async function bootstrapVaultMember(params: {
 
   const member = params.member as Address;
   const account = privateKeyToAccount(pk);
-  const transport = http(rpcUrl(), { timeout: 30_000, retryCount: 2 });
+  const transport = fallback(
+    rpcUrls().map((url) =>
+      http(url, { timeout: 30_000, retryCount: 3, retryDelay: 1_200 }),
+    ),
+    { rank: false },
+  );
 
   const publicClient = createPublicClient({
     chain: arcTestnet,
