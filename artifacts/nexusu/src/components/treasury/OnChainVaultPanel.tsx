@@ -1,7 +1,6 @@
 /**
- * On-chain CooperativeTreasuryVault panel — primary deposit path for Treasury.
- * Create/join cooperative → deposit; membership is auto-joined on-chain (or via
- * server bootstrap for older vault deploys). No separate registration UI.
+ * On-chain CooperativeTreasuryVault — deposit + balances only.
+ * Rotation / “who is next” lives on the Members page.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,8 +12,6 @@ import {
   RefreshCw,
   Settings2,
   Shield,
-  Sparkles,
-  Users,
   Zap,
 } from 'lucide-react';
 import { useWallet } from '@/providers/WalletProvider';
@@ -41,30 +38,16 @@ function shortAddr(a: string | null | undefined): string {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
-function statusLabel(s: VaultSnapshot['contributionStatus']): string {
-  switch (s) {
-    case 'paid':
-      return 'Paid this cycle';
-    case 'exempt':
-      return 'Exempt';
-    case 'waiting':
-      return 'Ready to contribute';
-    default:
-      return '—';
-  }
-}
-
 export type OnChainDepositResult = {
   amount: number;
 };
 
 type Props = {
-  /** Called after a successful on-chain contribution so the app ledger can stay in sync. */
   onDepositSuccess?: (result: OnChainDepositResult) => void | Promise<void>;
 };
 
 export function OnChainVaultPanel({ onDepositSuccess }: Props) {
-  const { walletAddress, isConnected, isCircleEmailWallet } = useWallet();
+  const { walletAddress, isConnected } = useWallet();
   const { activeCooperative } = useCooperative();
   const configured = isVaultConfigured();
   const [snap, setSnap] = useState<VaultSnapshot | null>(null);
@@ -156,7 +139,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
       return;
     }
     if ((coopAmount ?? 0) < MIN_CONTRIBUTION_USDC) {
-      setError(`Cooperative contribution must be at least $${MIN_CONTRIBUTION_USDC}.`);
+      setError(`Contribution must be at least $${MIN_CONTRIBUTION_USDC}.`);
       return;
     }
     setBusy('sync');
@@ -167,9 +150,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
         amountUsd: coopAmount!,
         frequency: coopFrequency ?? 'monthly',
       });
-      setSuccess(
-        `Vault rules updated to ${formatCurrency(coopAmount!)} · ${formatFrequencyLabel(coopFrequency)}.`,
-      );
+      setSuccess('Vault rules updated.');
       await new Promise((r) => setTimeout(r, 2500));
       await refresh({ softRateLimit: true });
     } catch (e) {
@@ -192,11 +173,11 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
           </div>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-              On-chain Treasury Vault (Arc)
+              On-chain Treasury
             </h2>
-            <p className="text-xs text-stone-500 dark:text-white/45 mt-1 leading-relaxed">
-              Deploy the vault and set{' '}
-              <code className="text-[11px] font-mono">VITE_TREASURY_VAULT_ADDRESS</code>.
+            <p className="text-xs text-stone-500 dark:text-white/45 mt-1">
+              Set <code className="font-mono text-[11px]">VITE_TREASURY_VAULT_ADDRESS</code> after
+              deploy.
             </p>
             <a
               href={ARC_FAUCET_URL}
@@ -204,7 +185,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
               rel="noreferrer"
               className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-[#6393C4] hover:underline"
             >
-              Get Arc testnet USDC <ExternalLink className="w-3 h-3" />
+              Get testnet USDC <ExternalLink className="w-3 h-3" />
             </a>
           </div>
         </div>
@@ -230,18 +211,10 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-              Member contribution
-            </h2>
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
-              On-chain · Arc
-            </span>
-          </div>
+          <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Contribute</h2>
           <p className="text-xs text-stone-400 dark:text-white/40 mt-0.5">
             {formatCurrency(displayAmount)}
             {displayFreq ? ` · ${formatFrequencyLabel(displayFreq)}` : ''}
-            {isCircleEmailWallet ? ' · Circle PIN' : ''}
           </p>
           <a
             href={explorerVault}
@@ -264,10 +237,9 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
       </div>
 
       {activeCooperative && outOfSync && snap?.isOrganizer && (
-        <div className="mb-4 rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50 dark:bg-[#2E3B4B]/30 px-3.5 py-3">
-          <p className="text-xs text-stone-600 dark:text-white/60 mb-2">
-            Coop rules differ from vault. Sync {formatCurrency(coopAmount ?? 0)} ·{' '}
-            {formatFrequencyLabel(coopFrequency)} on-chain?
+        <div className="mb-4 rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50 dark:bg-[#2E3B4B]/30 px-3.5 py-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-stone-600 dark:text-white/60">
+            Update vault to {formatCurrency(coopAmount ?? 0)} · {formatFrequencyLabel(coopFrequency)}
           </p>
           <button
             type="button"
@@ -280,121 +252,48 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
             ) : (
               <Settings2 className="w-3.5 h-3.5" />
             )}
-            Apply coop rules
+            Apply
           </button>
         </div>
       )}
 
       {snap && (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
-                Vault balance
-              </p>
-              <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
-                {formatCurrency(snap.totalBalance)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
-                Per cycle
-              </p>
-              <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
-                {formatCurrency(displayAmount)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
-                Cycle
-              </p>
-              <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
-                #{snap.currentCycle}
-              </p>
-            </div>
-            <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
-                Paid
-              </p>
-              <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
-                {snap.paidCount}/{snap.requiredCount || '—'}
-              </p>
-            </div>
-          </div>
-
-          {snap.breakdown && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-              {(
-                [
-                  ['Rotation', snap.breakdown.rotationFund],
-                  ['Loans', snap.breakdown.loanPool],
-                  ['Emergency', snap.breakdown.emergencyReserve],
-                  ['Savings', snap.breakdown.savingsInvestment],
-                ] as const
-              ).map(([label, val]) => (
-                <div
-                  key={label}
-                  className="rounded-lg border border-stone-100 dark:border-white/6 px-2.5 py-2"
-                >
-                  <p className="text-[10px] text-stone-400 dark:text-white/35">{label}</p>
-                  <p className="text-sm font-semibold text-stone-700 dark:text-white/85">
-                    {formatCurrency(val)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-3 mb-4 text-xs text-stone-500 dark:text-white/50">
-            <div className="flex items-center gap-2 flex-1 rounded-xl border border-stone-100 dark:border-white/8 px-3 py-2">
-              <Users className="w-4 h-4 text-[#6393C4] flex-shrink-0" />
-              <div>
-                <p className="font-medium text-stone-700 dark:text-white/80">
-                  Payout recipient
-                  {snap.currentPosition ? ` · #${snap.currentPosition}` : ''}
-                </p>
-                <p className="font-mono">{shortAddr(snap.currentRecipient)}</p>
-                <p className="text-[10px] text-stone-400 dark:text-white/35 mt-0.5">
-                  Who receives the next rotation payout (not who holds USDC)
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-1 rounded-xl border border-stone-100 dark:border-white/8 px-3 py-2">
-              <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-stone-700 dark:text-white/80">
-                  After that
-                  {snap.nextPosition ? ` · #${snap.nextPosition}` : ''}
-                </p>
-                <p className="font-mono">{shortAddr(snap.nextRecipient)}</p>
-              </div>
-            </div>
-          </div>
-
-          {isConnected && (
-            <p className="text-xs text-stone-500 dark:text-white/45 mb-3">
-              Status:{' '}
-              <span className="font-semibold text-stone-700 dark:text-white/75">
-                {snap.isMember
-                  ? `${statusLabel(snap.contributionStatus)}${
-                      snap.joinPosition ? ` · #${snap.joinPosition}` : ''
-                    }`
-                  : 'Ready to deposit'}
-              </span>
-              {snap.canDepositNow === false &&
-                snap.canDepositReason === 'too_early_for_frequency' && (
-                  <span className="text-amber-700 dark:text-amber-400">
-                    {' '}
-                    · Next window after{' '}
-                    {formatFrequencyLabel(displayFreq).toLowerCase()} period
-                    {snap.nextContributionAt
-                      ? ` (${new Date(snap.nextContributionAt * 1000).toLocaleDateString()})`
-                      : ''}
-                  </span>
-                )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+          <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
+              In vault
             </p>
-          )}
-        </>
+            <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
+              {formatCurrency(snap.totalBalance)}
+            </p>
+          </div>
+          <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
+              Amount
+            </p>
+            <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
+              {formatCurrency(displayAmount)}
+            </p>
+          </div>
+          <div className="rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/6 px-3 py-2.5 col-span-2 sm:col-span-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 dark:text-white/35">
+              This cycle
+            </p>
+            <p className="text-base font-display font-bold text-stone-800 dark:text-white mt-0.5">
+              {snap.paidCount}/{snap.requiredCount || '—'} paid
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isConnected && snap?.canDepositNow === false && snap.canDepositReason === 'too_early_for_frequency' && (
+        <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+          Next contribution after your {formatFrequencyLabel(displayFreq).toLowerCase()} period
+          {snap.nextContributionAt
+            ? ` (${new Date(snap.nextContributionAt * 1000).toLocaleDateString()})`
+            : ''}
+          .
+        </p>
       )}
 
       <div className="flex flex-wrap gap-2">
@@ -411,7 +310,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
           ) : (
             <ArrowDownLeft className="w-4 h-4" />
           )}
-          Deposit {displayAmount > 0 ? formatCurrency(displayAmount) : ''} on-chain
+          Deposit {displayAmount > 0 ? formatCurrency(displayAmount) : ''}
         </button>
 
         <button
@@ -432,14 +331,12 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
       </div>
 
       {error && (
-        <p className="mt-3 text-sm text-red-600 dark:text-red-400 leading-relaxed break-words">
+        <p className="mt-3 text-sm text-red-600 dark:text-red-400 break-words">
           {friendlyVaultError(error)}
         </p>
       )}
       {success && (
-        <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400 leading-relaxed">
-          {success}
-        </p>
+        <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
       )}
     </motion.div>
   );
