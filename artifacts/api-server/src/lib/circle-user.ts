@@ -145,6 +145,7 @@ export async function contractExecutionChallengeByToken(
     abiFunctionSignature?: string;
     abiParameters?: unknown[];
     callData?: string;
+    refId?: string;
   },
 ) {
   const c = uc();
@@ -153,8 +154,11 @@ export async function contractExecutionChallengeByToken(
     walletId,
     contractAddress,
     ...execPayload(opts),
+    // Arc Testnet SCA — explicit chain so Circle broadcasts to the right network
+    blockchain: BLOCKCHAIN,
+    refId: opts.refId,
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
-    // SDK input is a large conditional union; callData path is validated at runtime by Circle.
+    idempotencyKey: randomUUID(),
   } as Parameters<
     CircleUserControlledWalletsClient['createUserTransactionContractExecutionChallenge']
   >[0]);
@@ -169,6 +173,7 @@ export async function contractExecutionChallenge(
     abiFunctionSignature?: string;
     abiParameters?: unknown[];
     callData?: string;
+    refId?: string;
   },
 ) {
   const c = uc();
@@ -177,9 +182,40 @@ export async function contractExecutionChallenge(
     walletId,
     contractAddress,
     ...execPayload(opts),
+    blockchain: BLOCKCHAIN,
+    refId: opts.refId,
     fee: { type: 'level', config: { feeLevel: 'MEDIUM' } },
+    idempotencyKey: randomUUID(),
   } as Parameters<
     CircleUserControlledWalletsClient['createUserTransactionContractExecutionChallenge']
   >[0]);
   return { challengeId: res.data?.challengeId };
+}
+
+/**
+ * List recent Circle wallet txs so the client can wait for COMPLETE + txHash.
+ */
+export async function listUserTransactions(
+  userToken: string,
+  walletId: string,
+  pageSize = 10,
+) {
+  const c = uc();
+  const res = await c.listTransactions({
+    userToken,
+    walletIds: [walletId],
+    blockchain: BLOCKCHAIN,
+    pageSize,
+    order: 'DESC',
+  } as unknown as Parameters<CircleUserControlledWalletsClient['listTransactions']>[0]);
+  const rows = (res.data as { transactions?: Array<Record<string, unknown>> })?.transactions ?? [];
+  return rows.map((t) => ({
+    id: String(t.id ?? ''),
+    state: String(t.state ?? ''),
+    txHash: (t.txHash as string | undefined) ?? null,
+    operation: (t.operation as string | undefined) ?? null,
+    destinationAddress: (t.destinationAddress as string | undefined) ?? null,
+    errorReason: (t.errorReason as string | undefined) ?? null,
+    createDate: String(t.createDate ?? ''),
+  }));
 }

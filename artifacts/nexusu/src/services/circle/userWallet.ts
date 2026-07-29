@@ -133,13 +133,73 @@ async function makeSdk(userToken: string, encryptionKey: string): Promise<W3SSdk
   return sdk;
 }
 
-function runChallenge(sdk: W3SSdk, challengeId: string): Promise<void> {
+function runChallenge(
+  sdk: W3SSdk,
+  challengeId: string,
+): Promise<{ status?: string }> {
   return new Promise((resolve, reject) => {
-    sdk.execute(challengeId, (error) => {
-      if (error) reject(new Error(error.message || 'Challenge failed'));
-      else resolve();
+    sdk.execute(challengeId, (error, result) => {
+      if (error) {
+        reject(new Error(error.message || 'Challenge failed'));
+        return;
+      }
+      const status = result && 'status' in result ? String(result.status) : undefined;
+      if (status === 'FAILED' || status === 'EXPIRED') {
+        reject(new Error(`Wallet challenge ${status.toLowerCase()}. Try again.`));
+        return;
+      }
+      // COMPLETE = user authorized; Circle may still be broadcasting the tx.
+      resolve({ status });
     });
   });
+}
+
+async function sleep(ms: number) {
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+/** Poll Circle for the latest COMPLETE tx with a hash (after PIN challenge). */
+export async function waitForCircleTxHash(
+  session: UcSession,
+  opts?: { sinceMs?: number; timeoutMs?: number },
+): Promise<string | null> {
+  const timeoutMs = opts?.timeoutMs ?? 90_000;
+  const sinceMs = opts?.sinceMs ?? Date.now() - 30_000;
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    try {
+      const data = await api<{
+        transactions?: Array<{
+          state?: string;
+          txHash?: string | null;
+          createDate?: string;
+          errorReason?: string | null;
+        }>;
+      }>('/api/uc/transactions', {
+        userToken: session.userToken,
+        walletId: session.walletId,
+      });
+      const txs = data.transactions ?? [];
+      for (const t of txs) {
+        const created = t.createDate ? new Date(t.createDate).getTime() : 0;
+        if (created && created < sinceMs - 5_000) continue;
+        if (t.state === 'FAILED' || t.state === 'DENIED' || t.state === 'CANCELLED') {
+          throw new Error(t.errorReason || `Transaction ${t.state}`);
+        }
+        if (
+          (t.state === 'COMPLETE' || t.state === 'CONFIRMED') &&
+          t.txHash
+        ) {
+          return t.txHash;
+        }
+      }
+    } catch (e) {
+      if (e instanceof Error && /Transaction /.test(e.message)) throw e;
+      /* keep polling on network blips */
+    }
+    await sleep(2500);
+  }
+  return null;
 }
 
 async function walletByToken(
@@ -245,18 +305,49 @@ export async function ucWrite(
   session: UcSession,
   params: {
     contractAddress: `0x${string}`;
-    callData: `0x${string}`;
+    callData?: `0x${string}`;
+    abiFunctionSignature?: string;
+    abiParameters?: unknown[];
+    refId?: string;
+    /** Wait for Circle to report COMPLETE + txHash (default true). */
+    waitForTx?: boolean;
   },
-): Promise<void> {
-  const { challengeId } = await api<{ challengeId: string }>('/api/uc/execute', {
+): Promise<{ txHash: string | null }> {
+  const sinceMs = Date.now();
+  const body: Record<string, unknown> = {
     userToken: session.userToken,
     userId: session.userId,
     walletId: session.walletId,
     contractAddress: params.contractAddress,
-    callData: params.callData,
-  });
+    refId: params.refId,
+  };
+  if (params.abiFunctionSignature) {
+    body.abiFunctionSignature = params.abiFunctionSignature;
+    body.abiParameters = params.abiParameters ?? [];
+  } else if (params.callData) {
+    body.callData = params.callData;
+  } else {
+    throw new Error('callData or abiFunctionSignature required');
+  }
+
+  const { challengeId } = await api<{ challengeId: string }>('/api/uc/execute', body);
+  if (!challengeId) {
+    throw new Error('Circle did not return a challenge. Check CIRCLE_UC_API_KEY and wallet setup.');
+  }
   const sdk = await makeSdk(session.userToken, session.encryptionKey);
   await runChallenge(sdk, challengeId);
+
+  if (params.waitForTx === false) {
+    return { txHash: null };
+  }
+
+  const txHash = await waitForCircleTxHash(session, { sinceMs, timeoutMs: 90_000 });
+  if (!txHash) {
+    throw new Error(
+      'PIN completed but no transaction hash on Arc yet. The deposit may have failed — check your Circle wallet activity and try again.',
+    );
+  }
+  return { txHash };
 }
 
 export async function checkUcBackendEnabled(): Promise<boolean> {

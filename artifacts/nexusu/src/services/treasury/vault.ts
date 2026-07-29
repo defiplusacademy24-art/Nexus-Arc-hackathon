@@ -36,6 +36,7 @@ import {
 } from '@/services/circle/userWallet';
 import { ensureArcTestnet, getInjectedProvider } from '@/services/wallet/arc-network';
 import type { ContributionFrequency } from '@/types';
+import { ARC_EXPLORER_URL } from '@/config/arc';
 
 export type VaultBreakdown = {
   totalBalance: number;
@@ -425,16 +426,32 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
 
 async function writeContract(params: {
   contractAddress: Address;
-  callData: Hex;
+  callData?: Hex;
+  abiFunctionSignature?: string;
+  abiParameters?: unknown[];
+  refId?: string;
   ucSession?: UcSession | null;
-}): Promise<void> {
+  waitForTx?: boolean;
+}): Promise<{ txHash: string | null }> {
   const session = params.ucSession ?? loadStoredUcSession();
   if (session) {
-    await ucWrite(session, {
+    // Circle: callData and abiFunctionSignature are mutually exclusive
+    if (params.abiFunctionSignature) {
+      return ucWrite(session, {
+        contractAddress: params.contractAddress,
+        abiFunctionSignature: params.abiFunctionSignature,
+        abiParameters: params.abiParameters,
+        refId: params.refId,
+        waitForTx: params.waitForTx,
+      });
+    }
+    if (!params.callData) throw new Error('callData required');
+    return ucWrite(session, {
       contractAddress: params.contractAddress,
       callData: params.callData,
+      refId: params.refId,
+      waitForTx: params.waitForTx,
     });
-    return;
   }
 
   const provider = getInjectedProvider();
@@ -444,6 +461,13 @@ async function writeContract(params: {
     );
   }
 
+  let data = params.callData;
+  if (!data && params.abiFunctionSignature) {
+    // injected path still needs raw calldata
+    throw new Error('Injected wallet path requires callData');
+  }
+  if (!data) throw new Error('callData required');
+
   await ensureArcTestnet(provider);
   const accounts = (await provider.request({
     method: 'eth_requestAccounts',
@@ -451,17 +475,57 @@ async function writeContract(params: {
   const from = accounts[0];
   if (!from) throw new Error('No account selected in the wallet');
 
-  await provider.request({
+  const txHash = (await provider.request({
     method: 'eth_sendTransaction',
     params: [
       {
         from,
         to: params.contractAddress,
-        data: params.callData,
+        data,
         chainId: `0x${ARC_TESTNET_CHAIN_ID.toString(16)}`,
       },
     ],
-  });
+  })) as string;
+
+  // Wait for inclusion so we never report success without a receipt
+  if (params.waitForTx !== false && txHash) {
+    for (let i = 0; i < 40; i++) {
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as Hex }).catch(() => null);
+      if (receipt) {
+        if (receipt.status === 'reverted') {
+          throw new Error(`Transaction reverted on Arc: ${txHash}`);
+        }
+        return { txHash };
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  return { txHash: txHash ?? null };
+}
+
+/** Wait until contribution status is Paid for this wallet (true on-chain deposit). */
+async function waitForContributionPaid(
+  vault: Address,
+  member: Address,
+  timeoutMs = 90_000,
+): Promise<boolean> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    try {
+      const status = (await publicClient.readContract({
+        address: vault,
+        abi: treasuryVaultAbi,
+        functionName: 'getContributionStatus',
+        args: [member],
+      })) as number;
+      // 0=waiting 1=paid 2=exempt
+      if (Number(status) === 1) return true;
+    } catch {
+      /* rpc blip */
+    }
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+  return false;
 }
 
 /**
@@ -520,12 +584,19 @@ export async function ensureVaultMembership(
 
 /**
  * Approve USDC then deposit the vault's fixed contribution amount.
- * Auto-ensures vault membership (joinVault / server bootstrap) first.
+ * Auto-ensures vault membership first. Waits for real Arc confirmation —
+ * never reports success without on-chain Paid status.
  */
 export async function depositToVault(opts?: {
   ucSession?: UcSession | null;
   walletAddress?: string | null;
-}): Promise<{ amount: number; txKind: 'circle' | 'injected' }> {
+}): Promise<{
+  amount: number;
+  txKind: 'circle' | 'injected';
+  approveTxHash: string | null;
+  depositTxHash: string | null;
+  explorerUrl: string | null;
+}> {
   const vault = getVaultAddress();
   if (!vault) {
     throw new Error(
@@ -534,12 +605,12 @@ export async function depositToVault(opts?: {
   }
 
   const session = opts?.ucSession ?? loadStoredUcSession();
-  // Best-effort: self-join or server-register so Circle wallets can deposit.
-  // New vaults also auto-join inside deposit(); this covers older deploys.
-  const wallet = opts?.walletAddress || session?.address || null;
-  if (wallet) {
-    await ensureVaultMembership(wallet, { ucSession: session });
+  const wallet = (opts?.walletAddress || session?.address || null) as Address | null;
+  if (!wallet) {
+    throw new Error('Connect your wallet first');
   }
+
+  await ensureVaultMembership(wallet, { ucSession: session });
 
   const amount = (await publicClient.readContract({
     address: vault,
@@ -548,6 +619,32 @@ export async function depositToVault(opts?: {
   })) as bigint;
 
   if (amount <= 0n) throw new Error('Vault contribution amount is zero');
+
+  // Check USDC balance before attempting (clearer than a silent Circle fail)
+  const usdc = (TREASURY_USDC_ADDRESS || ARC_USDC_ERC20_ADDRESS) as Address;
+  try {
+    const bal = (await publicClient.readContract({
+      address: usdc,
+      abi: [
+        {
+          type: 'function',
+          name: 'balanceOf',
+          stateMutability: 'view',
+          inputs: [{ name: 'account', type: 'address' }],
+          outputs: [{ name: '', type: 'uint256' }],
+        },
+      ] as const,
+      functionName: 'balanceOf',
+      args: [wallet],
+    })) as bigint;
+    if (bal < amount) {
+      throw new Error(
+        `Not enough USDC in your Circle wallet. Need ${usdcToNumber(amount)}, have ${usdcToNumber(bal)}. Get testnet USDC from the faucet.`,
+      );
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('Not enough')) throw e;
+  }
 
   const approveData = encodeFunctionData({
     abi: erc20ApproveAbi,
@@ -560,23 +657,45 @@ export async function depositToVault(opts?: {
     functionName: 'deposit',
   });
 
-  const usdc = (TREASURY_USDC_ADDRESS || ARC_USDC_ERC20_ADDRESS) as Address;
-
-  await writeContract({
+  // Prefer abiFunctionSignature for Circle; fall back to callData for injected.
+  const approve = await writeContract({
     contractAddress: usdc,
     callData: approveData,
+    abiFunctionSignature: session ? 'approve(address,uint256)' : undefined,
+    abiParameters: session ? [vault, amount.toString()] : undefined,
+    refId: `approve-vault-${Date.now()}`,
     ucSession: session,
+    waitForTx: true,
   });
 
-  await writeContract({
+  const deposit = await writeContract({
     contractAddress: vault,
     callData: depositData,
+    abiFunctionSignature: session ? 'deposit()' : undefined,
+    abiParameters: session ? [] : undefined,
+    refId: `deposit-vault-${Date.now()}`,
     ucSession: session,
+    waitForTx: true,
   });
 
+  // Hard gate: contribution must show Paid on-chain
+  const paid = await waitForContributionPaid(vault, wallet);
+  if (!paid) {
+    const hint = deposit.txHash
+      ? ` Last tx: ${ARC_EXPLORER_URL}/tx/${deposit.txHash}`
+      : '';
+    throw new Error(
+      `Deposit did not confirm on Arc (vault still shows unpaid).${hint} Check Arc explorer and try again.`,
+    );
+  }
+
+  const depositTxHash = deposit.txHash;
   return {
     amount: usdcToNumber(amount),
     txKind: session ? 'circle' : 'injected',
+    approveTxHash: approve.txHash,
+    depositTxHash,
+    explorerUrl: depositTxHash ? `${ARC_EXPLORER_URL}/tx/${depositTxHash}` : null,
   };
 }
 

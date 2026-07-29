@@ -103,12 +103,18 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
     setError(null);
     setSuccess(null);
     try {
-      const { amount } = await depositToVault({ walletAddress });
-      setSuccess(`Contribution of ${formatCurrency(amount)} submitted.`);
+      const result = await depositToVault({ walletAddress });
+      const link = result.explorerUrl
+        ? ` View: ${result.explorerUrl}`
+        : result.depositTxHash
+          ? ` Tx: ${result.depositTxHash.slice(0, 10)}…`
+          : '';
+      setSuccess(
+        `Deposited ${formatCurrency(result.amount)} on Arc (confirmed).${link}`,
+      );
       if (onDepositSuccess) {
-        await onDepositSuccess({ amount });
+        await onDepositSuccess({ amount: result.amount });
       }
-      await new Promise((r) => setTimeout(r, 2500));
       await refresh({ softRateLimit: true });
     } catch (e) {
       setError(friendlyVaultError(e));

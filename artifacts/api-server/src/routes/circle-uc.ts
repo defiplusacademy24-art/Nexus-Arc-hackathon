@@ -16,6 +16,7 @@ import {
   pinSetupByToken,
   contractExecutionChallenge,
   contractExecutionChallengeByToken,
+  listUserTransactions,
 } from '../lib/circle-user';
 
 const router: IRouter = Router();
@@ -137,6 +138,7 @@ if (ucEnabled()) {
       abiFunctionSignature,
       abiParameters,
       callData,
+      refId,
     } = req.body ?? {};
 
     if (
@@ -153,7 +155,7 @@ if (ucEnabled()) {
     }
 
     try {
-      const opts = { abiFunctionSignature, abiParameters, callData };
+      const opts = { abiFunctionSignature, abiParameters, callData, refId };
       const out = userToken
         ? await contractExecutionChallengeByToken(
             userToken,
@@ -168,6 +170,22 @@ if (ucEnabled()) {
             opts,
           );
       res.json(out);
+    } catch (e) {
+      res.status(502).json({ error: errMessage(e) });
+    }
+  });
+
+  /** Recent Circle txs for this wallet — used to wait for COMPLETE + txHash after PIN. */
+  router.post('/transactions', async (req: Request, res: Response) => {
+    const { userToken, walletId } = req.body ?? {};
+    if (!userToken || !walletId) {
+      res.status(400).json({ error: 'userToken and walletId required' });
+      return;
+    }
+    try {
+      res.json({
+        transactions: await listUserTransactions(userToken, walletId),
+      });
     } catch (e) {
       res.status(502).json({ error: errMessage(e) });
     }
