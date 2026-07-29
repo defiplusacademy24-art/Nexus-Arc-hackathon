@@ -331,8 +331,57 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   }
 
   const [ready, required, paid] = canPay ?? [false, 0, 0];
-  const [curRecipient, curPos] = currentPair ?? (['0x0000000000000000000000000000000000000000', 0] as const);
-  const [nxtRecipient, nxtPos] = nextPair ?? (['0x0000000000000000000000000000000000000000', 0] as const);
+  let [curRecipient, curPos] = currentPair ?? (['0x0000000000000000000000000000000000000000', 0] as const);
+  let [nxtRecipient, nxtPos] = nextPair ?? (['0x0000000000000000000000000000000000000000', 0] as const);
+
+  // Resolve join positions from the recipient addresses (slot index can lag inactive members)
+  try {
+    const posCalls: {
+      address: Address;
+      abi: typeof treasuryVaultAbi;
+      functionName: 'getMemberRotationPosition';
+      args: [Address];
+    }[] = [];
+    if (curRecipient && curRecipient !== '0x0000000000000000000000000000000000000000') {
+      posCalls.push({
+        address: vault,
+        abi: treasuryVaultAbi,
+        functionName: 'getMemberRotationPosition',
+        args: [curRecipient],
+      });
+    }
+    if (
+      nxtRecipient &&
+      nxtRecipient !== '0x0000000000000000000000000000000000000000' &&
+      nxtRecipient.toLowerCase() !== curRecipient?.toLowerCase()
+    ) {
+      posCalls.push({
+        address: vault,
+        abi: treasuryVaultAbi,
+        functionName: 'getMemberRotationPosition',
+        args: [nxtRecipient],
+      });
+    }
+    if (posCalls.length > 0) {
+      const posRes = await publicClient.multicall({ allowFailure: true, contracts: posCalls });
+      let i = 0;
+      if (curRecipient && curRecipient !== '0x0000000000000000000000000000000000000000') {
+        const p = resultValue<number | bigint>(posRes[i++]);
+        if (p != null && Number(p) > 0) curPos = Number(p) as typeof curPos;
+      }
+      if (
+        nxtRecipient &&
+        nxtRecipient !== '0x0000000000000000000000000000000000000000' &&
+        nxtRecipient.toLowerCase() !== curRecipient?.toLowerCase()
+      ) {
+        const p = resultValue<number | bigint>(posRes[i]);
+        if (p != null && Number(p) > 0) nxtPos = Number(p) as typeof nxtPos;
+      }
+    }
+  } catch {
+    /* optional */
+  }
+
   const bd = breakdownRaw;
 
   return {

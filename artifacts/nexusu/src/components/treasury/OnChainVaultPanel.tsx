@@ -350,16 +350,21 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
               <Users className="w-4 h-4 text-[#6393C4] flex-shrink-0" />
               <div>
                 <p className="font-medium text-stone-700 dark:text-white/80">
-                  Recipient · #{snap.currentPosition}
+                  Payout recipient
+                  {snap.currentPosition ? ` · #${snap.currentPosition}` : ''}
                 </p>
                 <p className="font-mono">{shortAddr(snap.currentRecipient)}</p>
+                <p className="text-[10px] text-stone-400 dark:text-white/35 mt-0.5">
+                  Who receives the next rotation payout (not who holds USDC)
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-1 rounded-xl border border-stone-100 dark:border-white/8 px-3 py-2">
               <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
               <div>
                 <p className="font-medium text-stone-700 dark:text-white/80">
-                  Next · #{snap.nextPosition}
+                  After that
+                  {snap.nextPosition ? ` · #${snap.nextPosition}` : ''}
                 </p>
                 <p className="font-mono">{shortAddr(snap.nextRecipient)}</p>
               </div>
