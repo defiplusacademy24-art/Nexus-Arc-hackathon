@@ -18,6 +18,7 @@ import {
 import type {
   CoopType, ContributionFrequency, CoopPrivacy, VotingModel, LoanApprovalPolicy, RotationMode,
 } from '@/types';
+import { MIN_CONTRIBUTION_USDC } from '@/config/treasury-vault';
 
 // ── Form state ────────────────────────────────────────────────────────────────
 
@@ -134,11 +135,27 @@ function Field({ label, required, children, hint }: { label: string; required?: 
   );
 }
 
-function Input({ value, onChange, placeholder, type = 'text' }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+function Input({
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  min,
+  step,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  min?: number | string;
+  step?: number | string;
+}) {
   return (
     <input
       type={type}
       value={value}
+      min={min}
+      step={step}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className="w-full bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm text-stone-800 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/25 outline-none focus:border-[#6393C4]/50 focus:ring-2 focus:ring-[#6393C4]/10 transition-all"
@@ -238,13 +255,56 @@ function Step2({ form, set }: { form: WizardForm; set: (k: keyof WizardForm, v: 
   ];
   return (
     <div className="space-y-5">
-      <Field label="Contribution Frequency" required>
+      <Field
+        label="Contribution Frequency"
+        required
+        hint="Members contribute once per period. On-chain vault enforces the same schedule."
+      >
         <div className="space-y-2">
-          {freqs.map((f) => <RadioCard key={f.value} value={f.value} current={form.contributionFrequency} onChange={(v) => set('contributionFrequency', v)} label={f.label} desc={f.desc} />)}
+          {freqs.map((f) => (
+            <RadioCard
+              key={f.value}
+              value={f.value}
+              current={form.contributionFrequency}
+              onChange={(v) => set('contributionFrequency', v)}
+              label={f.label}
+              desc={f.desc}
+            />
+          ))}
         </div>
       </Field>
-      <Field label={`Contribution Amount (${form.currency})`} required>
-        <Input value={form.contributionAmount} onChange={(v) => set('contributionAmount', v)} type="number" placeholder="e.g. 350" />
+      <Field
+        label={`Contribution Amount (${form.currency})`}
+        required
+        hint={`Platform minimum is $${MIN_CONTRIBUTION_USDC}. This exact amount is what each member must deposit per cycle on Arc (not more, not less).`}
+      >
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/25">
+              Min ${MIN_CONTRIBUTION_USDC} {form.currency}
+            </span>
+            <span className="text-[11px] text-stone-400 dark:text-white/35">
+              Fixed per cycle · splits 60% / 30% / 5% / 5% on-chain
+            </span>
+          </div>
+          <Input
+            value={form.contributionAmount}
+            onChange={(v) => set('contributionAmount', v)}
+            type="number"
+            min={MIN_CONTRIBUTION_USDC}
+            step="1"
+            placeholder={`e.g. ${MIN_CONTRIBUTION_USDC} or 50`}
+          />
+          {form.contributionAmount !== '' &&
+            !Number.isNaN(Number(form.contributionAmount)) &&
+            Number(form.contributionAmount) > 0 &&
+            Number(form.contributionAmount) < MIN_CONTRIBUTION_USDC && (
+              <p className="text-xs text-red-500">
+                Amount must be at least ${MIN_CONTRIBUTION_USDC}. The platform and vault reject lower
+                contributions.
+              </p>
+            )}
+        </div>
       </Field>
       <Field label="Maximum Members" hint="Leave blank for unlimited">
         <Input value={form.maxMembers} onChange={(v) => set('maxMembers', v)} type="number" placeholder="e.g. 30" />
@@ -465,7 +525,12 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
     }
     if (step === 2) {
       const amt = Number(form.contributionAmount);
-      if (!form.contributionAmount || isNaN(amt) || amt <= 0) return 'Please enter a valid contribution amount.';
+      if (!form.contributionAmount || isNaN(amt) || amt <= 0) {
+        return 'Please enter a valid contribution amount.';
+      }
+      if (amt < MIN_CONTRIBUTION_USDC) {
+        return `Contribution must be at least $${MIN_CONTRIBUTION_USDC} (platform & on-chain vault minimum).`;
+      }
     }
     return '';
   };

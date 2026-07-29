@@ -31,6 +31,20 @@ import {
   formatInterestPct,
 } from '@/services/cooperative/interest';
 import { getMemberByWallet, loadMembersInPayoutOrder } from '@/services/cooperative/members';
+import {
+  applyForLoanOnChain,
+  approveLoanOnChain,
+  fetchOnChainLoans,
+  fetchPoolSnapshot,
+  friendlyLoanError,
+  fundPoolOnChain,
+  isLoanPoolConfigured,
+  onChainLoanIdFromAppId,
+  registerBorrowerOnChain,
+  rejectLoanOnChain,
+  repayLoanOnChain,
+  type PoolSnapshot,
+} from '@/services/loan/pool';
 import { formatCurrency, formatDate, riskColor, riskLabel } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import type {
@@ -297,7 +311,21 @@ function AiEvaluationCard({
   );
 }
 
-function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
+function LoanCard({
+  loan,
+  currency,
+  canApprove,
+  busyId,
+  onApprove,
+  onReject,
+}: {
+  loan: Loan;
+  currency: string;
+  canApprove?: boolean;
+  busyId?: string | null;
+  onApprove?: (loan: Loan) => void;
+  onReject?: (loan: Loan) => void;
+}) {
   const config = STATUS_CONFIG[loan.status];
   const Icon = config.icon;
   const L = ensureLoanFinance(loan);
@@ -310,6 +338,8 @@ function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
   const progress =
     totalDue > 0 ? Math.round((paid / totalDue) * 100) : undefined;
   const ratePct = formatInterestPct(L.interestRate ?? 0.05);
+  const isOnChain = Boolean(onChainLoanIdFromAppId(loan.id));
+  const busy = busyId === loan.id;
 
   return (
     <motion.div
@@ -402,12 +432,39 @@ function LoanCard({ loan, currency }: { loan: Loan; currency: string }) {
         </div>
       )}
 
+      {isOnChain && (
+        <p className="text-[10px] font-semibold text-[#6393C4] mb-2 flex items-center gap-1">
+          <Shield className="w-3 h-3" /> On-chain · {loan.id}
+        </p>
+      )}
+
+      {canApprove && loan.status === 'pending' && isOnChain && (
+        <div className="flex gap-2 mb-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onApprove?.(loan)}
+            className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {busy ? '…' : 'Approve & disburse'}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onReject?.(loan)}
+            className="flex-1 py-2 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-500/10 disabled:opacity-60"
+          >
+            Reject
+          </button>
+        </div>
+      )}
+
       {loan.aiRecommendation && (
         <div className="bg-[#6393C4]/5 dark:bg-[#6393C4]/8 border border-[#6393C4]/12 rounded-xl px-3 py-2.5">
           <div className="flex items-center gap-1.5 mb-1">
             <Sparkles className="w-3 h-3 text-[#6393C4]" />
             <span className="text-[10px] font-semibold text-[#6393C4] uppercase tracking-wide">
-              AI Lending Agent
+              {isOnChain ? 'On-chain pool' : 'AI Lending Agent'}
             </span>
           </div>
           <p className="text-xs text-stone-600 dark:text-white/60 leading-relaxed line-clamp-3">
@@ -445,9 +502,12 @@ function nextPaymentEstimate(loan: Loan): number {
 
 export default function Loans() {
   const { activeCooperative, updateCooperative, refresh } = useCooperative();
-  const { walletAddress, identity } = useWallet();
+  const { walletAddress, identity, isConnected } = useWallet();
+  const onChainMode = isLoanPoolConfigured();
   const [tab, setTab] = useState<FilterTab>('all');
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [poolSnap, setPoolSnap] = useState<PoolSnapshot | null>(null);
+  const [loadingChain, setLoadingChain] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
   const [evaluating, setEvaluating] = useState(false);
@@ -460,20 +520,56 @@ export default function Loans() {
   const [repaySuccess, setRepaySuccess] = useState('');
   const [repaying, setRepaying] = useState(false);
   const [distLog, setDistLog] = useState<DistLogLine[]>([]);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [fundAmount, setFundAmount] = useState('');
+  const [fundBusy, setFundBusy] = useState(false);
+  const [chainMsg, setChainMsg] = useState<string | null>(null);
 
-  const reload = useCallback(() => {
-    setLoans(activeCooperative ? loadLoans(activeCooperative.id) : []);
-  }, [activeCooperative]);
+  const reload = useCallback(async () => {
+    if (!activeCooperative) {
+      setLoans([]);
+      setPoolSnap(null);
+      return;
+    }
+
+    if (onChainMode) {
+      setLoadingChain(true);
+      try {
+        const members = loadMembersInPayoutOrder(activeCooperative.id);
+        const nameByWallet: Record<string, string> = {};
+        for (const m of members) {
+          if (m.walletIdentity) {
+            nameByWallet[m.walletIdentity.toLowerCase()] = m.name;
+          }
+        }
+        const [snap, chainLoans] = await Promise.all([
+          fetchPoolSnapshot(walletAddress),
+          fetchOnChainLoans({ nameByWallet }),
+        ]);
+        setPoolSnap(snap);
+        setLoans(chainLoans);
+      } catch (e) {
+        setFormError(friendlyLoanError(e));
+        setLoans([]);
+      } finally {
+        setLoadingChain(false);
+      }
+      return;
+    }
+
+    setLoans(loadLoans(activeCooperative.id));
+    setPoolSnap(null);
+  }, [activeCooperative, onChainMode, walletAddress]);
 
   useEffect(() => {
-    reload();
+    void reload();
   }, [reload]);
 
   useEffect(() => {
     const onUpd = (ev: Event) => {
       const id = (ev as CustomEvent<{ cooperativeId?: string }>).detail?.cooperativeId;
       if (!activeCooperative || (id && id !== activeCooperative.id)) return;
-      reload();
+      void reload();
     };
     window.addEventListener('nexusu:loans-updated', onUpd);
     return () => window.removeEventListener('nexusu:loans-updated', onUpd);
@@ -536,7 +632,7 @@ export default function Loans() {
     { key: 'rejected', label: 'Declined', count: loans.filter((l) => l.status === 'rejected').length },
   ];
 
-  const submitRepayment = () => {
+  const submitRepayment = async () => {
     setRepayError('');
     setRepaySuccess('');
     if (!activeCooperative) {
@@ -564,6 +660,35 @@ export default function Loans() {
 
     setRepaying(true);
     try {
+      // ── On-chain repayment ──────────────────────────────────────────────
+      if (onChainMode) {
+        const chainId = onChainLoanIdFromAppId(loan.id);
+        if (!chainId) {
+          setRepayError('This loan is not linked to the on-chain pool.');
+          return;
+        }
+        const { amount: paid } = await repayLoanOnChain({
+          loanId: chainId,
+          amountUsd: amount,
+        });
+        setRepayAmount('');
+        setRepaySuccess(
+          `On-chain repayment of ${formatCurrency(paid, currency)} submitted. Complete wallet / PIN prompts. Interest is taken first, then principal returns to the pool.`,
+        );
+        setDistLog([
+          {
+            id: `p-${Date.now()}`,
+            label: 'On-chain repayment',
+            amount: paid,
+            tone: 'principal',
+          },
+        ]);
+        await new Promise((r) => setTimeout(r, 2500));
+        await reload();
+        return;
+      }
+
+      // ── Legacy localStorage path (only when pool not configured) ───────
       const result = applyLoanRepayment(
         activeCooperative.id,
         loan.id,
@@ -571,7 +696,6 @@ export default function Loans() {
         walletAddress,
       );
 
-      // Principal → loan pool cash (if disbursed). Interest → treasury profit.
       const cashIn =
         Math.round((result.cashToRestore + result.interestToTreasury) * 100) / 100;
       if (cashIn > 0) {
@@ -625,7 +749,7 @@ export default function Loans() {
         );
       }
     } catch (e) {
-      setRepayError(e instanceof Error ? e.message : 'Repayment failed.');
+      setRepayError(onChainMode ? friendlyLoanError(e) : e instanceof Error ? e.message : 'Repayment failed.');
     } finally {
       setRepaying(false);
     }
@@ -637,10 +761,89 @@ export default function Loans() {
     return computeLoanFinance(amt, form.months);
   }, [form.amount, form.months]);
 
+  const onApproveLoan = async (loan: Loan) => {
+    const chainId = onChainLoanIdFromAppId(loan.id);
+    if (!chainId) return;
+    setActionBusyId(loan.id);
+    setChainMsg(null);
+    try {
+      await approveLoanOnChain(chainId);
+      setChainMsg(
+        `Approve submitted for ${formatCurrency(loan.requestedAmount, currency)}. USDC will disburse after confirmation.`,
+      );
+      await new Promise((r) => setTimeout(r, 2500));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const onRejectLoan = async (loan: Loan) => {
+    const chainId = onChainLoanIdFromAppId(loan.id);
+    if (!chainId) return;
+    setActionBusyId(loan.id);
+    setChainMsg(null);
+    try {
+      await rejectLoanOnChain(chainId);
+      setChainMsg('Reject transaction submitted.');
+      await new Promise((r) => setTimeout(r, 2500));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const onFundPool = async () => {
+    const amt = Number(fundAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setFormError('Enter a valid USDC amount to fund the pool.');
+      return;
+    }
+    setFundBusy(true);
+    setFormError('');
+    setChainMsg(null);
+    try {
+      await fundPoolOnChain({ amountUsd: amt });
+      setChainMsg(`Fund pool of ${formatCurrency(amt, currency)} submitted.`);
+      setFundAmount('');
+      await new Promise((r) => setTimeout(r, 2500));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setFundBusy(false);
+    }
+  };
+
+  const onRegisterSelf = async () => {
+    if (!walletAddress) {
+      setFormError('Connect your wallet first.');
+      return;
+    }
+    setActionBusyId('register');
+    setFormError('');
+    setChainMsg(null);
+    try {
+      await registerBorrowerOnChain(walletAddress as `0x${string}`);
+      setChainMsg('Borrower registration submitted (organizer only).');
+      await new Promise((r) => setTimeout(r, 2500));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
   const submitApplication = async () => {
     setFormError('');
     setAssessment(null);
     setLastCreated(null);
+    setChainMsg(null);
 
     if (!activeCooperative) {
       setFormError('Create or join a cooperative first.');
@@ -704,7 +907,65 @@ export default function Loans() {
     }
 
     setEvaluating(true);
-    // Simulate autonomous AI evaluation (2–3s)
+
+    // ── On-chain path: AI is advisory; apply always hits the pool ───────────
+    if (onChainMode) {
+      try {
+        if (poolSnap && !poolSnap.canApply && poolSnap.canApplyReason) {
+          setEvaluating(false);
+          setFormError(friendlyLoanError(new Error(poolSnap.canApplyReason)));
+          return;
+        }
+
+        const delay = 1200 + Math.random() * 800;
+        await new Promise((r) => setTimeout(r, delay));
+
+        const result = evaluateLoanApplication({
+          cooperative: activeCooperative,
+          applicant: member,
+          existingLoans: loans,
+          requestedAmount: amount,
+          repaymentMonths: form.months,
+        });
+        setAssessment(result);
+
+        // Soft liquidity check — approve-time still enforces hard limits on-chain
+        if (poolSnap && amount > poolSnap.liquidity) {
+          setEvaluating(false);
+          setFormError(
+            `Requested amount exceeds on-chain pool liquidity (${formatCurrency(poolSnap.liquidity, currency)}). Organizer must fund the pool or request less.`,
+          );
+          return;
+        }
+
+        await applyForLoanOnChain({
+          principalUsd: amount,
+          termMonths: form.months,
+          purpose: form.purpose,
+        });
+
+        const aiNote =
+          result.decision === 'DECLINED'
+            ? ' AI recommended decline — organizer still decides on-chain.'
+            : result.decision === 'REQUIRES_GOVERNANCE_REVIEW'
+              ? ' AI flagged for governance review.'
+              : ' AI recommended approval.';
+
+        setChainMsg(
+          `On-chain loan application for ${formatCurrency(amount, currency)} submitted.${aiNote} Status is Pending until the organizer (or lending agent) approves and USDC is disbursed.`,
+        );
+        setForm(EMPTY_FORM);
+        await new Promise((r) => setTimeout(r, 2500));
+        await reload();
+      } catch (e) {
+        setFormError(friendlyLoanError(e));
+      } finally {
+        setEvaluating(false);
+      }
+      return;
+    }
+
+    // ── Legacy localStorage path ────────────────────────────────────────────
     const delay = 2000 + Math.random() * 1000;
     await new Promise((r) => setTimeout(r, delay));
 
@@ -718,7 +979,6 @@ export default function Loans() {
 
     setAssessment(result);
 
-    // Disburse only when approved AND cash is available — deduct first, then create loan with flag.
     let cashTaken = false;
     if (result.decision === 'APPROVED') {
       const cash = activeCooperative.treasuryBalance ?? 0;
@@ -781,8 +1041,18 @@ export default function Loans() {
           <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Loans</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
-              {formatCurrency(outstanding, currency)} receivable ·{' '}
-              {formatCurrency(activeCooperative.treasuryBalance ?? 0, currency)} cash on hand
+              {onChainMode ? (
+                <>
+                  {formatCurrency(outstanding, currency)} outstanding ·{' '}
+                  {formatCurrency(poolSnap?.liquidity ?? 0, currency)} pool liquidity
+                  {loadingChain ? ' · refreshing…' : ''}
+                </>
+              ) : (
+                <>
+                  {formatCurrency(outstanding, currency)} receivable ·{' '}
+                  {formatCurrency(activeCooperative.treasuryBalance ?? 0, currency)} cash on hand
+                </>
+              )}
             </p>
           </div>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
@@ -833,6 +1103,115 @@ export default function Loans() {
           </div>
         </motion.div>
 
+        {/* On-chain pool status */}
+        {onChainMode ? (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-2xl border border-[#6393C4]/25 bg-[#6393C4]/5 dark:bg-[#6393C4]/10 p-4 sm:p-5"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+              <div className="flex items-start gap-2 min-w-0">
+                <Shield className="w-4 h-4 text-[#6393C4] mt-0.5 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-stone-800 dark:text-white">
+                    On-chain Loan Pool (Arc)
+                  </p>
+                  <p className="text-[11px] text-stone-500 dark:text-white/45 mt-0.5 leading-relaxed">
+                    Apply, approve, disburse, and repay in USDC on Arc — not local storage.
+                    Eligible borrowers only · one open loan · interest 5–10% by term · max{' '}
+                    {((poolSnap?.maxLoanBps ?? 2500) / 100).toFixed(0)}% of liquidity.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void reload()}
+                disabled={loadingChain}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6393C4] hover:underline disabled:opacity-50"
+              >
+                {loadingChain ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5" />}
+                Refresh
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
+              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">Pool USDC</p>
+                <p className="font-bold text-stone-800 dark:text-white tabular-nums">
+                  {formatCurrency(poolSnap?.usdcBalance ?? 0, currency)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">Available</p>
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  {formatCurrency(poolSnap?.liquidity ?? 0, currency)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">Outstanding</p>
+                <p className="font-bold text-amber-600 dark:text-amber-400 tabular-nums">
+                  {formatCurrency(poolSnap?.outstandingPrincipal ?? 0, currency)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">You can apply</p>
+                <p className="font-bold text-stone-800 dark:text-white">
+                  {poolSnap?.canApply ? 'Yes' : poolSnap?.isEligibleBorrower === false ? 'Not eligible' : 'No'}
+                </p>
+              </div>
+            </div>
+            {poolSnap?.isOrganizer && (
+              <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                <div className="flex-1">
+                  <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
+                    Fund pool (USDC)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    step="0.01"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value)}
+                    placeholder="e.g. 500"
+                    className="mt-1 w-full rounded-xl border border-stone-200 dark:border-white/10 bg-white dark:bg-[#2E3B4B]/40 px-3 py-2 text-sm outline-none focus:border-[#6393C4]/50"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={fundBusy}
+                  onClick={() => void onFundPool()}
+                  className="px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60"
+                >
+                  {fundBusy ? 'Funding…' : 'Fund pool'}
+                </button>
+                <button
+                  type="button"
+                  disabled={actionBusyId === 'register' || !walletAddress}
+                  onClick={() => void onRegisterSelf()}
+                  className="px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-semibold text-stone-700 dark:text-white/70 hover:bg-stone-50 dark:hover:bg-white/5 disabled:opacity-60"
+                >
+                  {actionBusyId === 'register' ? '…' : 'Register my wallet'}
+                </button>
+              </div>
+            )}
+            {!poolSnap?.isEligibleBorrower && poolSnap?.configured && isConnected && (
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-3">
+                You are not eligible yet. If the pool uses a membership vault, register on the treasury vault first.
+                Otherwise the organizer must register your wallet as a borrower.
+              </p>
+            )}
+            {chainMsg && (
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-3">{chainMsg}</p>
+            )}
+          </motion.div>
+        ) : (
+          <div className="mb-6 rounded-2xl border border-amber-200 dark:border-amber-500/20 bg-amber-50/80 dark:bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
+            Loan pool contract not configured. Set <code className="font-mono">VITE_LOAN_POOL_ADDRESS</code> after
+            deploying <code className="font-mono">CooperativeLoanPool</code> to use real on-chain loans. Until then,
+            this page uses local records only.
+          </div>
+        )}
+
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -854,8 +1233,10 @@ export default function Loans() {
               bg: 'bg-emerald-50 dark:bg-emerald-500/10',
             },
             {
-              label: 'Total Disbursed',
-              value: formatCurrency(disbursed, currency),
+              label: onChainMode ? 'Pool liquidity' : 'Total Disbursed',
+              value: onChainMode
+                ? formatCurrency(poolSnap?.liquidity ?? 0, currency)
+                : formatCurrency(disbursed, currency),
               color: 'text-blue-500',
               bg: 'bg-blue-50 dark:bg-blue-500/10',
             },
@@ -1547,7 +1928,15 @@ export default function Loans() {
         ) : (
           <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4 md:hidden">
             {displayed.map((loan) => (
-              <LoanCard key={loan.id} loan={loan} currency={currency} />
+              <LoanCard
+                key={loan.id}
+                loan={loan}
+                currency={currency}
+                canApprove={Boolean(poolSnap?.isApprover)}
+                busyId={actionBusyId}
+                onApprove={(l) => void onApproveLoan(l)}
+                onReject={(l) => void onRejectLoan(l)}
+              />
             ))}
           </div>
         )}
@@ -1556,7 +1945,15 @@ export default function Loans() {
         {displayed.length > 0 && (
           <div className="hidden md:grid lg:grid-cols-2 xl:grid-cols-3 gap-4 mt-2">
             {displayed.slice(0, 6).map((loan) => (
-              <LoanCard key={`card-${loan.id}`} loan={loan} currency={currency} />
+              <LoanCard
+                key={`card-${loan.id}`}
+                loan={loan}
+                currency={currency}
+                canApprove={Boolean(poolSnap?.isApprover)}
+                busyId={actionBusyId}
+                onApprove={(l) => void onApproveLoan(l)}
+                onReject={(l) => void onRejectLoan(l)}
+              />
             ))}
           </div>
         )}

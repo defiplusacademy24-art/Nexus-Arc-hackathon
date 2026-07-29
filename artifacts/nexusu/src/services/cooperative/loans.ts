@@ -1,7 +1,9 @@
 /**
- * Loan records — localStorage until Arc lending contracts are wired.
- * Starts empty; never seeds mock applications.
- * Supports partial and full repayment with interest before due date.
+ * Loan records — local helpers for finance math + legacy localStorage path.
+ *
+ * When `VITE_LOAN_POOL_ADDRESS` is set, the Loans UI loads / mutates loans
+ * via `services/loan/pool.ts` (on-chain CooperativeLoanPool). These helpers
+ * remain for remaining-balance math and offline demos without a deployed pool.
  */
 
 import type { Loan, AiLoanAssessment, LoanPurposeCategory, Member, LoanRepaymentEntry } from '@/types';

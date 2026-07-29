@@ -5,18 +5,24 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/// @dev Minimal membership check against CooperativeTreasuryVault.
+interface IMembershipVault {
+    function isMember(address account) external view returns (bool);
+}
+
 /**
  * @title CooperativeLoanPool
  * @notice On-chain member lending for Nexusu cooperatives on Arc.
- * @dev Mirrors the product loan policy:
+ * @dev Production flow:
+ *      - Organizer funds pool via `fundPool` (USDC)
+ *      - Optional membership vault (`CooperativeTreasuryVault.isMember`) or local borrower registry
+ *      - One open loan per borrower (Pending / Active / Defaulted)
  *      - Term 1–6 months → simple interest 5%–10% on principal
  *      - Max single loan share of available liquidity (default 25%)
- *      - Organizer (or designated AI agent) approves → USDC disbursed
+ *      - Organizer or lending agent approves → USDC disbursed
  *      - Repayments: interest first, then principal
- *      - Principal returns to pool liquidity; interest accrues as cooperative profit
- *
- * Fund the pool via `fundPool` (or transfer USDC then call `syncLiquidity`).
- * Optionally set `profitRecipient` (e.g. treasury vault) to auto-forward interest.
+ *      - Principal returns to pool liquidity; interest is cooperative profit
+ *      - Optional `profitRecipient` (e.g. treasury vault) auto-forwards interest
  */
 contract CooperativeLoanPool is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -55,6 +61,8 @@ contract CooperativeLoanPool is ReentrancyGuard {
     address public lendingAgent;
     /// @notice Optional recipient for interest profit (treasury / savings vault).
     address public profitRecipient;
+    /// @notice Optional CooperativeTreasuryVault — when set, only vault members may apply.
+    address public membershipVault;
 
     /// @notice Max principal as bps of availableLiquidity() at approval time (default 2500 = 25%).
     uint16 public maxLoanBps = 2500;
@@ -66,6 +74,10 @@ contract CooperativeLoanPool is ReentrancyGuard {
     uint256 public nextLoanId = 1;
     mapping(uint256 => Loan) private _loans;
     mapping(address => uint256[]) private _borrowerLoanIds;
+    /// @dev Local allowlist when membershipVault is unset.
+    mapping(address => bool) private _registeredBorrowers;
+    /// @dev Open loan id per borrower (Pending / Active / Defaulted). 0 = none.
+    mapping(address => uint256) public openLoanId;
 
     /// @dev termMonths (1–6) → interest bps for full term.
     mapping(uint8 => uint16) public interestBpsByTerm;
@@ -75,6 +87,8 @@ contract CooperativeLoanPool is ReentrancyGuard {
     event OrganizerTransferred(address indexed previous, address indexed next);
     event LendingAgentUpdated(address indexed agent);
     event ProfitRecipientUpdated(address indexed recipient);
+    event MembershipVaultUpdated(address indexed vault);
+    event BorrowerRegistered(address indexed borrower);
     event MaxLoanBpsUpdated(uint16 bps);
     event PoolFunded(address indexed from, uint256 amount);
     event LoanApplied(
@@ -103,6 +117,8 @@ contract CooperativeLoanPool is ReentrancyGuard {
 
     error NotOrganizer();
     error NotApprover();
+    error NotEligibleBorrower();
+    error HasOpenLoan();
     error ZeroAddress();
     error InvalidAmount();
     error InvalidTerm();
@@ -131,11 +147,13 @@ contract CooperativeLoanPool is ReentrancyGuard {
     /**
      * @param usdc_ Arc USDC ERC-20 (testnet: 0x3600…0000, 6 decimals)
      * @param organizer_ Cooperative founder / loan approver
+     * @param membershipVault_ Optional treasury vault for member checks (address(0) = local registry)
      */
-    constructor(address usdc_, address organizer_) {
+    constructor(address usdc_, address organizer_, address membershipVault_) {
         if (usdc_ == address(0) || organizer_ == address(0)) revert ZeroAddress();
         usdc = IERC20(usdc_);
         organizer = organizer_;
+        membershipVault = membershipVault_;
 
         // Match product interest table (full-term simple interest)
         interestBpsByTerm[1] = 500; // 5%
@@ -165,6 +183,38 @@ contract CooperativeLoanPool is ReentrancyGuard {
         emit ProfitRecipientUpdated(recipient);
     }
 
+    /**
+     * @notice Point at CooperativeTreasuryVault so only vault members may apply.
+     *         address(0) falls back to the local borrower registry.
+     */
+    function setMembershipVault(address vault) external onlyOrganizer {
+        membershipVault = vault;
+        emit MembershipVaultUpdated(vault);
+    }
+
+    /**
+     * @notice Register a borrower when no membership vault is configured.
+     *         Also useful to pre-allow wallets before vault registration.
+     */
+    function registerBorrower(address borrower) external onlyOrganizer {
+        if (borrower == address(0)) revert ZeroAddress();
+        _registeredBorrowers[borrower] = true;
+        emit BorrowerRegistered(borrower);
+    }
+
+    function registerBorrowers(address[] calldata borrowers) external onlyOrganizer {
+        uint256 len = borrowers.length;
+        for (uint256 i = 0; i < len; ) {
+            address b = borrowers[i];
+            if (b == address(0)) revert ZeroAddress();
+            _registeredBorrowers[b] = true;
+            emit BorrowerRegistered(b);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     function setMaxLoanBps(uint16 bps) external onlyOrganizer {
         if (bps == 0 || bps > 10_000) revert InvalidBps();
         maxLoanBps = bps;
@@ -189,8 +239,8 @@ contract CooperativeLoanPool is ReentrancyGuard {
     }
 
     /**
-     * @notice USDC available for new disbursements (balance − outstanding principal − reserved interest).
-     * @dev Outstanding principal is still "out" with borrowers; interestEarned is profit buffer.
+     * @notice USDC available for new disbursements (balance − reserved interest profit).
+     * @dev Outstanding principal is already outside the contract balance.
      */
     function availableLiquidity() public view returns (uint256) {
         uint256 bal = usdc.balanceOf(address(this));
@@ -212,6 +262,8 @@ contract CooperativeLoanPool is ReentrancyGuard {
         uint8 termMonths,
         string calldata purpose
     ) external nonReentrant returns (uint256 loanId) {
+        if (!_isEligibleBorrower(msg.sender)) revert NotEligibleBorrower();
+        if (_hasBlockingOpenLoan(msg.sender)) revert HasOpenLoan();
         if (principal == 0) revert InvalidAmount();
         if (termMonths < 1 || termMonths > 6) revert InvalidTerm();
 
@@ -242,6 +294,7 @@ contract CooperativeLoanPool is ReentrancyGuard {
             purpose: purpose
         });
         _borrowerLoanIds[msg.sender].push(loanId);
+        openLoanId[msg.sender] = loanId;
 
         emit LoanApplied(loanId, msg.sender, principal, termMonths, bps, totalDue);
     }
@@ -266,6 +319,7 @@ contract CooperativeLoanPool is ReentrancyGuard {
         loan.dueDate = uint64(block.timestamp + uint256(loan.termMonths) * 30 days);
 
         totalOutstandingPrincipal += loan.principal;
+        openLoanId[loan.borrower] = loanId;
 
         emit LoanApproved(loanId, loan.borrower, loan.principal);
 
@@ -280,12 +334,15 @@ contract CooperativeLoanPool is ReentrancyGuard {
         if (loan.borrower == address(0)) revert LoanNotFound();
         if (loan.status != LoanStatus.Pending) revert BadStatus();
         loan.status = LoanStatus.Rejected;
+        if (openLoanId[loan.borrower] == loanId) {
+            openLoanId[loan.borrower] = 0;
+        }
         emit LoanRejected(loanId, loan.borrower);
     }
 
     /**
-     * @notice Mark an overdue active loan as defaulted (stops normal repayment tracking for reporting).
-     * @dev Does not seize funds; remaining balance stays as outstanding until repaid or written off.
+     * @notice Mark an overdue active loan as defaulted.
+     * @dev Does not seize funds; remaining balance stays outstanding until repaid.
      */
     function markDefaulted(uint256 loanId) external onlyOrganizer {
         Loan storage loan = _loans[loanId];
@@ -293,6 +350,7 @@ contract CooperativeLoanPool is ReentrancyGuard {
         if (loan.status != LoanStatus.Active) revert BadStatus();
         if (loan.dueDate == 0 || block.timestamp < loan.dueDate) revert BadStatus();
         loan.status = LoanStatus.Defaulted;
+        openLoanId[loan.borrower] = loanId;
         emit LoanDefaulted(loanId);
     }
 
@@ -301,6 +359,7 @@ contract CooperativeLoanPool is ReentrancyGuard {
     /**
      * @notice Repay part or all of an active (or defaulted) loan.
      * @dev Interest first, then principal. Caller must approve USDC first.
+     *      Anyone may pay (borrower or sponsor).
      */
     function repay(uint256 loanId, uint256 amount) external nonReentrant {
         if (amount == 0) revert InvalidAmount();
@@ -330,7 +389,6 @@ contract CooperativeLoanPool is ReentrancyGuard {
             interestEarned += interestPortion;
         }
         if (principalPortion > 0) {
-            // Cap outstanding accounting
             if (principalPortion > totalOutstandingPrincipal) {
                 totalOutstandingPrincipal = 0;
             } else {
@@ -343,8 +401,9 @@ contract CooperativeLoanPool is ReentrancyGuard {
         bool fullyPaid = loan.amountPaid >= loan.totalDue;
         if (fullyPaid) {
             loan.status = LoanStatus.Completed;
-            // Ensure outstanding principal for this loan is fully cleared
-            // (interest-only edge cases already handled)
+            if (openLoanId[loan.borrower] == loanId) {
+                openLoanId[loan.borrower] = 0;
+            }
         }
 
         uint256 remainingAfter = loan.totalDue - loan.amountPaid;
@@ -409,6 +468,14 @@ contract CooperativeLoanPool is ReentrancyGuard {
         return _borrowerLoanIds[borrower];
     }
 
+    function isEligibleBorrower(address account) external view returns (bool) {
+        return _isEligibleBorrower(account);
+    }
+
+    function isRegisteredBorrower(address account) external view returns (bool) {
+        return _registeredBorrowers[account];
+    }
+
     function quoteLoan(
         uint256 principal,
         uint8 termMonths
@@ -440,5 +507,34 @@ contract CooperativeLoanPool is ReentrancyGuard {
         outstandingPrincipal = totalOutstandingPrincipal;
         interestAccrued = interestEarned;
         loanCount = nextLoanId - 1;
+    }
+
+    /**
+     * @notice Whether a borrower may apply right now.
+     */
+    function canApply(address account) external view returns (bool ok, string memory reason) {
+        if (!_isEligibleBorrower(account)) {
+            return (false, "not_eligible_borrower");
+        }
+        if (_hasBlockingOpenLoan(account)) {
+            return (false, "has_open_loan");
+        }
+        return (true, "");
+    }
+
+    // ── Internal ─────────────────────────────────────────────────────────────
+
+    function _isEligibleBorrower(address account) internal view returns (bool) {
+        if (membershipVault != address(0)) {
+            return IMembershipVault(membershipVault).isMember(account);
+        }
+        return _registeredBorrowers[account];
+    }
+
+    function _hasBlockingOpenLoan(address account) internal view returns (bool) {
+        uint256 id = openLoanId[account];
+        if (id == 0) return false;
+        LoanStatus s = _loans[id].status;
+        return s == LoanStatus.Pending || s == LoanStatus.Active || s == LoanStatus.Defaulted;
     }
 }

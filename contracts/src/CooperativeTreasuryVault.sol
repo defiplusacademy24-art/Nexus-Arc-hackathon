@@ -36,7 +36,22 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         Exempt
     }
 
+    /// @notice Matches Nexusu create-coop UI: weekly · bi-weekly · monthly.
+    enum ContributionFrequency {
+        Weekly,
+        BiWeekly,
+        Monthly
+    }
+
     // ── Types ────────────────────────────────────────────────────────────────
+
+    /// @notice Minimum contribution the founder may set ($10 USDC, 6 decimals).
+    uint256 public constant MIN_CONTRIBUTION = 10e6;
+
+    /// @notice Period lengths for founder frequency rules (seconds).
+    uint256 public constant WEEKLY_SECONDS = 7 days;
+    uint256 public constant BIWEEKLY_SECONDS = 14 days;
+    uint256 public constant MONTHLY_SECONDS = 30 days;
 
     /// @notice Basis-point allocation of every deposit (must sum to 10_000).
     struct AllocationConfig {
@@ -83,7 +98,10 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     IERC20 public immutable usdc;
     address public organizer;
     string public name;
-    uint256 public contributionAmount; // exact USDC amount required per cycle
+    /// @notice Exact USDC amount required per member per cycle (not a maximum — fixed).
+    /// @dev Deposit always pulls this exact amount; members cannot pay more or less.
+    uint256 public contributionAmount;
+    ContributionFrequency public contributionFrequency; // founder schedule rule
     PayoutStrategy public payoutStrategy;
     AllocationConfig public allocation;
 
@@ -121,6 +139,8 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     mapping(uint32 => bool) public cyclePayoutCompleted;
     /// @dev rotation fund accumulated during this cycle (for payout sizing)
     mapping(uint32 => uint256) public cycleRotationAccumulated;
+    /// @dev last successful contribution timestamp per member (frequency cooldown)
+    mapping(address => uint64) public lastContributedAt;
 
     // ── History ──────────────────────────────────────────────────────────────
 
@@ -165,6 +185,8 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     event MemberExemptSet(address indexed member, uint32 indexed cycle, bool exempt);
     event AllocationUpdated(AllocationConfig allocation);
     event ContributionAmountUpdated(uint256 amount);
+    event ContributionFrequencyUpdated(ContributionFrequency frequency);
+    event ContributionRulesUpdated(uint256 amount, ContributionFrequency frequency);
     event PayoutStrategyUpdated(PayoutStrategy strategy);
     event OrganizerTransferred(address indexed previous, address indexed next);
     event PayoutVoteCast(address indexed voter, address indexed candidate, uint32 indexed cycle);
@@ -178,8 +200,10 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     error MemberAlreadyRegistered();
     error ZeroAddress();
     error InvalidAmount();
+    error AmountBelowMinimum();
     error InvalidAllocation();
     error AlreadyContributed();
+    error ContributionTooEarly();
     error CycleAlreadyPaid();
     error ContributionsIncomplete();
     error NoEligibleRecipient();
@@ -208,7 +232,8 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
      * @param usdc_ Arc USDC ERC-20 (testnet: 0x3600…0000)
      * @param organizer_ Cooperative founder / organizer
      * @param name_ Human-readable cooperative name
-     * @param contributionAmount_ Exact USDC (6 decimals) per member per cycle
+     * @param contributionAmount_ Exact USDC (6 decimals) per member per cycle (≥ $10)
+     * @param frequency_ Founder schedule: Weekly / BiWeekly / Monthly
      * @param strategy_ Initial payout strategy
      * @param allocation_ Bucket split in basis points (sum = 10_000)
      */
@@ -217,17 +242,20 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         address organizer_,
         string memory name_,
         uint256 contributionAmount_,
+        ContributionFrequency frequency_,
         PayoutStrategy strategy_,
         AllocationConfig memory allocation_
     ) {
         if (usdc_ == address(0) || organizer_ == address(0)) revert ZeroAddress();
         if (contributionAmount_ == 0) revert InvalidAmount();
+        if (contributionAmount_ < MIN_CONTRIBUTION) revert AmountBelowMinimum();
         _validateAllocation(allocation_);
 
         usdc = IERC20(usdc_);
         organizer = organizer_;
         name = name_;
         contributionAmount = contributionAmount_;
+        contributionFrequency = frequency_;
         payoutStrategy = strategy_;
         allocation = allocation_;
     }
@@ -241,12 +269,42 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         emit OrganizerTransferred(prev, newOrganizer);
     }
 
+    /**
+     * @notice Update contribution amount only (must be ≥ $10). Blocked mid-cycle.
+     */
     function setContributionAmount(uint256 amount) external onlyOrganizer {
+        _setContributionRules(amount, contributionFrequency);
+    }
+
+    /**
+     * @notice Update contribution schedule only (weekly / bi-weekly / monthly).
+     */
+    function setContributionFrequency(ContributionFrequency frequency) external onlyOrganizer {
+        _setContributionRules(contributionAmount, frequency);
+    }
+
+    /**
+     * @notice Push founder coop rules on-chain (amount ≥ $10 + frequency).
+     *         Only allowed when no members have paid in the current cycle.
+     */
+    function setContributionRules(uint256 amount, ContributionFrequency frequency)
+        external
+        onlyOrganizer
+    {
+        _setContributionRules(amount, frequency);
+    }
+
+    function _setContributionRules(uint256 amount, ContributionFrequency frequency) internal {
         if (amount == 0) revert InvalidAmount();
+        if (amount < MIN_CONTRIBUTION) revert AmountBelowMinimum();
         // Only allow changes between cycles (no partial contributions yet)
         if (cyclePaidCount[currentCycle] > 0) revert AlreadyContributed();
+
         contributionAmount = amount;
+        contributionFrequency = frequency;
         emit ContributionAmountUpdated(amount);
+        emit ContributionFrequencyUpdated(frequency);
+        emit ContributionRulesUpdated(amount, frequency);
     }
 
     function setAllocation(AllocationConfig calldata cfg) external onlyOrganizer {
@@ -375,9 +433,11 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     // ── Contributions ────────────────────────────────────────────────────────
 
     /**
-     * @notice Deposit the fixed cycle contribution in USDC.
-     * @dev Caller must be a registered active member, approve this vault first,
-     *      and must not have already contributed (or be exempt) for `currentCycle`.
+     * @notice Deposit the founder-set contribution amount in USDC (exact only).
+     * @dev There is no amount parameter by design — the vault always pulls
+     *      `contributionAmount` (what the founder set). Members cannot pay more
+     *      or less. Also enforces frequency cooldown (weekly / bi-weekly / monthly)
+     *      and one contribution per cycle.
      */
     function deposit() external nonReentrant onlyMember {
         _deposit(msg.sender);
@@ -385,7 +445,7 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
 
     /**
      * @notice Deposit on behalf of a member (member must have approved the vault).
-     *         Useful for paymasters / sponsored flows. Still debits the member's USDC.
+     *         Still pulls the exact founder-set `contributionAmount` from the member.
      */
     function depositFor(address member) external nonReentrant {
         if (!_members[member].exists || !_members[member].active) revert NotMember();
@@ -398,13 +458,23 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         if (hasContributed[cycle][member]) revert AlreadyContributed();
         if (isExempt[cycle][member]) revert AlreadyContributed(); // treated as non-depositable
 
+        // Frequency rule: one founder-period between successful deposits
+        // (weekly / bi-weekly / monthly as set by the cooperative founder).
+        uint64 lastAt = lastContributedAt[member];
+        if (lastAt != 0) {
+            uint256 earliest = uint256(lastAt) + contributionPeriodSeconds();
+            if (block.timestamp < earliest) revert ContributionTooEarly();
+        }
+
+        // Exact founder amount only — never more, never less.
         uint256 amount = contributionAmount;
         if (amount == 0) revert InvalidAmount();
+        if (amount < MIN_CONTRIBUTION) revert AmountBelowMinimum();
 
-        // Pull USDC
+        // Pull exact amount (ERC-20 transferFrom reverts if balance/allowance too low)
         usdc.safeTransferFrom(member, address(this), amount);
 
-        // Allocate across buckets
+        // Allocate across buckets (60/30/5/5 by default product policy)
         AllocationConfig memory cfg = allocation;
         uint256 rotationShare = (amount * cfg.rotationBps) / 10_000;
         uint256 loanShare = (amount * cfg.loanPoolBps) / 10_000;
@@ -419,6 +489,7 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         cycleRotationAccumulated[cycle] += rotationShare;
 
         hasContributed[cycle][member] = true;
+        lastContributedAt[member] = uint64(block.timestamp);
         unchecked {
             cyclePaidCount[cycle] += 1;
         }
@@ -662,6 +733,65 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
 
     function isMember(address account) external view returns (bool) {
         return _members[account].exists && _members[account].active;
+    }
+
+    /**
+     * @notice Exact USDC amount the vault will pull on the next successful deposit.
+     * @dev Same as `contributionAmount` — exposed for wallets/UI clarity.
+     *      There is no way to deposit a higher amount.
+     */
+    function requiredContribution() external view returns (uint256) {
+        return contributionAmount;
+    }
+
+    /**
+     * @notice Seconds in one founder contribution period (7d / 14d / 30d).
+     */
+    function contributionPeriodSeconds() public view returns (uint256) {
+        if (contributionFrequency == ContributionFrequency.Weekly) {
+            return WEEKLY_SECONDS;
+        }
+        if (contributionFrequency == ContributionFrequency.BiWeekly) {
+            return BIWEEKLY_SECONDS;
+        }
+        return MONTHLY_SECONDS;
+    }
+
+    /**
+     * @notice Earliest timestamp a member may deposit again under founder frequency.
+     * @dev 0 means they have never contributed (can deposit immediately if cycle allows).
+     */
+    function nextContributionAt(address member) external view returns (uint64) {
+        uint64 lastAt = lastContributedAt[member];
+        if (lastAt == 0) return 0;
+        return uint64(uint256(lastAt) + contributionPeriodSeconds());
+    }
+
+    /**
+     * @notice Whether `member` may deposit right now (membership, cycle, amount rules, frequency).
+     */
+    function canDeposit(address member) external view returns (bool ok, string memory reason) {
+        if (!_members[member].exists || !_members[member].active) {
+            return (false, "not_member");
+        }
+        uint32 cycle = currentCycle;
+        if (cyclePayoutCompleted[cycle]) {
+            return (false, "cycle_closed");
+        }
+        if (hasContributed[cycle][member]) {
+            return (false, "already_contributed_this_cycle");
+        }
+        if (isExempt[cycle][member]) {
+            return (false, "exempt");
+        }
+        if (contributionAmount == 0 || contributionAmount < MIN_CONTRIBUTION) {
+            return (false, "invalid_amount");
+        }
+        uint64 lastAt = lastContributedAt[member];
+        if (lastAt != 0 && block.timestamp < uint256(lastAt) + contributionPeriodSeconds()) {
+            return (false, "too_early_for_frequency");
+        }
+        return (true, "");
     }
 
     // ── Internal helpers ─────────────────────────────────────────────────────

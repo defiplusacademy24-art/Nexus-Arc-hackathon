@@ -5,6 +5,19 @@ import {Test} from "forge-std/Test.sol";
 import {CooperativeLoanPool} from "../src/CooperativeLoanPool.sol";
 import {MockUSDC} from "../src/mocks/MockUSDC.sol";
 
+/// @dev Minimal stand-in for CooperativeTreasuryVault.isMember
+contract MockMembershipVault {
+    mapping(address => bool) public members;
+
+    function setMember(address a, bool ok) external {
+        members[a] = ok;
+    }
+
+    function isMember(address a) external view returns (bool) {
+        return members[a];
+    }
+}
+
 contract CooperativeLoanPoolTest is Test {
     MockUSDC usdc;
     CooperativeLoanPool pool;
@@ -17,7 +30,8 @@ contract CooperativeLoanPoolTest is Test {
 
     function setUp() public {
         usdc = new MockUSDC();
-        pool = new CooperativeLoanPool(address(usdc), organizer);
+        // No membership vault — use local borrower registry
+        pool = new CooperativeLoanPool(address(usdc), organizer, address(0));
 
         usdc.mint(organizer, FUND);
         usdc.mint(alice, 5_000e6);
@@ -26,6 +40,8 @@ contract CooperativeLoanPoolTest is Test {
         vm.startPrank(organizer);
         usdc.approve(address(pool), FUND);
         pool.fundPool(FUND);
+        pool.registerBorrower(alice);
+        pool.registerBorrower(bob);
         vm.stopPrank();
     }
 
@@ -50,6 +66,7 @@ contract CooperativeLoanPoolTest is Test {
         assertEq(pending.interestBps, 700);
         assertEq(pending.totalInterest, 70e6);
         assertEq(pending.totalDue, 1_070e6);
+        assertEq(pool.openLoanId(alice), loanId);
 
         uint256 aliceBefore = usdc.balanceOf(alice);
         vm.prank(organizer);
@@ -69,6 +86,7 @@ contract CooperativeLoanPoolTest is Test {
         assertEq(pool.remainingBalance(loanId), 0);
         assertEq(pool.totalOutstandingPrincipal(), 0);
         assertEq(pool.interestEarned(), 70e6);
+        assertEq(pool.openLoanId(alice), 0);
     }
 
     function test_InterestFirstOnPartialRepay() public {
@@ -89,7 +107,6 @@ contract CooperativeLoanPoolTest is Test {
         assertEq(mid.amountPaid, 50e6);
         assertEq(pool.remainingPrincipal(loanId), 1_000e6);
         assertEq(pool.interestEarned(), 50e6);
-        // Principal still outstanding
         assertEq(pool.totalOutstandingPrincipal(), 1_000e6);
     }
 
@@ -102,6 +119,12 @@ contract CooperativeLoanPoolTest is Test {
 
         CooperativeLoanPool.Loan memory l = pool.getLoan(loanId);
         assertEq(uint8(l.status), uint8(CooperativeLoanPool.LoanStatus.Rejected));
+        assertEq(pool.openLoanId(alice), 0);
+
+        // Can apply again after reject
+        vm.prank(alice);
+        uint256 loanId2 = pool.applyForLoan(200e6, 1, "Other");
+        assertEq(loanId2, 2);
     }
 
     function test_ExceedsMaxLoanReverts() public {
@@ -153,8 +176,62 @@ contract CooperativeLoanPoolTest is Test {
         pool.repay(loanId, 1_050e6);
         vm.stopPrank();
 
-        // Interest auto-forwarded
         assertEq(usdc.balanceOf(treasury), 50e6);
         assertEq(pool.interestEarned(), 0);
+    }
+
+    function test_UnregisteredBorrowerCannotApply() public {
+        address stranger = makeAddr("stranger");
+        usdc.mint(stranger, 1_000e6);
+        vm.prank(stranger);
+        vm.expectRevert(CooperativeLoanPool.NotEligibleBorrower.selector);
+        pool.applyForLoan(100e6, 1, "Other");
+    }
+
+    function test_OneOpenLoanOnly() public {
+        vm.prank(alice);
+        pool.applyForLoan(100e6, 1, "Business");
+
+        vm.prank(alice);
+        vm.expectRevert(CooperativeLoanPool.HasOpenLoan.selector);
+        pool.applyForLoan(50e6, 1, "Other");
+    }
+
+    function test_MembershipVaultGate() public {
+        MockMembershipVault vault = new MockMembershipVault();
+        CooperativeLoanPool gated = new CooperativeLoanPool(address(usdc), organizer, address(vault));
+
+        usdc.mint(organizer, 1_000e6);
+        vm.startPrank(organizer);
+        usdc.approve(address(gated), 1_000e6);
+        gated.fundPool(1_000e6);
+        vm.stopPrank();
+
+        // Not a vault member
+        vm.prank(alice);
+        vm.expectRevert(CooperativeLoanPool.NotEligibleBorrower.selector);
+        gated.applyForLoan(100e6, 1, "Business");
+
+        vault.setMember(alice, true);
+        vm.prank(alice);
+        uint256 id = gated.applyForLoan(100e6, 1, "Business");
+        assertEq(id, 1);
+        assertTrue(gated.isEligibleBorrower(alice));
+    }
+
+    function test_InsufficientLiquidity() public {
+        // Drain almost all liquidity with a max loan for alice
+        vm.prank(alice);
+        uint256 id1 = pool.applyForLoan(2_500e6, 1, "Business");
+        vm.prank(organizer);
+        pool.approveLoan(id1);
+
+        // Bob applies for more than remaining available (~7500, max 25% = 1875)
+        // Request more than full remaining balance
+        vm.prank(bob);
+        uint256 id2 = pool.applyForLoan(8_000e6, 1, "Emergency");
+        vm.prank(organizer);
+        vm.expectRevert(CooperativeLoanPool.InsufficientLiquidity.selector);
+        pool.approveLoan(id2);
     }
 }

@@ -12,6 +12,9 @@ export const TREASURY_VAULT_ADDRESS = (import.meta.env.VITE_TREASURY_VAULT_ADDRE
 
 export const TREASURY_USDC_ADDRESS = ARC_USDC_ERC20_ADDRESS;
 
+/** Minimum contribution the vault accepts ($10 USDC). */
+export const MIN_CONTRIBUTION_USDC = 10;
+
 /** ERC-20 approve used before vault.deposit(). */
 export const erc20ApproveAbi = [
   {
@@ -36,7 +39,7 @@ export const erc20ApproveAbi = [
   },
 ] as const;
 
-/** Minimal ABI for deposit / views / payout (viem / wagmi). */
+/** Minimal ABI for deposit / rules / views / payout (viem / wagmi). */
 export const treasuryVaultAbi = [
   {
     type: 'function',
@@ -58,6 +61,30 @@ export const treasuryVaultAbi = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'member', type: 'address' }],
     outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'setContributionRules',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'frequency', type: 'uint8' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'setContributionAmount',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'organizer',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
   },
   {
     type: 'function',
@@ -133,6 +160,51 @@ export const treasuryVaultAbi = [
   {
     type: 'function',
     name: 'contributionAmount',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'requiredContribution',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'contributionFrequency',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint8' }],
+  },
+  {
+    type: 'function',
+    name: 'contributionPeriodSeconds',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'nextContributionAt',
+    stateMutability: 'view',
+    inputs: [{ name: 'member', type: 'address' }],
+    outputs: [{ name: '', type: 'uint64' }],
+  },
+  {
+    type: 'function',
+    name: 'canDeposit',
+    stateMutability: 'view',
+    inputs: [{ name: 'member', type: 'address' }],
+    outputs: [
+      { name: 'ok', type: 'bool' },
+      { name: 'reason', type: 'string' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'MIN_CONTRIBUTION',
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'uint256' }],

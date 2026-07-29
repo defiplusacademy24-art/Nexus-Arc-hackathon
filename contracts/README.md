@@ -41,7 +41,9 @@ Payouts draw from the **Rotation Fund** share accumulated in the current cycle.
 - Only registered **active** members may deposit
 - One contribution per member per cycle
 - One payout per cycle (`cyclePayoutCompleted`)
-- Fixed `contributionAmount` (rejects partial / wrong-size logic by design)
+- Fixed `contributionAmount` (≥ $10 USDC; exact amount per cycle)
+- Founder schedule: `contributionFrequency` — Weekly / BiWeekly / Monthly
+- Organizer can update rules via `setContributionRules(amount, frequency)` between cycles
 - `ReentrancyGuard` + OpenZeppelin `SafeERC20`
 - Events: `MemberRegistered`, `ContributionDeposited`, `PayoutExecuted`, `CycleCompleted`, …
 
@@ -84,7 +86,7 @@ forge script script/Deploy.s.sol:Deploy \
   --legacy
 ```
 
-Optional env vars: `ORGANIZER`, `COOP_NAME`, `CONTRIBUTION_AMOUNT` (raw 6-decimal units), allocation BPS, `REGISTER_ORGANIZER`.
+Optional env vars: `ORGANIZER`, `COOP_NAME`, `CONTRIBUTION_AMOUNT` (raw 6-decimal units, min `10e6` / $10, default `50e6`), `CONTRIBUTION_FREQUENCY` (`0` weekly · `1` bi-weekly · `2` monthly), allocation BPS, `REGISTER_ORGANIZER`.
 
 ## Member flow (after deploy)
 
@@ -107,25 +109,61 @@ import { ARC_USDC_ERC20_ADDRESS } from '@/config/arc';
 ABI: `out/CooperativeTreasuryVault.sol/CooperativeTreasuryVault.json` after `forge build`.
 
 
-## Cooperative Loan Pool
+## Cooperative Registry + Rotation Manager
 
-`src/CooperativeLoanPool.sol` — member loans with term-based interest (5–10%).
+`src/CooperativeRegistry.sol` — multi-coop membership, join positions, settings.  
+`src/RotationManager.sol` — join-order rotation orchestration; calls existing Treasury `triggerPayout()`.
+
+### Deploy (does not redeploy treasury / loan pool)
+
+```bash
+source .env
+export TREASURY_VAULT_ADDRESS=0x...   # existing
+export LOAN_POOL_ADDRESS=0x...
+forge script script/DeployRegistry.s.sol:DeployRegistry \
+  --rpc-url "$ARC_RPC_URL" \
+  --broadcast --legacy
+```
+
+Frontend:
+
+```bash
+VITE_COOPERATIVE_REGISTRY_ADDRESS=0x...
+VITE_ROTATION_MANAGER_ADDRESS=0x...
+```
+
+### Cooperative Loan Pool
+
+`src/CooperativeLoanPool.sol` — production on-chain member loans with term-based interest (5–10%).
+
+### Rules
+
+| Rule | Detail |
+| --- | --- |
+| Eligibility | `membershipVault.isMember` **or** local `registerBorrower` |
+| One open loan | Pending / Active / Defaulted blocks a new application |
+| Terms | 1–6 months → 5%–10% simple interest |
+| Max size | Default **25%** of `availableLiquidity()` at approve time |
+| Repay | Interest first, then principal (partial OK) |
+| Profit | Optional `profitRecipient` (treasury vault) auto-forwards interest |
 
 ### Deploy
 
 ```bash
 source .env
-export TREASURY_VAULT=0x...   # optional: forward interest to treasury vault
+export TREASURY_VAULT=0x...   # membership + interest profit recipient
 forge script script/DeployLoan.s.sol:DeployLoan \
   --rpc-url https://rpc.testnet.arc.network \
   --broadcast --legacy
 ```
 
+Constructor: `(usdc, organizer, membershipVault)`.
+
 ### Flow
 
-1. Fund pool: `fundPool(amount)` (approve USDC first)
-2. Member: `applyForLoan(principal, termMonths, purpose)`
-3. Organizer / agent: `approveLoan(loanId)` → principal disbursed
-4. Member: `repay(loanId, amount)` → interest first, then principal
+1. Organizer: `fundPool(amount)` (approve USDC first) — seed liquidity
+2. Eligible member: `applyForLoan(principal, termMonths, purpose)` → Pending
+3. Organizer / lending agent: `approveLoan(loanId)` → USDC disbursed
+4. Anyone: `repay(loanId, amount)` → interest first, principal returns to pool
 
 Set frontend: `VITE_LOAN_POOL_ADDRESS=0x...`

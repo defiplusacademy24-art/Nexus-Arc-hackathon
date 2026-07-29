@@ -290,8 +290,13 @@ forge script script/Deploy.s.sol:Deploy --rpc-url <ARC_RPC> --broadcast --legacy
    - `DATABASE_URL` — Postgres (required for durable coops / multi-device login)  
    - `CIRCLE_UC_API_KEY` — Circle user-controlled wallets  
    - `VITE_WALLETCONNECT_PROJECT_ID` — wallet connect (if used)  
-   - `VITE_TREASURY_VAULT_ADDRESS` — deployed vault on Arc  
+   - `VITE_TREASURY_VAULT_ADDRESS` — deployed vault on Arc (e.g. `0xe287D1acD501ec2A954BA030B7387de12D248E02`)  
+   - `VITE_LOAN_POOL_ADDRESS` — loan pool on Arc  
+   - `VITE_COOPERATIVE_REGISTRY_ADDRESS` — multi-coop registry on Arc  
+   - `VITE_ROTATION_MANAGER_ADDRESS` — rotation orchestrator on Arc  
    - Leave `VITE_API_URL` empty for same-origin `/api/*`  
+
+   After changing any `VITE_*` variable, **redeploy** so the frontend rebuild picks them up.
 
 ```bash
 pnpm run build:vercel

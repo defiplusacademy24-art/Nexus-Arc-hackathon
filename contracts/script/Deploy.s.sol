@@ -10,6 +10,8 @@ import {CooperativeTreasuryVault} from "../src/CooperativeTreasuryVault.sol";
  * Usage:
  *   export PRIVATE_KEY=0x...
  *   export ORGANIZER=0x...          # optional; defaults to deployer
+ *   export CONTRIBUTION_AMOUNT=50000000  # $50 USDC (6 decimals), min 10e6
+ *   export CONTRIBUTION_FREQUENCY=1        # 0=weekly 1=biweekly 2=monthly
  *   forge script script/Deploy.s.sol:Deploy \
  *     --rpc-url https://rpc.testnet.arc.network \
  *     --broadcast \
@@ -27,8 +29,17 @@ contract Deploy is Script {
         address organizer = vm.envOr("ORGANIZER", deployer);
 
         string memory name = vm.envOr("COOP_NAME", string("Nexusu Cooperative Treasury"));
-        // Default 100 USDC (6 decimals)
-        uint256 contributionAmount = vm.envOr("CONTRIBUTION_AMOUNT", uint256(100e6));
+        // Default 50 USDC (6 decimals) — founders may set any amount ≥ $10
+        uint256 contributionAmount = vm.envOr("CONTRIBUTION_AMOUNT", uint256(50e6));
+        require(
+            contributionAmount >= 10e6,
+            "CONTRIBUTION_AMOUNT must be >= 10e6 ($10 USDC, 6 decimals)"
+        );
+        // 0=Weekly, 1=BiWeekly, 2=Monthly (matches CreateWizard)
+        uint256 freqRaw = vm.envOr("CONTRIBUTION_FREQUENCY", uint256(1));
+        require(freqRaw <= 2, "CONTRIBUTION_FREQUENCY must be 0, 1, or 2");
+        CooperativeTreasuryVault.ContributionFrequency frequency = CooperativeTreasuryVault
+            .ContributionFrequency(uint8(freqRaw));
 
         // Product policy default: 60% rotation · 30% loan · 5% emergency · 5% savings
         CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
@@ -43,6 +54,7 @@ contract Deploy is Script {
         console2.log("Organizer:", organizer);
         console2.log("USDC:", ARC_USDC);
         console2.log("Contribution:", contributionAmount);
+        console2.log("Frequency (0=W 1=BW 2=M):", freqRaw);
         console2.log("rotationBps:", uint256(alloc.rotationBps));
         console2.log("loanPoolBps:", uint256(alloc.loanPoolBps));
         console2.log("emergencyBps:", uint256(alloc.emergencyBps));
@@ -55,6 +67,7 @@ contract Deploy is Script {
             organizer,
             name,
             contributionAmount,
+            frequency,
             CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
             alloc
         );
@@ -68,5 +81,7 @@ contract Deploy is Script {
 
         console2.log("CooperativeTreasuryVault deployed at:", address(vault));
         console2.log("Explorer: https://testnet.arcscan.app/address/%s", address(vault));
+        console2.log("Set frontend: VITE_TREASURY_VAULT_ADDRESS=%s", address(vault));
+        console2.log("Next: deploy loan with TREASURY_VAULT_ADDRESS=%s", address(vault));
     }
 }

@@ -27,6 +27,7 @@ import {
 } from '@/services/cooperative/rotation';
 import { formatCurrency, formatDate, roleLabel, roleBadgeClass } from '@/utils/format';
 import { cn } from '@/lib/utils';
+import { MIN_CONTRIBUTION_USDC } from '@/config/treasury-vault';
 import type { Cooperative, Member, MemberRole, CoopPrivacy, VotingModel, LoanApprovalPolicy, ContributionFrequency } from '@/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -327,6 +328,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
   const [tab, setTab] = useState<SettingsTab>('basic');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [rulesError, setRulesError] = useState<string | null>(null);
   const [form, setForm] = useState<SettingsForm>({
     name: coop.name,
     description: coop.description,
@@ -346,6 +348,20 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
     setForm((f) => ({ ...f, [k]: v }));
 
   const handleSave = () => {
+    const amt = Number(form.contributionAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setRulesError('Enter a valid contribution amount.');
+      setTab('rules');
+      return;
+    }
+    if (amt < MIN_CONTRIBUTION_USDC) {
+      setRulesError(
+        `Contribution must be at least $${MIN_CONTRIBUTION_USDC} (matches on-chain vault minimum).`,
+      );
+      setTab('rules');
+      return;
+    }
+    setRulesError(null);
     setSaving(true);
     try {
       updateCooperative(coop.id, {
@@ -353,7 +369,7 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
         description: form.description.trim() || coop.description,
         country: form.country,
         currency: form.currency,
-        contributionAmount: Number(form.contributionAmount) || coop.contributionAmount,
+        contributionAmount: amt,
         contributionFrequency: form.contributionFrequency,
         maxMembers: form.maxMembers ? Number(form.maxMembers) : undefined,
         privacy: form.privacy,
@@ -454,10 +470,24 @@ function CoopSettingsPanel({ coop, onClose }: { coop: Cooperative; onClose: () =
 
               {tab === 'rules' && (
                 <>
-                  <SettingsField label={`Contribution Amount (${form.currency})`}>
-                    <SettingsInput value={form.contributionAmount} onChange={(v) => set('contributionAmount', v)} type="number" placeholder="e.g. 350" />
+                  <SettingsField
+                    label={`Contribution Amount (${form.currency})`}
+                    hint={`Exact amount each member must deposit per cycle (min $${MIN_CONTRIBUTION_USDC}). On-chain vault rejects more or less.`}
+                  >
+                    <SettingsInput
+                      value={form.contributionAmount}
+                      onChange={(v) => {
+                        set('contributionAmount', v);
+                        setRulesError(null);
+                      }}
+                      type="number"
+                      placeholder={`e.g. ${MIN_CONTRIBUTION_USDC} or 50`}
+                    />
                   </SettingsField>
-                  <SettingsField label="Contribution Frequency">
+                  {rulesError && (
+                    <p className="text-xs text-rose-500 dark:text-rose-400 -mt-2 mb-2">{rulesError}</p>
+                  )}
+                  <SettingsField label="Contribution Frequency" hint="Weekly / bi-weekly / monthly schedule enforced on-chain after you sync vault rules.">
                     <div className="space-y-2">
                       {([['weekly', 'Weekly', 'Contributions every week'], ['bi-weekly', 'Bi-Weekly', 'Every two weeks'], ['monthly', 'Monthly', 'Once a month']] as [ContributionFrequency, string, string][]).map(([v, l, d]) => (
                         <SettingsRadio key={v} value={v} current={form.contributionFrequency} onChange={(val) => set('contributionFrequency', val)} label={l} desc={d} />

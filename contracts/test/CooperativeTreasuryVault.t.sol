@@ -32,6 +32,7 @@ contract CooperativeTreasuryVaultTest is Test {
             organizer,
             "Sunrise Savings Circle",
             CONTRIB,
+            CooperativeTreasuryVault.ContributionFrequency.Monthly,
             CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
             alloc
         );
@@ -92,6 +93,51 @@ contract CooperativeTreasuryVaultTest is Test {
         assertEq(hist[0].member, alice);
     }
 
+    /// @notice Matches product policy + live Arc deploy ($50 bi-weekly, 60/30/5/5).
+    function test_FiftyUsdcBiWeeklyAllocationBuckets() public {
+        CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
+            .AllocationConfig({
+            rotationBps: 6000,
+            loanPoolBps: 3000,
+            emergencyBps: 500,
+            savingsBps: 500
+        });
+        CooperativeTreasuryVault v = new CooperativeTreasuryVault(
+            address(usdc),
+            organizer,
+            "Nexusu $50 BiWeekly",
+            50e6,
+            CooperativeTreasuryVault.ContributionFrequency.BiWeekly,
+            CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
+            alloc
+        );
+        usdc.mint(alice, 50e6);
+        vm.prank(organizer);
+        v.registerMember(alice);
+
+        vm.startPrank(alice);
+        usdc.approve(address(v), 50e6);
+        v.deposit();
+        vm.stopPrank();
+
+        CooperativeTreasuryVault.TreasuryBreakdown memory b = v.getTreasuryAllocationBreakdown();
+        assertEq(v.contributionAmount(), 50e6);
+        assertEq(
+            uint8(v.contributionFrequency()),
+            uint8(CooperativeTreasuryVault.ContributionFrequency.BiWeekly)
+        );
+        assertEq(b.totalBalance, 50e6);
+        assertEq(b.rotationFund, 30e6); // 60%
+        assertEq(b.loanPool, 15e6); // 30%
+        assertEq(b.emergencyReserve, 2.5e6); // 5%
+        assertEq(b.savingsInvestment, 2.5e6); // 5%
+        // Full deposit accounted for (no dust lost)
+        assertEq(
+            b.rotationFund + b.loanPool + b.emergencyReserve + b.savingsInvestment,
+            50e6
+        );
+    }
+
     function test_RejectDuplicateContribution() public {
         _approveAndDeposit(alice);
         vm.startPrank(alice);
@@ -149,7 +195,11 @@ contract CooperativeTreasuryVaultTest is Test {
 
     function test_RotationWrapsAfterLastMember() public {
         // Three full cycles: alice, bob, carol, then alice again
+        // Warp past founder frequency between cycles (monthly = 30 days in setUp)
         for (uint256 round = 0; round < 3; round++) {
+            if (round > 0) {
+                vm.warp(block.timestamp + vault.contributionPeriodSeconds());
+            }
             _approveAndDeposit(alice);
             _approveAndDeposit(bob);
             _approveAndDeposit(carol);
@@ -220,5 +270,251 @@ contract CooperativeTreasuryVaultTest is Test {
         (address next, uint32 pos) = vault.getNextPayoutRecipient();
         assertEq(pos, 2);
         assertEq(next, bob);
+    }
+
+    function test_SetContributionRulesFromFounder() public {
+        vm.prank(organizer);
+        vault.setContributionRules(50e6, CooperativeTreasuryVault.ContributionFrequency.BiWeekly);
+        assertEq(vault.contributionAmount(), 50e6);
+        assertEq(
+            uint8(vault.contributionFrequency()),
+            uint8(CooperativeTreasuryVault.ContributionFrequency.BiWeekly)
+        );
+    }
+
+    function test_RejectContributionBelowMinimum() public {
+        vm.prank(organizer);
+        vm.expectRevert(CooperativeTreasuryVault.AmountBelowMinimum.selector);
+        vault.setContributionAmount(5e6); // $5 < $10 min
+    }
+
+    function test_ConstructorRejectsBelowMinimum() public {
+        CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
+            .AllocationConfig({
+            rotationBps: 6000,
+            loanPoolBps: 3000,
+            emergencyBps: 500,
+            savingsBps: 500
+        });
+        vm.expectRevert(CooperativeTreasuryVault.AmountBelowMinimum.selector);
+        new CooperativeTreasuryVault(
+            address(usdc),
+            organizer,
+            "Too Low",
+            5e6,
+            CooperativeTreasuryVault.ContributionFrequency.Weekly,
+            CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
+            alloc
+        );
+    }
+
+    function test_CannotChangeRulesMidCycle() public {
+        _approveAndDeposit(alice);
+        vm.prank(organizer);
+        vm.expectRevert(CooperativeTreasuryVault.AlreadyContributed.selector);
+        vault.setContributionRules(75e6, CooperativeTreasuryVault.ContributionFrequency.Weekly);
+    }
+
+    function test_CannotDepositMoreOftenThanFounderFrequency() public {
+        // Bi-weekly vault: second deposit before 14 days must revert
+        CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
+            .AllocationConfig({
+            rotationBps: 6000,
+            loanPoolBps: 3000,
+            emergencyBps: 500,
+            savingsBps: 500
+        });
+        CooperativeTreasuryVault v = new CooperativeTreasuryVault(
+            address(usdc),
+            organizer,
+            "BiWeekly Cap",
+            50e6,
+            CooperativeTreasuryVault.ContributionFrequency.BiWeekly,
+            CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
+            alloc
+        );
+        usdc.mint(alice, 200e6);
+        vm.prank(organizer);
+        v.registerMember(alice);
+        vm.prank(organizer);
+        v.registerMember(bob);
+        usdc.mint(bob, 200e6);
+
+        // Cycle 1: both pay, payout
+        vm.startPrank(alice);
+        usdc.approve(address(v), type(uint256).max);
+        v.deposit();
+        vm.stopPrank();
+        vm.startPrank(bob);
+        usdc.approve(address(v), type(uint256).max);
+        v.deposit();
+        vm.stopPrank();
+        v.triggerPayout();
+
+        // Same day — next cycle open but frequency blocks alice
+        assertEq(v.currentCycle(), 2);
+        (bool ok,) = v.canDeposit(alice);
+        assertFalse(ok);
+
+        vm.startPrank(alice);
+        vm.expectRevert(CooperativeTreasuryVault.ContributionTooEarly.selector);
+        v.deposit();
+        vm.stopPrank();
+
+        // After 14 days — allowed, still exact $50 only
+        vm.warp(block.timestamp + 14 days);
+        (ok,) = v.canDeposit(alice);
+        assertTrue(ok);
+        assertEq(v.requiredContribution(), 50e6);
+
+        vm.prank(alice);
+        v.deposit();
+        assertEq(v.getTreasuryAllocationBreakdown().rotationFund, (50e6 * 6000) / 10_000);
+    }
+
+    function test_DepositAlwaysExactFounderAmountNeverMore() public {
+        // Over-approval still only pulls contributionAmount (cannot deposit more)
+        vm.startPrank(alice);
+        usdc.approve(address(vault), type(uint256).max);
+        uint256 before = usdc.balanceOf(alice);
+        vault.deposit();
+        vm.stopPrank();
+        assertEq(before - usdc.balanceOf(alice), CONTRIB);
+        assertEq(vault.getTreasuryBalance(), CONTRIB);
+        assertEq(vault.requiredContribution(), CONTRIB);
+    }
+
+    function test_CannotDepositLessThanFounderAmount() public {
+        // Approve less than founder contribution → transferFrom fails → no deposit recorded
+        uint256 shortApprove = CONTRIB - 1;
+        vm.startPrank(alice);
+        usdc.approve(address(vault), shortApprove);
+        vm.expectRevert(); // SafeERC20 / ERC20 insufficient allowance
+        vault.deposit();
+        vm.stopPrank();
+        assertEq(vault.getTreasuryBalance(), 0);
+        assertEq(uint8(vault.getContributionStatus(alice)), uint8(CooperativeTreasuryVault.ContributionStatus.Waiting));
+
+        // Balance below founder amount also cannot complete deposit
+        address poor = makeAddr("poor");
+        usdc.mint(poor, CONTRIB - 1);
+        vm.prank(organizer);
+        vault.registerMember(poor);
+        vm.startPrank(poor);
+        usdc.approve(address(vault), type(uint256).max);
+        vm.expectRevert(); // insufficient balance
+        vault.deposit();
+        vm.stopPrank();
+        assertEq(vault.getTreasuryBalance(), 0);
+    }
+
+    function test_WeeklyAndMonthlyPeriodLengths() public {
+        CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
+            .AllocationConfig({
+            rotationBps: 6000,
+            loanPoolBps: 3000,
+            emergencyBps: 500,
+            savingsBps: 500
+        });
+        CooperativeTreasuryVault weekly = new CooperativeTreasuryVault(
+            address(usdc),
+            organizer,
+            "W",
+            10e6,
+            CooperativeTreasuryVault.ContributionFrequency.Weekly,
+            CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
+            alloc
+        );
+        CooperativeTreasuryVault monthly = new CooperativeTreasuryVault(
+            address(usdc),
+            organizer,
+            "M",
+            10e6,
+            CooperativeTreasuryVault.ContributionFrequency.Monthly,
+            CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
+            alloc
+        );
+        assertEq(weekly.contributionPeriodSeconds(), 7 days);
+        assertEq(monthly.contributionPeriodSeconds(), 30 days);
+        assertEq(vault.contributionPeriodSeconds(), 30 days); // setUp monthly
+    }
+
+    /// @notice Weekly vault: deposit before 7 days reverts; after 7 days exact $10 only.
+    function test_WeeklyFrequencyBlocksEarlyDeposit() public {
+        CooperativeTreasuryVault.AllocationConfig memory alloc = CooperativeTreasuryVault
+            .AllocationConfig({
+            rotationBps: 6000,
+            loanPoolBps: 3000,
+            emergencyBps: 500,
+            savingsBps: 500
+        });
+        CooperativeTreasuryVault v = new CooperativeTreasuryVault(
+            address(usdc),
+            organizer,
+            "Weekly Cap",
+            10e6,
+            CooperativeTreasuryVault.ContributionFrequency.Weekly,
+            CooperativeTreasuryVault.PayoutStrategy.JoinOrder,
+            alloc
+        );
+        usdc.mint(alice, 100e6);
+        usdc.mint(bob, 100e6);
+        vm.startPrank(organizer);
+        v.registerMember(alice);
+        v.registerMember(bob);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        usdc.approve(address(v), type(uint256).max);
+        v.deposit();
+        vm.stopPrank();
+        vm.startPrank(bob);
+        usdc.approve(address(v), type(uint256).max);
+        v.deposit();
+        vm.stopPrank();
+        v.triggerPayout();
+
+        // Day 3 of next cycle — still too early for weekly schedule
+        vm.warp(block.timestamp + 3 days);
+        vm.startPrank(alice);
+        vm.expectRevert(CooperativeTreasuryVault.ContributionTooEarly.selector);
+        v.deposit();
+        vm.stopPrank();
+
+        // After full 7 days — exact $10 pulled (never more)
+        vm.warp(block.timestamp + 4 days);
+        uint256 before = usdc.balanceOf(alice);
+        vm.prank(alice);
+        v.deposit();
+        assertEq(before - usdc.balanceOf(alice), 10e6);
+        assertEq(v.requiredContribution(), 10e6);
+    }
+
+    /// @notice Monthly vault: deposit before 30 days reverts; after 30 days exact amount only.
+    function test_MonthlyFrequencyBlocksEarlyDeposit() public {
+        // setUp vault is monthly at $100
+        _approveAndDeposit(alice);
+        _approveAndDeposit(bob);
+        _approveAndDeposit(carol);
+        vault.triggerPayout();
+
+        vm.warp(block.timestamp + 29 days);
+        vm.startPrank(alice);
+        usdc.approve(address(vault), type(uint256).max);
+        vm.expectRevert(CooperativeTreasuryVault.ContributionTooEarly.selector);
+        vault.deposit();
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 1 days);
+        uint256 aliceBefore = usdc.balanceOf(alice);
+        uint256 vaultBefore = vault.getTreasuryBalance();
+        // Over-approve still only pulls founder amount
+        vm.startPrank(alice);
+        usdc.approve(address(vault), type(uint256).max);
+        vault.deposit();
+        vm.stopPrank();
+        assertEq(aliceBefore - usdc.balanceOf(alice), CONTRIB);
+        assertEq(vault.getTreasuryBalance() - vaultBefore, CONTRIB);
+        assertEq(vault.requiredContribution(), CONTRIB);
     }
 }

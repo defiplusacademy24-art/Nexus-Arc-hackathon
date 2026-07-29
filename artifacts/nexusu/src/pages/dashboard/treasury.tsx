@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Vault, TrendingUp, ArrowUpRight, ArrowDownRight,
-  RefreshCw, ArrowDownLeft, Loader2, Banknote, CheckCircle2,
+  RefreshCw, Banknote, CheckCircle2,
   RotateCcw, Shield, PiggyBank,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
@@ -30,7 +30,6 @@ import {
   outstandingLoansTotal,
   totalDisbursedAmount,
 } from '@/services/cooperative/loans';
-import { cn } from '@/lib/utils';
 import type { CashFlowPoint, Loan } from '@/types';
 import { Link } from 'wouter';
 import { OnChainVaultPanel } from '@/components/treasury/OnChainVaultPanel';
@@ -70,7 +69,7 @@ type TxRow = {
 };
 
 export default function Treasury() {
-  const { walletAddress, isConnected } = useWallet();
+  const { walletAddress } = useWallet();
   const { activeCooperative, updateCooperative } = useCooperative();
   const [totalBalance, setTotalBalance] = useState(activeCooperative?.treasuryBalance ?? 0);
   const [monthlyInflow, setMonthlyInflow] = useState(0);
@@ -78,9 +77,6 @@ export default function Treasury() {
   const [txns, setTxns] = useState<TxRow[]>([]);
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
   const [contributionTrend, setContributionTrend] = useState<Array<{ label: string; value: number }>>([]);
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -202,135 +198,111 @@ export default function Treasury() {
     void refresh();
   }, [activeCooperative?.id, activeCooperative?.treasuryBalance, refresh]);
 
-  const submitTx = async (type: TxType) => {
-    if (!walletAddress) {
-      setError('Connect your wallet first');
-      return;
-    }
-    if (!activeCooperative) {
-      setError('Create or join a cooperative first');
-      return;
-    }
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value <= 0) {
-      setError('Enter a valid amount greater than zero');
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      // Ensure backend has this coop (invite code links them)
-      let inviteCode = activeCooperative.inviteCode;
-      if (!inviteCode) {
-        const res = await apiCreateCooperative(walletAddress, {
-          name: activeCooperative.name,
-          description: activeCooperative.description,
-          type: activeCooperative.type,
-          country: activeCooperative.country,
-          currency: activeCooperative.currency,
-          contributionAmount: activeCooperative.contributionAmount,
-          contributionFrequency: activeCooperative.contributionFrequency,
-        });
-        inviteCode = String(res.cooperative.inviteCode);
-        updateCooperative(activeCooperative.id, { inviteCode });
-      } else {
-        // Best-effort sync if not on server yet
-        await apiCreateCooperative(walletAddress, {
-          name: activeCooperative.name,
-          description: activeCooperative.description,
-          type: activeCooperative.type,
-          country: activeCooperative.country,
-          currency: activeCooperative.currency,
-          contributionAmount: activeCooperative.contributionAmount,
-          contributionFrequency: activeCooperative.contributionFrequency,
-          inviteCode,
-        }).catch(() => {
-          /* already exists is fine — join path not needed for founder */
-        });
+  /**
+   * After a successful Arc deposit, mirror the contribution into the app ledger
+   * (members totals, notifications, charts). Never invent amounts — uses on-chain value.
+   */
+  const recordOnChainDeposit = useCallback(
+    async (value: number) => {
+      if (!walletAddress || !activeCooperative || !Number.isFinite(value) || value <= 0) {
+        return;
       }
-
-      // If create failed because already exists for another wallet, try join
-      // (member depositing into existing server coop)
-      let result;
+      setError(null);
       try {
-        result = await apiCreateTransaction(walletAddress, {
-          inviteCode,
-          type,
-          amount: value,
-          note: note.trim() || undefined,
+        let inviteCode = activeCooperative.inviteCode;
+        if (!inviteCode) {
+          const res = await apiCreateCooperative(walletAddress, {
+            name: activeCooperative.name,
+            description: activeCooperative.description,
+            type: activeCooperative.type,
+            country: activeCooperative.country,
+            currency: activeCooperative.currency,
+            contributionAmount: activeCooperative.contributionAmount,
+            contributionFrequency: activeCooperative.contributionFrequency,
+          });
+          inviteCode = String(res.cooperative.inviteCode);
+          updateCooperative(activeCooperative.id, { inviteCode });
+        } else {
+          await apiCreateCooperative(walletAddress, {
+            name: activeCooperative.name,
+            description: activeCooperative.description,
+            type: activeCooperative.type,
+            country: activeCooperative.country,
+            currency: activeCooperative.currency,
+            contributionAmount: activeCooperative.contributionAmount,
+            contributionFrequency: activeCooperative.contributionFrequency,
+            inviteCode,
+          }).catch(() => null);
+        }
+
+        let result;
+        try {
+          result = await apiCreateTransaction(walletAddress, {
+            inviteCode,
+            type: 'contribution',
+            amount: value,
+            note: 'On-chain Arc vault deposit',
+          });
+        } catch (firstErr) {
+          const { apiJoinCooperative } = await import('@/services/notifications/api');
+          await apiJoinCooperative(walletAddress, inviteCode!).catch(() => null);
+          result = await apiCreateTransaction(walletAddress, {
+            inviteCode,
+            type: 'contribution',
+            amount: value,
+            note: 'On-chain Arc vault deposit',
+          }).catch(() => {
+            throw firstErr;
+          });
+        }
+
+        const snap = result.snapshot as Record<string, number> | null;
+        const nextTotal =
+          typeof snap?.totalBalance === 'number' ? snap.totalBalance : totalBalance + value;
+
+        setTotalBalance(nextTotal);
+        if (typeof snap?.monthlyInflow === 'number') setMonthlyInflow(snap.monthlyInflow);
+        if (typeof snap?.monthlyOutflow === 'number') setMonthlyOutflow(snap.monthlyOutflow);
+
+        const serverCoopId =
+          typeof result.transaction.coopId === 'string' ? result.transaction.coopId : undefined;
+
+        updateCooperative(activeCooperative.id, {
+          treasuryBalance: nextTotal,
+          ...(serverCoopId ? { backendId: serverCoopId } : {}),
         });
-      } catch (firstErr) {
-        // Coop may exist but user not a member — attempt join then retry
-        const { apiJoinCooperative } = await import('@/services/notifications/api');
-        await apiJoinCooperative(walletAddress, inviteCode!).catch(() => null);
-        result = await apiCreateTransaction(walletAddress, {
-          inviteCode,
-          type,
-          amount: value,
-          note: note.trim() || undefined,
-        }).catch(() => {
-          throw firstErr;
-        });
-      }
 
-      const snap = result.snapshot as Record<string, number> | null;
-      const nextTotal =
-        typeof snap?.totalBalance === 'number'
-          ? snap.totalBalance
-          : type === 'withdrawal'
-            ? totalBalance - value
-            : totalBalance + value;
-
-      setTotalBalance(nextTotal);
-      if (typeof snap?.monthlyInflow === 'number') setMonthlyInflow(snap.monthlyInflow);
-      if (typeof snap?.monthlyOutflow === 'number') setMonthlyOutflow(snap.monthlyOutflow);
-
-      const serverCoopId =
-        typeof result.transaction.coopId === 'string'
-          ? result.transaction.coopId
-          : undefined;
-
-      updateCooperative(activeCooperative.id, {
-        treasuryBalance: nextTotal,
-        ...(serverCoopId ? { backendId: serverCoopId } : {}),
-      });
-
-      // Credit local member "Contributed" total so Members page stays live
-      if (type === 'deposit' || type === 'contribution') {
         applyWalletContribution(activeCooperative.id, walletAddress, value);
+
+        setTxns((prev) => [
+          {
+            id: result.transaction.id,
+            type: result.transaction.type,
+            amount: result.transaction.amount,
+            currency: String(
+              result.transaction.currency ?? activeCooperative.currency ?? 'USD',
+            ),
+            note: 'On-chain Arc vault deposit',
+            createdAt: result.transaction.createdAt,
+            walletIdentity: walletAddress,
+          },
+          ...prev,
+        ]);
+
+        void refresh();
+        setSuccess(
+          `On-chain deposit of ${formatCurrency(value)} recorded for members & notifications.`,
+        );
+      } catch (e) {
+        // On-chain already succeeded — don't block user, just note ledger lag
+        console.warn('[Treasury] ledger mirror failed after on-chain deposit', e);
+        setSuccess(
+          `On-chain deposit of ${formatCurrency(value)} submitted. Ledger sync may lag — refresh shortly.`,
+        );
       }
-
-      setTxns((prev) => [
-        {
-          id: result.transaction.id,
-          type: result.transaction.type,
-          amount: result.transaction.amount,
-          currency: String(result.transaction.currency ?? activeCooperative.currency ?? 'USD'),
-          note: note.trim() || undefined,
-          createdAt: result.transaction.createdAt,
-          walletIdentity: walletAddress,
-        },
-        ...prev,
-      ]);
-
-      // Refresh chart aggregates from updated ledger
-      void refresh();
-
-      setAmount('');
-      setNote('');
-      setSuccess(
-        type === 'withdrawal'
-          ? `Withdrew ${formatCurrency(value)}. Notification sent to members.`
-          : `Deposited ${formatCurrency(value)}. Members page contribution updated.`,
-      );
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Transaction failed');
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+    [walletAddress, activeCooperative, totalBalance, updateCooperative, refresh],
+  );
 
   const coopLabel = activeCooperative?.name ?? 'No cooperative selected';
 
@@ -357,73 +329,21 @@ export default function Treasury() {
           </button>
         </motion.div>
 
-        {/* On-chain Arc vault (deposit / payout via CooperativeTreasuryVault) */}
-        <OnChainVaultPanel />
+        {/* Primary path: on-chain deposit (founder rules enforced by vault) */}
+        <OnChainVaultPanel
+          onDepositSuccess={({ amount: deposited }) => recordOnChainDeposit(deposited)}
+        />
 
-        {/* Deposit / Withdraw (off-chain ledger) */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-6"
-        >
-          <h2 className="text-sm font-semibold text-stone-800 dark:text-white mb-1">Record transaction (ledger)</h2>
-          <p className="text-xs text-stone-400 dark:text-white/40 mb-4">
-            Deposits and withdrawals update the treasury balance and notify members. View every movement under Notifications → Transactions.
-          </p>
-
-          {!isConnected && (
-            <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">Connect your wallet to record transactions.</p>
-          )}
-          {!activeCooperative && (
-            <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">Create or join a cooperative first.</p>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-[#2E3B4B]/40 text-sm text-stone-800 dark:text-white outline-none focus:ring-2 focus:ring-[#6393C4]/30"
-            />
-            <input
-              type="text"
-              placeholder="Note (optional)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 bg-stone-50 dark:bg-[#2E3B4B]/40 text-sm text-stone-800 dark:text-white outline-none focus:ring-2 focus:ring-[#6393C4]/30"
-            />
-            <button
-              disabled={busy || !isConnected || !activeCooperative}
-              onClick={() => void submitTx('deposit')}
-              className={cn(
-                'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors disabled:opacity-50',
-              )}
-            >
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownLeft className="w-4 h-4" />}
-              Deposit
-            </button>
-            <button
-              disabled={busy || !isConnected || !activeCooperative}
-              onClick={() => void submitTx('withdrawal')}
-              className={cn(
-                'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-amber-600 hover:bg-amber-500 transition-colors disabled:opacity-50',
-              )}
-            >
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />}
-              Withdraw
-            </button>
+        {(error || success) && (
+          <div className="mb-6">
+            {error && (
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            )}
+            {success && (
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
+            )}
           </div>
-
-          {error && (
-            <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
-          )}
-          {success && (
-            <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
-          )}
-        </motion.div>
+        )}
 
         {/* Total balance hero */}
         <motion.div

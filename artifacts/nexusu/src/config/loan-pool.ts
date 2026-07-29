@@ -11,6 +11,20 @@ export const LOAN_POOL_ADDRESS = (import.meta.env.VITE_LOAN_POOL_ADDRESS ??
 
 export const LOAN_POOL_USDC_ADDRESS = ARC_USDC_ERC20_ADDRESS;
 
+/** ERC-20 approve used before fundPool / repay. */
+export const erc20ApproveAbi = [
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+] as const;
+
 /** Minimal ABI for apply / approve / repay / views (viem / wagmi). */
 export const loanPoolAbi = [
   {
@@ -53,6 +67,27 @@ export const loanPoolAbi = [
     name: 'fundPool',
     stateMutability: 'nonpayable',
     inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'registerBorrower',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'borrower', type: 'address' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'setMembershipVault',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'vault', type: 'address' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'setProfitRecipient',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'recipient', type: 'address' }],
     outputs: [],
   },
   {
@@ -136,6 +171,65 @@ export const loanPoolAbi = [
     name: 'interestBpsByTerm',
     stateMutability: 'view',
     inputs: [{ name: '', type: 'uint8' }],
+    outputs: [{ name: '', type: 'uint16' }],
+  },
+  {
+    type: 'function',
+    name: 'organizer',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'lendingAgent',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'membershipVault',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'isEligibleBorrower',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'canApply',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [
+      { name: 'ok', type: 'bool' },
+      { name: 'reason', type: 'string' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'openLoanId',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'nextLoanId',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'maxLoanBps',
+    stateMutability: 'view',
+    inputs: [],
     outputs: [{ name: '', type: 'uint16' }],
   },
   {
