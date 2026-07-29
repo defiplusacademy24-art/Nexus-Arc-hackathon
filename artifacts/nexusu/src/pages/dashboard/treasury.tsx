@@ -33,6 +33,16 @@ import {
 import type { CashFlowPoint, Loan } from '@/types';
 import { Link } from 'wouter';
 import { OnChainVaultPanel } from '@/components/treasury/OnChainVaultPanel';
+import {
+  fetchVaultSnapshot,
+  isVaultConfigured,
+} from '@/services/treasury/vault';
+
+/** Only ledger rows that came from a real Arc vault deposit (never invent cash). */
+function isOnChainLedgerTx(row: { note?: string; type?: string }): boolean {
+  const note = (row.note ?? '').toLowerCase();
+  return note.includes('on-chain') || note.includes('arc vault');
+}
 
 function TreasuryCard({ label, value, description, color, icon: Icon, delay = 0 }: {
   label: string; value: number; description?: string;
@@ -154,7 +164,23 @@ export default function Treasury() {
   const refresh = useCallback(async () => {
     if (!activeCooperative) return;
     setError(null);
-    const balance = activeCooperative.treasuryBalance ?? 0;
+
+    // Source of truth: on-chain vault when configured (never show offline ledger as cash)
+    let balance = 0;
+    if (isVaultConfigured()) {
+      try {
+        const snap = await fetchVaultSnapshot(walletAddress);
+        balance = snap.totalBalance;
+        // Keep coop cache aligned so Overview / other pages don't show stale ledger cash
+        if ((activeCooperative.treasuryBalance ?? 0) !== balance) {
+          updateCooperative(activeCooperative.id, { treasuryBalance: balance });
+        }
+      } catch {
+        balance = 0;
+      }
+    } else {
+      balance = activeCooperative.treasuryBalance ?? 0;
+    }
     setTotalBalance(balance);
 
     if (!walletAddress) {
@@ -181,22 +207,31 @@ export default function Treasury() {
         coopId: activeCooperative.id,
         limit: 100,
       }).catch(() => ({ transactions: [] as TxRow[] }));
-      const rows = (list.transactions ?? []) as TxRow[];
+      let rows = (list.transactions ?? []) as TxRow[];
+      // With vault live: only count real Arc deposit mirrors — drop phantom ledger cash
+      if (isVaultConfigured()) {
+        rows = rows.filter(isOnChainLedgerTx);
+      }
       setTxns(rows);
       const flows = sumMonthlyFlows(rows);
       setMonthlyInflow(flows.monthlyInflow);
       setMonthlyOutflow(flows.monthlyOutflow);
-      setCashFlow(buildCashFlowFromTransactions(rows, balance));
-      setContributionTrend(buildContributionTrend(rows));
+      setCashFlow(
+        balance > 0 || rows.length > 0
+          ? buildCashFlowFromTransactions(rows, balance)
+          : [],
+      );
+      setContributionTrend(
+        rows.length > 0 ? buildContributionTrend(rows) : [],
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to refresh treasury');
     }
-  }, [walletAddress, activeCooperative, ensureBackendCoop]);
+  }, [walletAddress, activeCooperative, ensureBackendCoop, updateCooperative]);
 
   useEffect(() => {
-    setTotalBalance(activeCooperative?.treasuryBalance ?? 0);
     void refresh();
-  }, [activeCooperative?.id, activeCooperative?.treasuryBalance, refresh]);
+  }, [activeCooperative?.id, refresh]);
 
   /**
    * After a successful Arc deposit, mirror the contribution into the app ledger
@@ -353,12 +388,16 @@ export default function Treasury() {
           className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-5 sm:p-7 mb-6 text-white relative overflow-hidden"
         >
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
-          <p className="text-sm font-medium text-white/70 mb-2">Cash on hand</p>
+          <p className="text-sm font-medium text-white/70 mb-2">
+            Cash on hand{isVaultConfigured() ? ' (on-chain vault)' : ''}
+          </p>
           <p className="text-3xl sm:text-5xl font-display font-bold mb-1 tabular-nums break-all">
             {formatCurrency(totalBalance)}
           </p>
           <p className="text-xs text-white/65 mb-2 max-w-xl">
-            Liquid funds only. Approved loans reduce cash; repayments restore cash. Amounts members still owe appear as loans receivable — not as cash.
+            {isVaultConfigured()
+              ? 'Balance from the Arc vault contract — not offline bookkeeping.'
+              : 'Liquid funds only. Approved loans reduce cash; repayments restore cash.'}
           </p>
           <div className="flex items-center gap-2 text-sm text-white/80">
             <TrendingUp className="w-4 h-4" />

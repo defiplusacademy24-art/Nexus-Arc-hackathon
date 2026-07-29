@@ -26,6 +26,10 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 import type { CashFlowPoint, Loan, Member } from '@/types';
+import {
+  fetchVaultSnapshot,
+  isVaultConfigured,
+} from '@/services/treasury/vault';
 
 // ── Animated Stat Card ─────────────────────────────────────────────────────────
 
@@ -225,13 +229,14 @@ function buildCashFlowFromTxns(
 
 export default function Overview() {
   const { identity, walletAddress } = useWallet();
-  const { activeCooperative, cooperatives } = useCooperative();
+  const { activeCooperative, cooperatives, updateCooperative } = useCooperative();
   const { prefs } = useProfile();
   const [members, setMembers] = useState<Member[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [monthlyInflow, setMonthlyInflow] = useState(0);
   const [monthlyOutflow, setMonthlyOutflow] = useState(0);
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
+  const [vaultCash, setVaultCash] = useState<number | null>(null);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -272,19 +277,54 @@ export default function Overview() {
     return () => window.removeEventListener('nexusu:loans-updated', onLoans);
   }, [activeCooperative, reloadLoans]);
 
+  // On-chain vault is cash truth when configured
+  useEffect(() => {
+    let cancelled = false;
+    async function loadVault() {
+      if (!isVaultConfigured()) {
+        setVaultCash(null);
+        return;
+      }
+      try {
+        const snap = await fetchVaultSnapshot(walletAddress);
+        if (cancelled) return;
+        setVaultCash(snap.totalBalance);
+        if (
+          activeCooperative &&
+          (activeCooperative.treasuryBalance ?? 0) !== snap.totalBalance
+        ) {
+          updateCooperative(activeCooperative.id, {
+            treasuryBalance: snap.totalBalance,
+          });
+        }
+      } catch {
+        if (!cancelled) setVaultCash(0);
+      }
+    }
+    void loadVault();
+    return () => {
+      cancelled = true;
+    };
+  }, [walletAddress, activeCooperative?.id, updateCooperative]);
+
   useEffect(() => {
     let cancelled = false;
     async function loadTx() {
+      const chainBal =
+        isVaultConfigured()
+          ? (vaultCash ?? 0)
+          : (activeCooperative?.treasuryBalance ?? 0);
+
       if (!walletAddress || !activeCooperative) {
         setMonthlyInflow(0);
         setMonthlyOutflow(0);
         setCashFlow(
-          activeCooperative?.treasuryBalance
+          chainBal > 0
             ? [{
                 month: new Date().toLocaleDateString('en-US', { month: 'short' }),
                 inflow: 0,
                 outflow: 0,
-                balance: activeCooperative.treasuryBalance,
+                balance: chainBal,
               }]
             : [],
         );
@@ -295,7 +335,13 @@ export default function Overview() {
           coopId: activeCooperative.id,
           limit: 200,
         });
-        const txns = res.transactions ?? [];
+        let txns = res.transactions ?? [];
+        if (isVaultConfigured()) {
+          txns = txns.filter((t) => {
+            const n = String((t as { note?: string }).note ?? '').toLowerCase();
+            return n.includes('on-chain') || n.includes('arc vault');
+          });
+        }
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
         let inflow = 0;
@@ -309,30 +355,20 @@ export default function Overview() {
         setMonthlyInflow(inflow);
         setMonthlyOutflow(outflow);
         setCashFlow(
-          buildCashFlowFromTxns(
-            txns,
-            activeCooperative.treasuryBalance ?? 0,
-          ),
+          chainBal > 0 || txns.length > 0
+            ? buildCashFlowFromTxns(txns, chainBal)
+            : [],
         );
       } catch {
         if (cancelled) return;
         setMonthlyInflow(0);
         setMonthlyOutflow(0);
-        setCashFlow(
-          activeCooperative.treasuryBalance
-            ? [{
-                month: new Date().toLocaleDateString('en-US', { month: 'short' }),
-                inflow: 0,
-                outflow: 0,
-                balance: activeCooperative.treasuryBalance,
-              }]
-            : [],
-        );
+        setCashFlow([]);
       }
     }
     void loadTx();
     return () => { cancelled = true; };
-  }, [walletAddress, activeCooperative?.id, activeCooperative?.treasuryBalance]);
+  }, [walletAddress, activeCooperative?.id, activeCooperative?.treasuryBalance, vaultCash]);
 
   const activeMembers = useMemo(
     () => members.filter((m) => m.status === 'active').length,
@@ -347,7 +383,11 @@ export default function Overview() {
     [activeCooperative, members],
   );
 
-  const treasury = activeCooperative?.treasuryBalance ?? 0;
+  // Prefer live vault cash over stale offline ledger
+  const treasury =
+    isVaultConfigured() && vaultCash != null
+      ? vaultCash
+      : (activeCooperative?.treasuryBalance ?? 0);
   const currency = activeCooperative?.currency ?? 'USD';
   const loansOutstanding = outstandingLoansTotal(loans);
   const loansDisbursed = totalDisbursedAmount(loans);
