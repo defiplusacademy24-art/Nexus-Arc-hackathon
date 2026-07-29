@@ -64,10 +64,30 @@ contract CooperativeTreasuryVaultTest is Test {
         assertEq(vault.memberCount(), 3);
     }
 
-    function test_OnlyMembersCanDeposit() public {
+    function test_DepositAutoJoinsNewWallet() public {
         address stranger = makeAddr("stranger");
         usdc.mint(stranger, CONTRIB);
         vm.startPrank(stranger);
+        usdc.approve(address(vault), CONTRIB);
+        vault.deposit();
+        vm.stopPrank();
+        assertTrue(vault.isMember(stranger));
+        assertEq(vault.getMemberRotationPosition(stranger), 4);
+        assertEq(uint8(vault.getContributionStatus(stranger)), uint8(CooperativeTreasuryVault.ContributionStatus.Paid));
+    }
+
+    function test_JoinVaultSelfRegister() public {
+        address newbie = makeAddr("newbie");
+        vm.prank(newbie);
+        vault.joinVault();
+        assertTrue(vault.isMember(newbie));
+        assertEq(vault.getMemberRotationPosition(newbie), 4);
+    }
+
+    function test_InactiveMemberCannotDeposit() public {
+        vm.prank(organizer);
+        vault.setMemberActive(alice, false);
+        vm.startPrank(alice);
         usdc.approve(address(vault), CONTRIB);
         vm.expectRevert(CooperativeTreasuryVault.NotMember.selector);
         vault.deposit();

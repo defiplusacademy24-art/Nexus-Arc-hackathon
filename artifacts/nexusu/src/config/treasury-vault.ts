@@ -64,6 +64,13 @@ export const treasuryVaultAbi = [
   },
   {
     type: 'function',
+    name: 'joinVault',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'setContributionRules',
     stateMutability: 'nonpayable',
     inputs: [

@@ -550,6 +550,7 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
   const launch = async () => {
     setCreating(true);
     try {
+      const wallet = identity?.walletAddress ?? '';
       await createCooperative({
         name: form.name,
         description: form.description,
@@ -568,7 +569,12 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
         aiGovernanceEnabled: Boolean(form.aiGovernanceEnabled),
         inviteCode: preview.inviteCode,
         cooperativeId: preview.cooperativeId,
-      }, identity?.walletAddress ?? '');
+      }, wallet);
+      // Silent vault membership so founder can deposit without a separate step
+      if (wallet) {
+        const { ensureVaultMembership } = await import('@/services/treasury/vault');
+        await ensureVaultMembership(wallet, { claimOrganizer: true }).catch(() => null);
+      }
       onClose();
     } catch {
       setError('Failed to create cooperative. Please try again.');

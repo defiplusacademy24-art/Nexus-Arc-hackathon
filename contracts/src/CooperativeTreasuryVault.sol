@@ -323,6 +323,33 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
      * @dev Organizer may register themselves as the founder (position #1).
      */
     function registerMember(address member) external onlyOrganizer {
+        _addMember(member);
+    }
+
+    /**
+     * @notice Batch-register members (gas-efficient onboarding).
+     */
+    function registerMembers(address[] calldata members) external onlyOrganizer {
+        uint256 len = members.length;
+        for (uint256 i = 0; i < len; ) {
+            _addMember(members[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @notice Self-register for vault membership (Circle / app wallets).
+     * @dev App coops use Circle addresses that differ from the forge deploy key.
+     *      Members who create/join a cooperative call this (or deposit, which
+     *      auto-joins) so they can contribute without a separate admin step.
+     */
+    function joinVault() external {
+        _addMember(msg.sender);
+    }
+
+    function _addMember(address member) internal {
         if (member == address(0)) revert ZeroAddress();
         if (_members[member].exists) revert MemberAlreadyRegistered();
 
@@ -343,36 +370,6 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         }
 
         emit MemberRegistered(member, pos, uint64(block.timestamp));
-    }
-
-    /**
-     * @notice Batch-register members (gas-efficient onboarding).
-     */
-    function registerMembers(address[] calldata members) external onlyOrganizer {
-        uint256 len = members.length;
-        for (uint256 i = 0; i < len; ) {
-            address member = members[i];
-            if (member == address(0)) revert ZeroAddress();
-            if (_members[member].exists) revert MemberAlreadyRegistered();
-
-            uint32 pos = nextJoinPosition;
-            _members[member] = Member({
-                wallet: member,
-                joinPosition: pos,
-                registeredAt: uint64(block.timestamp),
-                totalContributed: 0,
-                active: true,
-                exists: true
-            });
-            memberByPosition[pos] = member;
-            _memberList.push(member);
-            unchecked {
-                nextJoinPosition = pos + 1;
-                memberCount += 1;
-                ++i;
-            }
-            emit MemberRegistered(member, pos, uint64(block.timestamp));
-        }
     }
 
     function setMemberActive(address member, bool active) external onlyOrganizer {
@@ -434,12 +431,16 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
 
     /**
      * @notice Deposit the founder-set contribution amount in USDC (exact only).
-     * @dev There is no amount parameter by design — the vault always pulls
-     *      `contributionAmount` (what the founder set). Members cannot pay more
-     *      or less. Also enforces frequency cooldown (weekly / bi-weekly / monthly)
-     *      and one contribution per cycle.
+     * @dev Auto-joins the caller if not yet a member (create/join coop → deposit
+     *      without a separate registration step). Still pulls the exact founder
+     *      `contributionAmount` and enforces frequency + one contribution per cycle.
      */
-    function deposit() external nonReentrant onlyMember {
+    function deposit() external nonReentrant {
+        if (!_members[msg.sender].exists) {
+            _addMember(msg.sender);
+        } else if (!_members[msg.sender].active) {
+            revert NotMember();
+        }
         _deposit(msg.sender);
     }
 

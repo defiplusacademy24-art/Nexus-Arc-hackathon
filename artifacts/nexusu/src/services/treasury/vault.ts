@@ -146,7 +146,7 @@ export function friendlyVaultError(err: unknown): string {
     return 'Arc testnet RPC is busy (rate limited). Wait a few seconds and tap Refresh.';
   }
   if (/NotMember|not a member|Not registered/i.test(msg)) {
-    return 'Your wallet is not registered on this vault. The organizer must register you first.';
+    return 'Could not join the vault automatically. Try again, or redeploy the vault with joinVault support.';
   }
   if (/AlreadyContributed|already contributed/i.test(msg)) {
     return 'You already contributed this cycle.';
@@ -416,16 +416,80 @@ async function writeContract(params: {
 }
 
 /**
+ * Silently ensure the wallet can deposit: joinVault (new contracts), else server
+ * bootstrap (deploy-key operator for older vaults). Create/join coop callers use
+ * this so users never see a separate "register on vault" step.
+ */
+export async function ensureVaultMembership(
+  wallet?: string | null,
+  opts?: { claimOrganizer?: boolean; ucSession?: UcSession | null },
+): Promise<'already' | 'joined' | 'bootstrapped' | 'skipped'> {
+  const vault = getVaultAddress();
+  if (!vault || !wallet || !/^0x[a-fA-F0-9]{40}$/i.test(wallet)) return 'skipped';
+
+  const account = wallet as Address;
+  try {
+    const isMember = (await publicClient.readContract({
+      address: vault,
+      abi: treasuryVaultAbi,
+      functionName: 'isMember',
+      args: [account],
+    })) as boolean;
+    if (isMember) return 'already';
+  } catch {
+    /* RPC blip — still try join paths */
+  }
+
+  // 1) Self-join on vaults that expose joinVault()
+  try {
+    const callData = encodeFunctionData({
+      abi: treasuryVaultAbi,
+      functionName: 'joinVault',
+    });
+    await writeContract({
+      contractAddress: vault,
+      callData,
+      ucSession: opts?.ucSession ?? loadStoredUcSession(),
+    });
+    return 'joined';
+  } catch {
+    /* older vault or already member */
+  }
+
+  // 2) Server operator path for pre-joinVault deploys
+  try {
+    await bootstrapCircleWalletOnVault(account, {
+      claimOrganizer: opts?.claimOrganizer === true,
+    });
+    return 'bootstrapped';
+  } catch {
+    /* no operator key / not configured — deposit may still auto-join on new vaults */
+  }
+
+  return 'skipped';
+}
+
+/**
  * Approve USDC then deposit the vault's fixed contribution amount.
+ * Auto-ensures vault membership (joinVault / server bootstrap) first.
  */
 export async function depositToVault(opts?: {
   ucSession?: UcSession | null;
+  walletAddress?: string | null;
 }): Promise<{ amount: number; txKind: 'circle' | 'injected' }> {
   const vault = getVaultAddress();
   if (!vault) {
     throw new Error(
       'Vault not configured. Deploy the contract and set VITE_TREASURY_VAULT_ADDRESS.',
     );
+  }
+
+  const session = opts?.ucSession ?? loadStoredUcSession();
+  // Best-effort: self-join or server-register so Circle wallets can deposit.
+  // New vaults also auto-join inside deposit(); this covers older deploys.
+  const wallet = opts?.walletAddress || session?.address || null;
+  if (wallet) {
+    await ensureVaultMembership(wallet, { ucSession: session });
   }
 
   const amount = (await publicClient.readContract({
@@ -447,7 +511,6 @@ export async function depositToVault(opts?: {
     functionName: 'deposit',
   });
 
-  const session = opts?.ucSession ?? loadStoredUcSession();
   const usdc = (TREASURY_USDC_ADDRESS || ARC_USDC_ERC20_ADDRESS) as Address;
 
   await writeContract({

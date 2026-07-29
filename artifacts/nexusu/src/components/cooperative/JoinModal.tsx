@@ -62,6 +62,9 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
         email: email.trim(),
       });
       if (result.ok && result.coop) {
+        // Silent vault membership so joiners can deposit without a separate step
+        const { ensureVaultMembership } = await import('@/services/treasury/vault');
+        await ensureVaultMembership(identity.walletAddress).catch(() => null);
         setJoined({
           coop: result.coop,
           joinPosition: result.joinPosition ?? result.member?.joinPosition ?? 0,
