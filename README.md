@@ -138,6 +138,12 @@ Nexusu is powered by specialised agents:
 | **Governance Agent** | Executes community-approved proposals |
 | **Nexa Assistant** | Conversational AI for treasury insights and Q&A |
 
+**Make agents work end-to-end** (Circle Agent Wallets, env, on-chain roles, smoke tests):
+
+→ **[docs/AGENT_AND_CIRCLE_WALLET_SETUP.md](./docs/AGENT_AND_CIRCLE_WALLET_SETUP.md)**
+
+Architecture overview: [`artifacts/api-server/src/agents/README.md`](./artifacts/api-server/src/agents/README.md)
+
 ---
 
 ## Smart Contract Architecture
@@ -280,6 +286,12 @@ cd contracts
 forge test
 forge script script/Deploy.s.sol:Deploy --rpc-url <ARC_RPC> --broadcast --legacy
 ```
+
+### Autonomous agents + Circle Agent Wallets
+
+Step-by-step setup (wallets, `CIRCLE_BIN`, loan `lendingAgent`, health checks):
+
+→ **[docs/AGENT_AND_CIRCLE_WALLET_SETUP.md](./docs/AGENT_AND_CIRCLE_WALLET_SETUP.md)**
 
 ### Deploy (Vercel)
 

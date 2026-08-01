@@ -2,6 +2,9 @@
 
 AI agents for cooperative banking on **Arc Network** using **Circle Agent Stack**.
 
+> **Setup guide (wallets, env, on-chain roles, smoke tests):**  
+> [`docs/AGENT_AND_CIRCLE_WALLET_SETUP.md`](../../../../docs/AGENT_AND_CIRCLE_WALLET_SETUP.md)
+
 ## Hard rules
 
 - Agents **never store money**. All funds remain in smart contracts:
