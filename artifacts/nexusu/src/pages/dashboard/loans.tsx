@@ -1092,7 +1092,7 @@ export default function Loans() {
           </div>
         </motion.div>
 
-        {/* On-chain pool status */}
+        {/* Treasury allocation and on-chain disbursement status */}
         {onChainMode ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -1107,7 +1107,7 @@ export default function Loans() {
                     Loan Pool
                   </p>
                   <p className="text-[11px] text-stone-500 dark:text-white/45 mt-0.5">
-                    Max {((poolSnap?.maxLoanBps ?? 2500) / 100).toFixed(0)}% of pool liquidity
+                    Treasury reserves 30% for loans. On-chain USDC is tracked separately for disbursements.
                   </p>
                 </div>
               </div>
@@ -1123,15 +1123,21 @@ export default function Loans() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Pool USDC</p>
+                <p className="text-stone-400 dark:text-white/35">Treasury loan pool</p>
                 <p className="font-bold text-stone-800 dark:text-white tabular-nums">
-                  {formatCurrency(poolSnap?.usdcBalance ?? 0, currency)}
+                  {formatCurrency(treasuryLoanAvailable, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Available</p>
+                <p className="text-stone-400 dark:text-white/35">Available from Treasury</p>
                 <p className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  {formatCurrency(poolSnap?.liquidity ?? 0, currency)}
+                  {formatCurrency(treasuryLoanAvailable, currency)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">On-chain pool USDC</p>
+                <p className="font-bold text-stone-800 dark:text-white tabular-nums">
+                  {formatCurrency(poolSnap?.usdcBalance ?? 0, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
@@ -1140,13 +1146,11 @@ export default function Loans() {
                   {formatCurrency(poolSnap?.outstandingPrincipal ?? 0, currency)}
                 </p>
               </div>
-              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">You can apply</p>
-                <p className="font-bold text-stone-800 dark:text-white">
-                  {poolSnap?.canApply ? 'Yes' : poolSnap?.isEligibleBorrower === false ? 'Not eligible' : 'No'}
-                </p>
-              </div>
             </div>
+            <p className="text-[11px] text-stone-500 dark:text-white/45">
+              {poolSnap?.canApply ? 'You can apply.' : poolSnap?.isEligibleBorrower === false ? 'You are not eligible to apply.' : 'Applications are currently unavailable.'}
+              {' '}The organizer must fund the on-chain pool before approved loans can be disbursed.
+            </p>
             {poolSnap?.isOrganizer && (
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
                 <div className="flex-1">
@@ -1217,7 +1221,7 @@ export default function Loans() {
               bg: 'bg-emerald-50 dark:bg-emerald-500/10',
             },
             {
-              label: onChainMode ? 'Pool liquidity' : 'Total Disbursed',
+              label: onChainMode ? 'On-chain liquidity' : 'Total Disbursed',
               value: onChainMode
                 ? formatCurrency(poolSnap?.liquidity ?? 0, currency)
                 : formatCurrency(disbursed, currency),
