@@ -9,7 +9,6 @@
 import type { Loan, AiLoanAssessment, LoanPurposeCategory, Member, LoanRepaymentEntry } from '@/types';
 import { decisionToLoanStatus } from './lending-agent';
 import { computeLoanFinance, splitPayment } from './interest';
-import { computeLoanPoolMetrics } from '@/services/treasury';
 
 const key = (coopId: string) => `nexusu:loans:${coopId}`;
 
@@ -233,8 +232,7 @@ export function createLoanAndNotify(
  *   Member repays            → cash RETURNS to treasury (treasuryBalance ↑)
  *   Outstanding loans        → receivable (what members still owe), not cash
  *
- * Loan pool = 30% of treasury (matches Treasury page). Available shrinks
- * by outstanding disbursed loans. Total position ≈ cash + receivable.
+ * Total coop economic position ≈ cash on hand + loans receivable.
  */
 export function getTreasuryLoanMetrics(
   treasuryCash: number,
@@ -246,19 +244,20 @@ export function getTreasuryLoanMetrics(
   totalDisbursed: number;
   loanPoolCapacity: number;
   loanPoolAvailable: number;
-  loanPoolPct: number;
 } {
+  const cash = Math.max(0, treasuryCash);
   const receivable = outstandingLoansTotal(loans);
   const disbursed = totalDisbursedAmount(loans);
-  const pool = computeLoanPoolMetrics(treasuryCash, receivable);
+  // Capacity is a policy share of liquid cash available for new loans
+  const capacity = Math.round(cash * 0.3 * 100) / 100;
   return {
-    cashOnHand: pool.cashOnHand,
+    cashOnHand: cash,
     loansReceivable: receivable,
-    totalAssets: Math.round((pool.cashOnHand + receivable) * 100) / 100,
+    totalAssets: Math.round((cash + receivable) * 100) / 100,
     totalDisbursed: disbursed,
-    loanPoolCapacity: pool.capacity,
-    loanPoolAvailable: pool.available,
-    loanPoolPct: pool.pct,
+    loanPoolCapacity: capacity,
+    // New loans need liquid cash; outstanding is already outside cash
+    loanPoolAvailable: capacity,
   };
 }
 

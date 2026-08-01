@@ -36,7 +36,6 @@ import { OnChainVaultPanel } from '@/components/treasury/OnChainVaultPanel';
 import {
   fetchVaultSnapshot,
   isVaultConfigured,
-  type VaultBreakdown,
 } from '@/services/treasury/vault';
 
 /** Only ledger rows that came from a real Arc vault deposit (never invent cash). */
@@ -91,7 +90,6 @@ export default function Treasury() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [vaultBreakdown, setVaultBreakdown] = useState<VaultBreakdown | null>(null);
 
   const reloadLoans = useCallback(() => {
     if (!activeCooperative) {
@@ -134,23 +132,10 @@ export default function Treasury() {
     [loans],
   );
 
-  const allocation = useMemo(() => {
-    const calculated = buildSnapshotFromBalance(
-      totalBalance,
-      monthlyInflow,
-      monthlyOutflow,
-    );
-    if (!vaultBreakdown) return calculated;
-    return {
-      ...calculated,
-      availableBalance: vaultBreakdown.rotationFund,
-      rotationFund: vaultBreakdown.rotationFund,
-      loanPool: vaultBreakdown.loanPool,
-      emergencyReserve: vaultBreakdown.emergencyReserve,
-      savingsInvestment: vaultBreakdown.savingsInvestment,
-      reservedFunds: vaultBreakdown.emergencyReserve + vaultBreakdown.savingsInvestment,
-    };
-  }, [totalBalance, monthlyInflow, monthlyOutflow, vaultBreakdown]);
+  const allocation = useMemo(
+    () => buildSnapshotFromBalance(totalBalance, monthlyInflow, monthlyOutflow),
+    [totalBalance, monthlyInflow, monthlyOutflow],
+  );
   const currency = activeCooperative?.currency ?? 'USD';
 
   const ensureBackendCoop = useCallback(async (wallet: string) => {
@@ -186,18 +171,15 @@ export default function Treasury() {
       try {
         const snap = await fetchVaultSnapshot(walletAddress);
         balance = snap.totalBalance;
-        setVaultBreakdown(snap.breakdown);
         // Keep coop cache aligned so Overview / other pages don't show stale ledger cash
         if ((activeCooperative.treasuryBalance ?? 0) !== balance) {
           updateCooperative(activeCooperative.id, { treasuryBalance: balance });
         }
       } catch {
         balance = 0;
-        setVaultBreakdown(null);
       }
     } else {
       balance = activeCooperative.treasuryBalance ?? 0;
-      setVaultBreakdown(null);
     }
     setTotalBalance(balance);
 
