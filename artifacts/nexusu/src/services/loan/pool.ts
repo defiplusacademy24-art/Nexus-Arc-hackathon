@@ -656,7 +656,7 @@ export async function fundPoolOnChain(params: {
   ucSession?: UcSession | null;
 }): Promise<void> {
   const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured. Set VITE_LOAN_POOL_ADDRESS.');
+  if (!pool) throw new Error('Loan pool not configured.');
   if (!Number.isFinite(params.amountUsd) || params.amountUsd <= 0) {
     throw new Error('Enter a valid fund amount.');
   }

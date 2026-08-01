@@ -807,17 +807,14 @@ export default function Loans() {
     setChainMsg(null);
     setFormError('');
     try {
-      // Hard limit is on-chain at approve time — surface a clear pre-check.
       const need = loan.requestedAmount ?? 0;
       if (poolSnap && need > poolSnap.liquidity) {
         throw new Error(
-          `Cannot disburse ${formatCurrency(need, currency)}: Loan Pool has only ${formatCurrency(poolSnap.liquidity, currency)} USDC. Fund the pool (fundPool) first, then approve.`,
+          `Insufficient pool liquidity (${formatCurrency(poolSnap.liquidity, currency)}). Fund the pool, then approve.`,
         );
       }
       await approveLoanOnChain(chainId);
-      setChainMsg(
-        `Approve submitted for ${formatCurrency(loan.requestedAmount, currency)}. USDC will disburse after confirmation.`,
-      );
+      setChainMsg(`Loan approved — ${formatCurrency(loan.requestedAmount, currency)} disbursing.`);
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
     } catch (e) {
@@ -845,9 +842,13 @@ export default function Loans() {
   };
 
   const onFundPool = async () => {
+    if (!poolSnap?.isOrganizer) {
+      setFormError('Only the cooperative founder can fund the loan pool.');
+      return;
+    }
     const amt = Number(fundAmount);
     if (!Number.isFinite(amt) || amt <= 0) {
-      setFormError('Enter a valid USDC amount to fund the pool.');
+      setFormError('Enter a valid USDC amount.');
       return;
     }
     setFundBusy(true);
@@ -855,7 +856,7 @@ export default function Loans() {
     setChainMsg(null);
     try {
       await fundPoolOnChain({ amountUsd: amt });
-      setChainMsg(`Fund pool of ${formatCurrency(amt, currency)} submitted.`);
+      setChainMsg(`Pool funded with ${formatCurrency(amt, currency)}.`);
       setFundAmount('');
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
@@ -992,20 +993,8 @@ export default function Loans() {
           purpose: form.purpose,
         });
 
-        const aiNote =
-          result.decision === 'DECLINED'
-            ? ' AI recommended decline — organizer still decides on-chain.'
-            : result.decision === 'REQUIRES_GOVERNANCE_REVIEW'
-              ? ' AI flagged for governance review.'
-              : ' AI recommended approval.';
-
-        const liqNote =
-          poolSnap && amount > poolSnap.liquidity
-            ? ` Pool liquidity is currently ${formatCurrency(poolSnap.liquidity, currency)} — organizer must fund the Loan Pool before this can be disbursed.`
-            : '';
-
         setChainMsg(
-          `On-chain loan application for ${formatCurrency(amount, currency)} submitted.${aiNote} Status is Pending until the organizer (or lending agent) approves and USDC is disbursed.${liqNote}`,
+          `Application submitted for ${formatCurrency(amount, currency)} — pending founder approval.`,
         );
         setForm(EMPTY_FORM);
         await new Promise((r) => setTimeout(r, 2500));
@@ -1096,14 +1085,9 @@ export default function Loans() {
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
               {onChainMode
                 ? loadingChain
-                  ? 'Loading on-chain Loan Pool…'
-                  : `Pool liquidity ${formatCurrency(poolLiquidity, currency)} · max loan now ${formatCurrency(maxDisbursableNow, currency)}`
-                : vaultCashLoading
-                  ? 'Loading on-chain treasury…'
-                  : `${formatCurrency(vaultLoanAccounting, currency)} estimated loan share`}
-              {' · '}
-              {formatCurrency(outstanding, currency)} outstanding
-              {onChainMode && loadingChain ? ' · refreshing…' : ''}
+                  ? 'Loading…'
+                  : `${formatCurrency(poolLiquidity, currency)} available · ${formatCurrency(outstanding, currency)} outstanding`
+                : `${formatCurrency(outstanding, currency)} outstanding`}
             </p>
           </div>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
@@ -1154,24 +1138,17 @@ export default function Loans() {
           </div>
         </motion.div>
 
-        {/* On-chain pool status */}
+        {/* On-chain pool status — compact production UI */}
         {onChainMode ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 rounded-2xl border border-[#6393C4]/25 bg-[#6393C4]/5 dark:bg-[#6393C4]/10 p-4 sm:p-5"
+            className="mb-6 rounded-2xl border border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-stone-900/60 p-4 sm:p-5"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-              <div className="flex items-start gap-2 min-w-0">
-                <Shield className="w-4 h-4 text-[#6393C4] mt-0.5 flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-stone-800 dark:text-white">
-                    Loan Pool
-                  </p>
-                  <p className="text-[11px] text-stone-500 dark:text-white/45 mt-0.5">
-                    Max {((poolSnap?.maxLoanBps ?? 2500) / 100).toFixed(0)}% of pool USDC per loan · apply does not move funds
-                  </p>
-                </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <Shield className="w-4 h-4 text-[#6393C4] flex-shrink-0" />
+                <p className="text-sm font-semibold text-stone-800 dark:text-white">Loan Pool</p>
               </div>
               <button
                 type="button"
@@ -1183,104 +1160,70 @@ export default function Loans() {
                 Refresh
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
-              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Pool liquidity</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="rounded-xl bg-stone-50 dark:bg-white/5 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">Liquidity</p>
                 <p className="font-bold text-stone-800 dark:text-white tabular-nums">
                   {loadingChain ? '…' : formatCurrency(poolLiquidity, currency)}
                 </p>
               </div>
-              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Max loan now</p>
+              <div className="rounded-xl bg-stone-50 dark:bg-white/5 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">Max loan</p>
                 <p className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                   {loadingChain ? '…' : formatCurrency(maxDisbursableNow, currency)}
                 </p>
               </div>
-              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
+              <div className="rounded-xl bg-stone-50 dark:bg-white/5 px-3 py-2">
                 <p className="text-stone-400 dark:text-white/35">Outstanding</p>
                 <p className="font-bold text-amber-600 dark:text-amber-400 tabular-nums">
                   {formatCurrency(poolSnap?.outstandingPrincipal ?? 0, currency)}
                 </p>
               </div>
-              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">You can apply</p>
+              <div className="rounded-xl bg-stone-50 dark:bg-white/5 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">Eligible</p>
                 <p className="font-bold text-stone-800 dark:text-white">
-                  {poolSnap?.canApply ? 'Yes' : poolSnap?.isEligibleBorrower === false ? 'Not eligible' : 'No'}
+                  {poolSnap?.canApply ? 'Yes' : 'No'}
                 </p>
               </div>
             </div>
 
-            {poolLiquidity <= 0 && !loadingChain && (
-              <div className="mb-3 rounded-xl border border-amber-200 dark:border-amber-500/25 bg-amber-50/90 dark:bg-amber-500/10 px-3 py-2.5 text-[11px] text-amber-900 dark:text-amber-200">
-                <p className="font-semibold mb-1">Loan Pool has $0 USDC on-chain</p>
-                <p className="leading-relaxed">
-                  You can still <strong>apply</strong> (application stays Pending). Disbursement needs USDC in the
-                  CooperativeLoanPool via <code className="text-[10px]">fundPool</code>.
-                  {vaultLoanAccounting > 0 && (
-                    <>
-                      {' '}Vault loan allocation is currently ~{formatCurrency(vaultLoanAccounting, currency)} (accounting only — still in the Treasury Vault).
-                    </>
-                  )}
-                </p>
-              </div>
-            )}
-
-            {/* Anyone may fundPool (contract is not organizer-only); highlight when empty */}
-            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
-              <div className="flex-1">
-                <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
-                  Fund Loan Pool (USDC on-chain)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  step="0.01"
-                  value={fundAmount}
-                  onChange={(e) => setFundAmount(e.target.value)}
-                  placeholder={
-                    vaultLoanAccounting > 0
-                      ? String(Math.round(vaultLoanAccounting))
-                      : '500'
-                  }
-                  className="mt-1 w-full rounded-xl border border-stone-200 dark:border-white/10 bg-white dark:bg-[#2E3B4B]/40 px-3 py-2 text-sm outline-none focus:border-[#6393C4]/50"
-                />
-                <p className="text-[10px] text-stone-400 dark:text-white/35 mt-1">
-                  Pulls USDC from your wallet into the Loan Pool contract (approve + fundPool).
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={fundBusy || !isConnected}
-                onClick={() => void onFundPool()}
-                className="px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60"
-              >
-                {fundBusy ? 'Funding…' : 'Fund pool'}
-              </button>
-              {poolSnap?.isOrganizer && (
+            {/* Founder-only top-up (auto-fund happens on vault deposit when wired) */}
+            {poolSnap?.isOrganizer && (
+              <div className="mt-3 flex flex-col sm:flex-row gap-2 items-stretch sm:items-end border-t border-stone-100 dark:border-white/10 pt-3">
+                <div className="flex-1">
+                  <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
+                    Fund pool
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    step="0.01"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value)}
+                    placeholder={
+                      vaultLoanAccounting > 0
+                        ? String(Math.round(vaultLoanAccounting))
+                        : 'Amount'
+                    }
+                    className="mt-1 w-full rounded-xl border border-stone-200 dark:border-white/10 bg-white dark:bg-[#2E3B4B]/40 px-3 py-2 text-sm outline-none focus:border-[#6393C4]/50"
+                  />
+                </div>
                 <button
                   type="button"
-                  disabled={actionBusyId === 'register' || !walletAddress}
-                  onClick={() => void onRegisterSelf()}
-                  className="px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/10 text-sm font-semibold text-stone-700 dark:text-white/70 hover:bg-stone-50 dark:hover:bg-white/5 disabled:opacity-60"
+                  disabled={fundBusy}
+                  onClick={() => void onFundPool()}
+                  className="px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60"
                 >
-                  {actionBusyId === 'register' ? '…' : 'Register borrower'}
+                  {fundBusy ? '…' : 'Fund'}
                 </button>
-              )}
-            </div>
-            {!poolSnap?.isEligibleBorrower && poolSnap?.configured && isConnected && (
-              <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-3">
-                Not eligible — join the Treasury Vault (membership) or ask the organizer to register your wallet on the Loan Pool.
-              </p>
+              </div>
             )}
+
             {chainMsg && (
               <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-3">{chainMsg}</p>
             )}
           </motion.div>
-        ) : (
-          <div className="mb-6 rounded-2xl border border-amber-200 dark:border-amber-500/20 bg-amber-50/80 dark:bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
-            Loan pool not configured. Using local records.
-          </div>
-        )}
+        ) : null}
 
         {/* Stats */}
         <motion.div

@@ -231,9 +231,17 @@ contract CooperativeLoanPool is ReentrancyGuard {
 
     /**
      * @notice Deposit USDC into the loan pool (requires prior ERC-20 approve).
+     * @dev Open to organizer and to the membership vault (so treasury can auto-forward
+     *      loan share on each member deposit). Other callers are rejected.
      */
     function fundPool(uint256 amount) external nonReentrant {
         if (amount == 0) revert InvalidAmount();
+        if (
+            msg.sender != organizer &&
+            (membershipVault == address(0) || msg.sender != membershipVault)
+        ) {
+            revert NotOrganizer();
+        }
         usdc.safeTransferFrom(msg.sender, address(this), amount);
         emit PoolFunded(msg.sender, amount);
     }

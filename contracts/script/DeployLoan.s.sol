@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {CooperativeLoanPool} from "../src/CooperativeLoanPool.sol";
+import {CooperativeTreasuryVault} from "../src/CooperativeTreasuryVault.sol";
 
 /**
  * @notice Deploy CooperativeLoanPool to Arc Testnet.
@@ -46,6 +47,9 @@ contract DeployLoan is Script {
 
         if (treasury != address(0)) {
             pool.setProfitRecipient(treasury);
+            // Auto-route each vault deposit's loan share into this pool (organizer only).
+            CooperativeTreasuryVault(treasury).setLendingPool(address(pool));
+            console2.log("Vault lendingPool wired for auto-forward on deposit");
         }
 
         // When no membership vault, register organizer so they can self-test apply
@@ -58,5 +62,8 @@ contract DeployLoan is Script {
         console2.log("CooperativeLoanPool deployed at:", address(pool));
         console2.log("Explorer: https://testnet.arcscan.app/address/%s", address(pool));
         console2.log("Set frontend: VITE_LOAN_POOL_ADDRESS=%s", address(pool));
+        if (treasury != address(0)) {
+            console2.log("Deposits to treasury now fund loan pool automatically (30% share)");
+        }
     }
 }

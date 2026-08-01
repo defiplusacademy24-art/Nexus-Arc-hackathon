@@ -18,6 +18,11 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  *  - OrganizerAssigned: organizer-defined permanent positions
  *  - GovernanceVote: members vote for the next recipient
  */
+/// @dev Minimal interface so the vault can fund CooperativeLoanPool on deposit.
+interface ILoanPoolReceiver {
+    function fundPool(uint256 amount) external;
+}
+
 contract CooperativeTreasuryVault is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -114,9 +119,16 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     uint32 public nextJoinPosition = 1;
 
     uint256 public rotationFund;
+    /// @notice Loan allocation still held in this vault (not yet forwarded).
     uint256 public loanPool;
     uint256 public emergencyReserve;
     uint256 public savingsInvestment;
+
+    /// @notice Optional CooperativeLoanPool. When set, each deposit's loan share
+    ///         is transferred immediately via `fundPool` (production path).
+    address public lendingPool;
+    /// @notice Cumulative USDC forwarded to `lendingPool` (audit / UI).
+    uint256 public loanPoolForwarded;
 
     // ── Member registry ──────────────────────────────────────────────────────
 
@@ -192,6 +204,13 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     event PayoutVoteCast(address indexed voter, address indexed candidate, uint32 indexed cycle);
     event OrganizerRecipientSet(address indexed recipient);
     event VaultActivated(uint32 memberCount, uint32 cycle);
+    event LendingPoolUpdated(address indexed previous, address indexed next);
+    event LoanShareForwarded(
+        address indexed member,
+        uint256 amount,
+        address indexed pool
+    );
+    event LoanAllocationPushed(uint256 amount, address indexed pool);
 
     // ── Errors ───────────────────────────────────────────────────────────────
 
@@ -268,6 +287,32 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         address prev = organizer;
         organizer = newOrganizer;
         emit OrganizerTransferred(prev, newOrganizer);
+    }
+
+    /**
+     * @notice Wire CooperativeLoanPool so loan-share of each deposit is auto-funded.
+     * @dev Pass address(0) to disable auto-forward (loan share stays in vault accounting).
+     */
+    function setLendingPool(address pool) external onlyOrganizer {
+        address prev = lendingPool;
+        lendingPool = pool;
+        emit LendingPoolUpdated(prev, pool);
+    }
+
+    /**
+     * @notice Push residual vault `loanPool` accounting balance into `lendingPool`.
+     * @dev Used after enabling auto-forward on a vault that already held loan allocation.
+     */
+    function pushLoanAllocationToPool() external onlyOrganizer nonReentrant {
+        address pool = lendingPool;
+        if (pool == address(0)) revert ZeroAddress();
+        uint256 amount = loanPool;
+        if (amount == 0) revert InvalidAmount();
+        loanPool = 0;
+        loanPoolForwarded += amount;
+        usdc.forceApprove(pool, amount);
+        ILoanPoolReceiver(pool).fundPool(amount);
+        emit LoanAllocationPushed(amount, pool);
     }
 
     /**
@@ -485,10 +530,15 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
         uint256 savingsShare = amount - rotationShare - loanShare - emergencyShare;
 
         rotationFund += rotationShare;
-        loanPool += loanShare;
         emergencyReserve += emergencyShare;
         savingsInvestment += savingsShare;
         cycleRotationAccumulated[cycle] += rotationShare;
+
+        // Production path: forward loan share straight into CooperativeLoanPool.
+        // If lendingPool is unset, keep loan share inside the vault (legacy).
+        if (loanShare > 0) {
+            _routeLoanShare(member, loanShare);
+        }
 
         hasContributed[cycle][member] = true;
         lastContributedAt[member] = uint64(block.timestamp);
@@ -821,6 +871,22 @@ contract CooperativeTreasuryVault is ReentrancyGuard {
     }
 
     // ── Internal helpers ─────────────────────────────────────────────────────
+
+    /**
+     * @dev When `lendingPool` is set, approve + fundPool so disbursement liquidity
+     *      tracks deposits automatically. Otherwise retain USDC in vault.loanPool.
+     */
+    function _routeLoanShare(address member, uint256 loanShare) internal {
+        address pool = lendingPool;
+        if (pool == address(0)) {
+            loanPool += loanShare;
+            return;
+        }
+        loanPoolForwarded += loanShare;
+        usdc.forceApprove(pool, loanShare);
+        ILoanPoolReceiver(pool).fundPool(loanShare);
+        emit LoanShareForwarded(member, loanShare, pool);
+    }
 
     function _validateAllocation(AllocationConfig memory cfg) internal pure {
         uint256 sum = uint256(cfg.rotationBps) +

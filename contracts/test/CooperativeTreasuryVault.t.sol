@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {CooperativeTreasuryVault} from "../src/CooperativeTreasuryVault.sol";
+import {CooperativeLoanPool} from "../src/CooperativeLoanPool.sol";
 import {MockUSDC} from "../src/mocks/MockUSDC.sol";
 
 contract CooperativeTreasuryVaultTest is Test {
@@ -572,5 +573,48 @@ contract CooperativeTreasuryVaultTest is Test {
         assertEq(aliceBefore - usdc.balanceOf(alice), CONTRIB);
         assertEq(vault.getTreasuryBalance() - vaultBefore, CONTRIB);
         assertEq(vault.requiredContribution(), CONTRIB);
+    }
+
+    function test_AutoForwardLoanShareToLendingPool() public {
+        // Minimal loan pool that accepts fundPool from vault
+        CooperativeLoanPool pool = new CooperativeLoanPool(
+            address(usdc),
+            organizer,
+            address(vault)
+        );
+
+        vm.prank(organizer);
+        vault.setLendingPool(address(pool));
+
+        _approveAndDeposit(alice);
+
+        uint256 loanShare = (CONTRIB * 3000) / 10_000;
+        // Loan share left the vault immediately
+        assertEq(vault.getTreasuryBalance(), CONTRIB - loanShare);
+        assertEq(vault.loanPool(), 0);
+        assertEq(vault.loanPoolForwarded(), loanShare);
+        assertEq(pool.availableLiquidity(), loanShare);
+        assertEq(usdc.balanceOf(address(pool)), loanShare);
+    }
+
+    function test_PushResidualLoanAllocationToPool() public {
+        CooperativeLoanPool pool = new CooperativeLoanPool(
+            address(usdc),
+            organizer,
+            address(vault)
+        );
+
+        // Deposit while lendingPool unset — share stays in vault
+        _approveAndDeposit(alice);
+        uint256 loanShare = (CONTRIB * 3000) / 10_000;
+        assertEq(vault.loanPool(), loanShare);
+
+        vm.startPrank(organizer);
+        vault.setLendingPool(address(pool));
+        vault.pushLoanAllocationToPool();
+        vm.stopPrank();
+
+        assertEq(vault.loanPool(), 0);
+        assertEq(pool.availableLiquidity(), loanShare);
     }
 }

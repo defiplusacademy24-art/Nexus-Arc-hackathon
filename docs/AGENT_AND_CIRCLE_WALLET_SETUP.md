@@ -128,6 +128,17 @@ From Foundry broadcast files in this repo (verify on Arcscan before production u
 > If you redeployed contracts, **use your new addresses** everywhere below.  
 > Check: `contracts/broadcast/*/5042002/run-latest.json` and Arcscan.
 
+### 3.2 Auto loan funding (treasury → loan pool)
+
+When the vault’s `lendingPool` is set to the CooperativeLoanPool address:
+
+- Each member **deposit** automatically sends the **loan share** (default 30%) into the loan pool via `fundPool`.
+- `DeployLoan.s.sol` wires this with `vault.setLendingPool(pool)` when `TREASURY_VAULT` is set.
+- Founder can push residual vault loan allocation with `pushLoanAllocationToPool()`.
+- Manual `fundPool` is **founder/organizer only** (or the membership vault itself).
+
+Redeploy vault + loan (or call `setLendingPool` on a new vault build) for this path. Older vaults without `lendingPool` keep loan share inside the vault until the founder funds manually.
+
 ### 3.2 Confirm contracts on-chain
 
 ```bash
