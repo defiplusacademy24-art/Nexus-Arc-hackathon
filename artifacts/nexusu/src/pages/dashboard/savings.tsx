@@ -12,6 +12,8 @@ import {
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { useCooperative } from '@/providers/CooperativeProvider';
+import { useWallet } from '@/providers/WalletProvider';
+import { useVaultTreasury } from '@/hooks/useVaultTreasury';
 import { buildSavingsVaultSnapshot } from '@/services/cooperative/savings-vault';
 import { loadLoans } from '@/services/cooperative/loans';
 import { TREASURY_ALLOCATION } from '@/services/treasury';
@@ -82,6 +84,7 @@ function SummaryCard({
   icon: Icon,
   delay = 0,
   accent = 'text-[#6393C4]',
+  loading = false,
   children,
 }: {
   label: string;
@@ -90,6 +93,7 @@ function SummaryCard({
   icon: React.ElementType;
   delay?: number;
   accent?: string;
+  loading?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -109,12 +113,16 @@ function SummaryCard({
       </div>
       {children ?? (
         <>
-          <p className={cn('text-lg sm:text-2xl font-display font-bold tabular-nums break-words', accent)}>
-            {value}
-          </p>
-          {sub && (
+          {loading ? (
+            <div className="h-7 sm:h-8 w-24 rounded-md bg-stone-100 dark:bg-white/10 animate-pulse" />
+          ) : (
+            <p className={cn('text-lg sm:text-2xl font-display font-bold tabular-nums break-words', accent)}>
+              {value}
+            </p>
+          )}
+          {(sub || loading) && (
             <p className="text-[10px] sm:text-[11px] text-stone-400 dark:text-white/35 mt-1 line-clamp-2">
-              {sub}
+              {loading ? 'Loading on-chain…' : sub}
             </p>
           )}
         </>
@@ -125,6 +133,9 @@ function SummaryCard({
 
 export default function Savings() {
   const { activeCooperative } = useCooperative();
+  const { walletAddress } = useWallet();
+  const { balance: treasuryCash, isLoading: treasuryLoading } =
+    useVaultTreasury(walletAddress);
   const [loans, setLoans] = useState<Loan[]>([]);
 
   useEffect(() => {
@@ -146,7 +157,6 @@ export default function Savings() {
   }, [activeCooperative]);
 
   const currency = activeCooperative?.currency ?? 'USD';
-  const treasuryCash = activeCooperative?.treasuryBalance ?? 0;
 
   const vault = useMemo(
     () =>
@@ -184,6 +194,7 @@ export default function Savings() {
             icon={PiggyBank}
             delay={0.05}
             accent="text-[#6393C4]"
+            loading={treasuryLoading}
           />
           <SummaryCard
             label="Treasury Allocation"
@@ -191,10 +202,12 @@ export default function Savings() {
             icon={Leaf}
             delay={0.1}
             accent="text-teal-600 dark:text-teal-400"
+            loading={treasuryLoading}
           />
           <SummaryCard
             label="Yield Earned"
             value={formatCurrency(vault.yieldEarned, currency)}
+            loading={treasuryLoading}
             icon={TrendingUp}
             delay={0.15}
             accent="text-emerald-600 dark:text-emerald-400"

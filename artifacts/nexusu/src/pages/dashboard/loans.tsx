@@ -608,6 +608,8 @@ export default function Loans() {
   const repayRate = repaymentRate(loans);
   // The deployed treasury vault is the source of truth when available.
   // Do not briefly substitute the local cache while that on-chain value loads.
+  // While vaultBalance is null in vault mode, never fall back to stale local cache.
+  const vaultCashLoading = vaultMode && vaultBalance === null;
   const treasuryBalance = vaultMode
     ? (vaultBalance ?? 0)
     : (activeCooperative?.treasuryBalance ?? 0);
@@ -1063,7 +1065,10 @@ export default function Loans() {
           <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Loans</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
-              {formatCurrency(treasuryLoanAvailable, currency)} available from Treasury ·{' '}
+              {vaultCashLoading
+                ? 'Loading on-chain treasury…'
+                : `${formatCurrency(treasuryLoanAvailable, currency)} available from Treasury`}
+              {' · '}
               {formatCurrency(outstanding, currency)} outstanding
               {onChainMode && loadingChain ? ' · refreshing…' : ''}
             </p>
@@ -1149,13 +1154,13 @@ export default function Loans() {
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
                 <p className="text-stone-400 dark:text-white/35">Loan Pool</p>
                 <p className="font-bold text-stone-800 dark:text-white tabular-nums">
-                  {formatCurrency(treasuryLoanAvailable, currency)}
+                  {vaultCashLoading ? '…' : formatCurrency(treasuryLoanAvailable, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
                 <p className="text-stone-400 dark:text-white/35">Available</p>
                 <p className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  {formatCurrency(treasuryLoanAvailable, currency)}
+                  {vaultCashLoading ? '…' : formatCurrency(treasuryLoanAvailable, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">

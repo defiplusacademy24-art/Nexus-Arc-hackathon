@@ -9,6 +9,7 @@ import {
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { AreaChart } from '@/components/charts/AreaChart';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useVaultTreasury } from '@/hooks/useVaultTreasury';
 import { useWallet } from '@/providers/WalletProvider';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { useProfile } from '@/hooks/useProfile';
@@ -26,10 +27,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 import type { CashFlowPoint, Loan, Member } from '@/types';
-import {
-  fetchVaultSnapshot,
-  isVaultConfigured,
-} from '@/services/treasury/vault';
+import { isVaultConfigured } from '@/services/treasury/vault';
 
 // ── Animated Stat Card ─────────────────────────────────────────────────────────
 
@@ -46,16 +44,19 @@ interface StatCardProps {
   href?: string;
   delay?: number;
   empty?: boolean;
+  /** When true, show a skeleton instead of a stale/cached number. */
+  loading?: boolean;
 }
 
 function StatCard({
   label, value, format = 'currency', suffix = '', prefix = '',
   change, changeLabel, icon: Icon, iconColor = 'text-[#6393C4]',
-  href, delay = 0, empty = false,
+  href, delay = 0, empty = false, loading = false,
 }: StatCardProps) {
-  const count = useCountUp(empty ? 0 : value);
+  const count = useCountUp(empty || loading ? 0 : value, 900, !empty && !loading);
 
   const formatted = (() => {
+    if (loading) return null;
     if (empty && value === 0) {
       if (format === 'currency') return formatCurrency(0);
       if (format === 'percent') return '—';
@@ -79,7 +80,7 @@ function StatCard({
         <div className={cn('w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-100 dark:border-[#1A2A3A] flex-shrink-0')}>
           <Icon className={cn('w-4 h-4 sm:w-[1.125rem] sm:h-[1.125rem]', iconColor)} />
         </div>
-        {change !== undefined && !empty && (
+        {change !== undefined && !empty && !loading && (
           <div className={cn(
             'flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0',
             change >= 0
@@ -92,12 +93,19 @@ function StatCard({
         )}
       </div>
 
-      <p className="text-lg sm:text-2xl font-display font-bold text-stone-900 dark:text-white mb-1 tabular-nums break-words">
-        {prefix}{formatted}{suffix}
-      </p>
+      {loading ? (
+        <div className="h-7 sm:h-8 w-24 sm:w-28 rounded-md bg-stone-100 dark:bg-white/10 animate-pulse mb-1" />
+      ) : (
+        <p className="text-lg sm:text-2xl font-display font-bold text-stone-900 dark:text-white mb-1 tabular-nums break-words">
+          {prefix}{formatted}{suffix}
+        </p>
+      )}
       <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 font-medium leading-snug">
         {label}
-        {changeLabel && !empty && (
+        {loading && (
+          <span className="ml-1 text-stone-300 dark:text-white/25 block sm:inline">· loading on-chain</span>
+        )}
+        {changeLabel && !empty && !loading && (
           <span className="ml-1 text-stone-300 dark:text-white/25 block sm:inline">· {changeLabel}</span>
         )}
       </p>
@@ -229,14 +237,19 @@ function buildCashFlowFromTxns(
 
 export default function Overview() {
   const { identity, walletAddress } = useWallet();
-  const { activeCooperative, cooperatives, updateCooperative } = useCooperative();
+  const { activeCooperative, cooperatives } = useCooperative();
   const { prefs } = useProfile();
+  const {
+    balance: vaultBalance,
+    isLoading: treasuryLoading,
+    isReady: treasuryReady,
+    vaultConfigured,
+  } = useVaultTreasury(walletAddress);
   const [members, setMembers] = useState<Member[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [monthlyInflow, setMonthlyInflow] = useState(0);
   const [monthlyOutflow, setMonthlyOutflow] = useState(0);
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
-  const [vaultCash, setVaultCash] = useState<number | null>(null);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -277,43 +290,20 @@ export default function Overview() {
     return () => window.removeEventListener('nexusu:loans-updated', onLoans);
   }, [activeCooperative, reloadLoans]);
 
-  // On-chain vault is cash truth when configured
-  useEffect(() => {
-    let cancelled = false;
-    async function loadVault() {
-      if (!isVaultConfigured()) {
-        setVaultCash(null);
-        return;
-      }
-      try {
-        const snap = await fetchVaultSnapshot(walletAddress);
-        if (cancelled) return;
-        setVaultCash(snap.totalBalance);
-        if (
-          activeCooperative &&
-          (activeCooperative.treasuryBalance ?? 0) !== snap.totalBalance
-        ) {
-          updateCooperative(activeCooperative.id, {
-            treasuryBalance: snap.totalBalance,
-          });
-        }
-      } catch {
-        if (!cancelled) setVaultCash(0);
-      }
-    }
-    void loadVault();
-    return () => {
-      cancelled = true;
-    };
-  }, [walletAddress, activeCooperative?.id, updateCooperative]);
-
   useEffect(() => {
     let cancelled = false;
     async function loadTx() {
-      const chainBal =
-        isVaultConfigured()
-          ? (vaultCash ?? 0)
-          : (activeCooperative?.treasuryBalance ?? 0);
+      // Wait for on-chain cash before charting so we never seed charts with stale ledger totals.
+      if (vaultConfigured && !treasuryReady) {
+        setMonthlyInflow(0);
+        setMonthlyOutflow(0);
+        setCashFlow([]);
+        return;
+      }
+
+      const chainBal = vaultConfigured
+        ? vaultBalance
+        : (activeCooperative?.treasuryBalance ?? 0);
 
       if (!walletAddress || !activeCooperative) {
         setMonthlyInflow(0);
@@ -368,7 +358,14 @@ export default function Overview() {
     }
     void loadTx();
     return () => { cancelled = true; };
-  }, [walletAddress, activeCooperative?.id, activeCooperative?.treasuryBalance, vaultCash]);
+  }, [
+    walletAddress,
+    activeCooperative?.id,
+    activeCooperative?.treasuryBalance,
+    vaultConfigured,
+    treasuryReady,
+    vaultBalance,
+  ]);
 
   const activeMembers = useMemo(
     () => members.filter((m) => m.status === 'active').length,
@@ -383,11 +380,10 @@ export default function Overview() {
     [activeCooperative, members],
   );
 
-  // Prefer live vault cash over stale offline ledger
-  const treasury =
-    isVaultConfigured() && vaultCash != null
-      ? vaultCash
-      : (activeCooperative?.treasuryBalance ?? 0);
+  // Prefer live vault cash; while loading, keep 0 + loading flag (never stale cache).
+  const treasury = vaultConfigured
+    ? vaultBalance
+    : (activeCooperative?.treasuryBalance ?? 0);
   const currency = activeCooperative?.currency ?? 'USD';
   const loansOutstanding = outstandingLoansTotal(loans);
   const loansDisbursed = totalDisbursedAmount(loans);
@@ -496,8 +492,9 @@ export default function Overview() {
             label="Cash on hand"
             value={treasury}
             format="currency"
+            loading={treasuryLoading}
             changeLabel={
-              loansOutstanding > 0
+              !treasuryLoading && loansOutstanding > 0
                 ? `+ ${formatCurrency(loansOutstanding, currency)} outstanding`
                 : undefined
             }
@@ -509,7 +506,16 @@ export default function Overview() {
             label="Monthly Contributions"
             value={monthlyInflow}
             format="currency"
-            changeLabel={monthlyInflow > 0 ? 'this month' : totalContributed > 0 ? 'from ledger' : undefined}
+            loading={treasuryLoading}
+            changeLabel={
+              !treasuryLoading
+                ? monthlyInflow > 0
+                  ? 'this month'
+                  : totalContributed > 0
+                    ? 'from ledger'
+                    : undefined
+                : undefined
+            }
             icon={PiggyBank}
             href="/dashboard/savings"
             delay={0.05}
