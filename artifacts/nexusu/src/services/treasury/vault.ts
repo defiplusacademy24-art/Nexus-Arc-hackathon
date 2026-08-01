@@ -81,6 +81,29 @@ export type VaultSnapshot = {
   canDepositNow: boolean | null;
   canDepositReason: string | null;
   periodSeconds: number | null;
+  /** CooperativeLoanPool wired for auto-forward of loan share. */
+  lendingPool: Address | null;
+  /** Cumulative USDC already sent to the loan pool from deposits. */
+  loanPoolForwarded: number;
+  /** Residual loan share still sitting in the vault (not yet pushed). */
+  residualLoanPool: number;
+};
+
+export type VaultContributionRecord = {
+  member: Address;
+  amount: number;
+  timestamp: number;
+  cycle: number;
+};
+
+export type VaultContributionStats = {
+  records: VaultContributionRecord[];
+  /** Sum of contribution amounts in the current calendar month (UTC). */
+  monthlyInflow: number;
+  /** Sum in the current cooperative cycle. */
+  cycleInflow: number;
+  /** All-time sum of recorded contributions. */
+  totalInflow: number;
 };
 
 const STATUS_MAP = ['waiting', 'paid', 'exempt'] as const;
@@ -214,6 +237,9 @@ function emptySnapshot(): VaultSnapshot {
     canDepositNow: null,
     canDepositReason: null,
     periodSeconds: null,
+    lendingPool: null,
+    loanPoolForwarded: 0,
+    residualLoanPool: 0,
   };
 }
 
@@ -244,6 +270,10 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionFrequency' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionPeriodSeconds' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'getCurrentPayoutRecipient' },
+      { address: vault, abi: treasuryVaultAbi, functionName: 'lendingPool' },
+      { address: vault, abi: treasuryVaultAbi, functionName: 'loanPoolForwarded' },
+      { address: vault, abi: treasuryVaultAbi, functionName: 'loanPool' },
+      { address: vault, abi: treasuryVaultAbi, functionName: 'getTreasuryAllocationBreakdown' },
     ],
   });
 
@@ -255,6 +285,16 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   const freqRaw = resultValue<number | bigint>(core[5]);
   const periodRaw = resultValue<bigint | number>(core[6]);
   const currentPayee = resultValue<readonly [Address, number | bigint]>(core[7]);
+  const lendingPoolRaw = resultValue<Address>(core[8]);
+  const forwardedRaw = resultValue<bigint>(core[9]);
+  const residualLoanRaw = resultValue<bigint>(core[10]);
+  const breakdownRaw = resultValue<{
+    totalBalance: bigint;
+    rotationFund: bigint;
+    loanPool: bigint;
+    emergencyReserve: bigint;
+    savingsInvestment: bigint;
+  }>(core[11]);
 
   // If core amount failed entirely, surface a soft rate-limit style failure upstream
   if (contribRaw == null && balRaw == null) {
@@ -362,6 +402,22 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
       ? canClaimOnChain
       : allMembersPaid && isCurrentRecipient;
 
+  const zero = '0x0000000000000000000000000000000000000000';
+  const lendingPool =
+    lendingPoolRaw && lendingPoolRaw.toLowerCase() !== zero
+      ? lendingPoolRaw
+      : null;
+
+  const breakdown: VaultBreakdown | null = breakdownRaw
+    ? {
+        totalBalance: usdcToNumber(breakdownRaw.totalBalance),
+        rotationFund: usdcToNumber(breakdownRaw.rotationFund),
+        loanPool: usdcToNumber(breakdownRaw.loanPool),
+        emergencyReserve: usdcToNumber(breakdownRaw.emergencyReserve),
+        savingsInvestment: usdcToNumber(breakdownRaw.savingsInvestment),
+      }
+    : null;
+
   return {
     configured: true,
     vaultAddress: vault,
@@ -383,13 +439,107 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
     isCurrentRecipient,
     paidCount: Number(paid),
     requiredCount: Number(required),
-    breakdown: null,
+    breakdown,
     joinPosition,
     nextContributionAt,
     canDepositNow,
     canDepositReason,
     periodSeconds,
+    lendingPool,
+    loanPoolForwarded: forwardedRaw != null ? usdcToNumber(forwardedRaw) : 0,
+    residualLoanPool: residualLoanRaw != null ? usdcToNumber(residualLoanRaw) : 0,
   };
+}
+
+/**
+ * On-chain contribution ledger (source of truth for monthly / cycle inflow).
+ * Does not depend on the app DB ledger mirror.
+ */
+export async function fetchVaultContributionStats(
+  currentCycle?: number,
+): Promise<VaultContributionStats> {
+  const vault = getVaultAddress();
+  if (!vault) {
+    return { records: [], monthlyInflow: 0, cycleInflow: 0, totalInflow: 0 };
+  }
+
+  const rows = (await publicClient.readContract({
+    address: vault,
+    abi: treasuryVaultAbi,
+    functionName: 'getAllContributions',
+  })) as ReadonlyArray<{
+    member: Address;
+    amount: bigint;
+    timestamp: bigint | number;
+    cycle: number | bigint;
+  }>;
+
+  const records: VaultContributionRecord[] = (rows ?? []).map((r) => ({
+    member: r.member,
+    amount: usdcToNumber(r.amount),
+    timestamp: Number(r.timestamp),
+    cycle: Number(r.cycle),
+  }));
+
+  const now = new Date();
+  const monthStartSec = Math.floor(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) / 1000,
+  );
+  let monthlyInflow = 0;
+  let cycleInflow = 0;
+  let totalInflow = 0;
+  for (const rec of records) {
+    totalInflow += rec.amount;
+    if (rec.timestamp >= monthStartSec) monthlyInflow += rec.amount;
+    if (currentCycle != null && rec.cycle === currentCycle) {
+      cycleInflow += rec.amount;
+    }
+  }
+
+  return {
+    records,
+    monthlyInflow: Math.round(monthlyInflow * 100) / 100,
+    cycleInflow: Math.round(cycleInflow * 100) / 100,
+    totalInflow: Math.round(totalInflow * 100) / 100,
+  };
+}
+
+/** Organizer: wire CooperativeLoanPool so deposits auto-fund loan share. */
+export async function setVaultLendingPool(
+  pool: Address,
+  opts?: { ucSession?: UcSession | null },
+): Promise<{ txHash: string | null }> {
+  const vault = getVaultAddress();
+  if (!vault) throw new Error('Treasury vault not configured');
+  const callData = encodeFunctionData({
+    abi: treasuryVaultAbi,
+    functionName: 'setLendingPool',
+    args: [pool],
+  });
+  return writeContract({
+    contractAddress: vault,
+    callData,
+    ucSession: opts?.ucSession ?? loadStoredUcSession(),
+    waitForTx: true,
+  });
+}
+
+/** Organizer: push residual vault loan accounting USDC into the loan pool. */
+export async function pushVaultLoanAllocationToPool(opts?: {
+  ucSession?: UcSession | null;
+}): Promise<{ txHash: string | null }> {
+  const vault = getVaultAddress();
+  if (!vault) throw new Error('Treasury vault not configured');
+  const callData = encodeFunctionData({
+    abi: treasuryVaultAbi,
+    functionName: 'pushLoanAllocationToPool',
+  });
+  return writeContract({
+    contractAddress: vault,
+    callData,
+    ucSession: opts?.ucSession ?? loadStoredUcSession(),
+    waitForTx: true,
+  });
 }
 
 async function writeContract(params: {

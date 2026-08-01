@@ -24,6 +24,10 @@ export type VaultTreasuryState = {
   isReady: boolean;
   /** Last fetch failed (vault mode only). */
   error: boolean;
+  paidCount: number;
+  requiredCount: number;
+  contributionAmount: number;
+  currentCycle: number;
   /** Re-fetch on-chain balance. */
   refresh: () => Promise<void>;
 };
@@ -35,6 +39,10 @@ export function useVaultTreasury(
   const vaultConfigured = isVaultConfigured();
 
   const [chainBalance, setChainBalance] = useState<number | null>(null);
+  const [paidCount, setPaidCount] = useState(0);
+  const [requiredCount, setRequiredCount] = useState(0);
+  const [contributionAmount, setContributionAmount] = useState(0);
+  const [currentCycle, setCurrentCycle] = useState(0);
   const [isLoading, setIsLoading] = useState(vaultConfigured);
   const [error, setError] = useState(false);
 
@@ -51,6 +59,10 @@ export function useVaultTreasury(
     try {
       const snap = await fetchVaultSnapshot(walletAddress ?? undefined);
       setChainBalance(snap.totalBalance);
+      setPaidCount(snap.paidCount);
+      setRequiredCount(snap.requiredCount);
+      setContributionAmount(snap.contributionAmount);
+      setCurrentCycle(snap.currentCycle);
       if (
         activeCooperative &&
         (activeCooperative.treasuryBalance ?? 0) !== snap.totalBalance
@@ -68,14 +80,13 @@ export function useVaultTreasury(
   }, [vaultConfigured, walletAddress, activeCooperative, updateCooperative]);
 
   useEffect(() => {
-    // Clear prior coop’s balance immediately so we never flash the wrong coop.
     if (vaultConfigured) {
       setChainBalance(null);
       setIsLoading(true);
       setError(false);
     }
     void refresh();
-  }, [walletAddress, activeCooperative?.id, vaultConfigured]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: re-fetch on coop/wallet change only
+  }, [walletAddress, activeCooperative?.id, vaultConfigured]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!vaultConfigured) {
     return {
@@ -84,6 +95,10 @@ export function useVaultTreasury(
       vaultConfigured: false,
       isReady: true,
       error: false,
+      paidCount: 0,
+      requiredCount: 0,
+      contributionAmount: activeCooperative?.contributionAmount ?? 0,
+      currentCycle: activeCooperative?.currentCycle ?? 0,
       refresh,
     };
   }
@@ -91,13 +106,15 @@ export function useVaultTreasury(
   const stillWaiting = isLoading || (chainBalance === null && !error);
 
   return {
-    // While loading, expose 0 but isLoading=true so UI shows skeleton, not $0 as truth.
-    // On error, balance 0 + isReady so the UI can settle without a stale cache flash.
     balance: chainBalance ?? 0,
     isLoading: stillWaiting,
     vaultConfigured: true,
     isReady: !stillWaiting,
     error,
+    paidCount,
+    requiredCount,
+    contributionAmount,
+    currentCycle,
     refresh,
   };
 }

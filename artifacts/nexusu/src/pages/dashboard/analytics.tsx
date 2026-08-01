@@ -18,7 +18,10 @@ import { apiListTransactions } from '@/services/notifications/api';
 import { formatCurrency } from '@/utils/format';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CashFlowPoint, Member } from '@/types';
-import { isVaultConfigured } from '@/services/treasury/vault';
+import {
+  fetchVaultContributionStats,
+  isVaultConfigured,
+} from '@/services/treasury/vault';
 
 function ChartCard({ title, subtitle, children, delay = 0, className = '', empty }: {
   title: string; subtitle?: string; children: React.ReactNode; delay?: number; className?: string; empty?: boolean;
@@ -140,6 +143,41 @@ export default function Analytics() {
 
       setTxLoading(true);
       try {
+        if (vaultConfigured) {
+          try {
+            const stats = await fetchVaultContributionStats();
+            if (cancelled) return;
+            setMonthlyInflow(stats.monthlyInflow);
+            const byMonth = new Map<string, number>();
+            for (const r of stats.records) {
+              const d = new Date(r.timestamp * 1000);
+              const key = d.toLocaleDateString('en-US', { month: 'short' });
+              byMonth.set(key, (byMonth.get(key) ?? 0) + r.amount);
+            }
+            const flow = [...byMonth.entries()].map(([month, inflow]) => ({
+              month,
+              inflow: Math.round(inflow * 100) / 100,
+              outflow: 0,
+              balance: cash,
+            }));
+            setCashFlow(
+              flow.length > 0
+                ? flow
+                : cash > 0
+                  ? [{
+                      month: new Date().toLocaleDateString('en-US', { month: 'short' }),
+                      inflow: stats.monthlyInflow,
+                      outflow: 0,
+                      balance: cash,
+                    }]
+                  : [],
+            );
+            return;
+          } catch {
+            /* fall through */
+          }
+        }
+
         const res = await apiListTransactions(walletAddress, {
           coopId: activeCooperative.id,
           limit: 200,
@@ -154,9 +192,7 @@ export default function Analytics() {
         if (cancelled) return;
         const flows = sumMonthlyFlows(txns);
         setMonthlyInflow(flows.monthlyInflow);
-        setCashFlow(
-          buildCashFlowFromTransactions(txns, cash),
-        );
+        setCashFlow(buildCashFlowFromTransactions(txns, cash));
       } catch {
         if (!cancelled) {
           setCashFlow([]);

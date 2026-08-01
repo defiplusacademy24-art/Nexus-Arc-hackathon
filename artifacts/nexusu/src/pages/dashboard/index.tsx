@@ -27,7 +27,10 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 import type { CashFlowPoint, Loan, Member } from '@/types';
-import { isVaultConfigured } from '@/services/treasury/vault';
+import {
+  fetchVaultContributionStats,
+  isVaultConfigured,
+} from '@/services/treasury/vault';
 
 // ── Animated Stat Card ─────────────────────────────────────────────────────────
 
@@ -244,6 +247,8 @@ export default function Overview() {
     isLoading: treasuryLoading,
     isReady: treasuryReady,
     vaultConfigured,
+    paidCount: vaultPaidCount,
+    contributionAmount: vaultContribAmount,
   } = useVaultTreasury(walletAddress);
   const [members, setMembers] = useState<Member[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -305,6 +310,68 @@ export default function Overview() {
         ? vaultBalance
         : (activeCooperative?.treasuryBalance ?? 0);
 
+      // Production path: monthly contributions from vault ContributionDeposited history
+      if (vaultConfigured) {
+        try {
+          const stats = await fetchVaultContributionStats();
+          if (cancelled) return;
+          setMonthlyInflow(stats.monthlyInflow);
+          setMonthlyOutflow(0);
+          // Build simple cash-flow points from on-chain records
+          const byMonth = new Map<string, { inflow: number; ts: number }>();
+          for (const r of stats.records) {
+            const d = new Date(r.timestamp * 1000);
+            const key = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            const prev = byMonth.get(key) ?? { inflow: 0, ts: r.timestamp };
+            byMonth.set(key, { inflow: prev.inflow + r.amount, ts: Math.min(prev.ts, r.timestamp) });
+          }
+          const points = [...byMonth.entries()]
+            .sort((a, b) => a[1].ts - b[1].ts)
+            .map(([month, v]) => ({
+              month,
+              inflow: Math.round(v.inflow * 100) / 100,
+              outflow: 0,
+              balance: chainBal,
+            }));
+          if (points.length === 0 && chainBal > 0) {
+            points.push({
+              month: new Date().toLocaleDateString('en-US', { month: 'short' }),
+              inflow: stats.monthlyInflow,
+              outflow: 0,
+              balance: chainBal,
+            });
+          }
+          // Reconstruct approximate running balance for chart (end = chain bal)
+          if (points.length > 0) {
+            let run = chainBal;
+            for (let i = points.length - 1; i >= 0; i--) {
+              points[i]!.balance = Math.round(run * 100) / 100;
+              run = Math.max(0, run - points[i]!.inflow);
+            }
+          }
+          setCashFlow(points);
+          return;
+        } catch {
+          // Older vaults without getAllContributions: use cycle paid × amount
+          if (!cancelled && vaultPaidCount > 0 && vaultContribAmount > 0) {
+            const approx = Math.round(vaultPaidCount * vaultContribAmount * 100) / 100;
+            setMonthlyInflow(approx);
+            setMonthlyOutflow(0);
+            setCashFlow(
+              chainBal > 0
+                ? [{
+                    month: new Date().toLocaleDateString('en-US', { month: 'short' }),
+                    inflow: approx,
+                    outflow: 0,
+                    balance: chainBal,
+                  }]
+                : [],
+            );
+            return;
+          }
+        }
+      }
+
       if (!walletAddress || !activeCooperative) {
         setMonthlyInflow(0);
         setMonthlyOutflow(0);
@@ -365,6 +432,8 @@ export default function Overview() {
     vaultConfigured,
     treasuryReady,
     vaultBalance,
+    vaultPaidCount,
+    vaultContribAmount,
   ]);
 
   const activeMembers = useMemo(
@@ -510,10 +579,10 @@ export default function Overview() {
             changeLabel={
               !treasuryLoading
                 ? monthlyInflow > 0
-                  ? 'this month'
-                  : totalContributed > 0
-                    ? 'from ledger'
-                    : undefined
+                  ? vaultConfigured
+                    ? 'on-chain this month'
+                    : 'this month'
+                  : undefined
                 : undefined
             }
             icon={PiggyBank}

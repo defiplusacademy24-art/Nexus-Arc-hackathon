@@ -50,7 +50,12 @@ import {
 import {
   fetchVaultSnapshot,
   isVaultConfigured,
+  pushVaultLoanAllocationToPool,
+  setVaultLendingPool,
+  type VaultSnapshot,
 } from '@/services/treasury/vault';
+import { LOAN_POOL_ADDRESS } from '@/config/loan-pool';
+import { isAddress } from 'viem';
 import { formatCurrency, formatDate, riskColor, riskLabel } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import type {
@@ -555,6 +560,8 @@ export default function Loans() {
   const [vaultBalance, setVaultBalance] = useState<number | null>(null);
   /** Vault accounting loan bucket (not the same as Loan Pool USDC). */
   const [vaultLoanBucket, setVaultLoanBucket] = useState<number | null>(null);
+  const [vaultSnap, setVaultSnap] = useState<VaultSnapshot | null>(null);
+  const [vaultBusy, setVaultBusy] = useState(false);
   const [loadingChain, setLoadingChain] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
@@ -602,12 +609,14 @@ export default function Loans() {
         setPoolSnap(snap);
         setLoans(chainLoans);
         setVaultBalance(vault?.totalBalance ?? null);
-        setVaultLoanBucket(vault?.breakdown?.loanPool ?? null);
+        setVaultLoanBucket(vault?.residualLoanPool ?? vault?.breakdown?.loanPool ?? null);
+        setVaultSnap(vault);
       } catch (e) {
         setFormError(friendlyLoanError(e));
         setLoans([]);
         setVaultBalance(null);
         setVaultLoanBucket(null);
+        setVaultSnap(null);
       } finally {
         setLoadingChain(false);
       }
@@ -620,14 +629,17 @@ export default function Loans() {
       try {
         const vault = await fetchVaultSnapshot(walletAddress);
         setVaultBalance(vault.totalBalance);
-        setVaultLoanBucket(vault.breakdown?.loanPool ?? null);
+        setVaultLoanBucket(vault.residualLoanPool ?? vault.breakdown?.loanPool ?? null);
+        setVaultSnap(vault);
       } catch {
         setVaultBalance(null);
         setVaultLoanBucket(null);
+        setVaultSnap(null);
       }
     } else {
       setVaultBalance(null);
       setVaultLoanBucket(null);
+      setVaultSnap(null);
     }
   }, [activeCooperative, onChainMode, vaultMode, walletAddress]);
 
@@ -957,7 +969,9 @@ export default function Loans() {
     setChainMsg(null);
     try {
       await fundPoolOnChain({ amountUsd: amt });
-      setChainMsg(`Pool funded with ${formatCurrency(amt, currency)}.`);
+      setChainMsg(
+        `Top-up of ${formatCurrency(amt, currency)} sent from your wallet to the loan pool.`,
+      );
       setFundAmount('');
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
@@ -965,6 +979,52 @@ export default function Loans() {
       setFormError(friendlyLoanError(e));
     } finally {
       setFundBusy(false);
+    }
+  };
+
+  /** Wire vault so each deposit's 30% loan share auto-funds the pool (no personal wallet). */
+  const onEnableAutoLoanFunding = async () => {
+    if (!vaultSnap?.isOrganizer) {
+      setFormError('Only the vault founder can enable auto loan funding.');
+      return;
+    }
+    if (!LOAN_POOL_ADDRESS || !isAddress(LOAN_POOL_ADDRESS)) {
+      setFormError('Loan pool address is not configured.');
+      return;
+    }
+    setVaultBusy(true);
+    setFormError('');
+    setChainMsg(null);
+    try {
+      await setVaultLendingPool(LOAN_POOL_ADDRESS as `0x${string}`);
+      setChainMsg('Vault linked: future deposits auto-send the loan share to the pool.');
+      await new Promise((r) => setTimeout(r, 2000));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setVaultBusy(false);
+    }
+  };
+
+  /** Push residual vault loan accounting USDC into the loan pool (from treasury, not personal). */
+  const onPushVaultLoanShare = async () => {
+    if (!vaultSnap?.isOrganizer) {
+      setFormError('Only the vault founder can transfer residual loan share.');
+      return;
+    }
+    setVaultBusy(true);
+    setFormError('');
+    setChainMsg(null);
+    try {
+      await pushVaultLoanAllocationToPool();
+      setChainMsg('Vault loan share transferred into the loan pool.');
+      await new Promise((r) => setTimeout(r, 2500));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setVaultBusy(false);
     }
   };
 
@@ -1299,35 +1359,80 @@ export default function Loans() {
               </div>
             </div>
 
-            {/* Founder-only top-up (auto-fund happens on vault deposit when wired) */}
-            {poolSnap?.isOrganizer && (
-              <div className="mt-3 flex flex-col sm:flex-row gap-2 items-stretch sm:items-end border-t border-stone-100 dark:border-white/10 pt-3">
-                <div className="flex-1">
-                  <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
-                    Fund pool
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    step="0.01"
-                    value={fundAmount}
-                    onChange={(e) => setFundAmount(e.target.value)}
-                    placeholder={
-                      vaultLoanAccounting > 0
-                        ? String(Math.round(vaultLoanAccounting))
-                        : 'Amount'
-                    }
-                    className="mt-1 w-full rounded-xl border border-stone-200 dark:border-white/10 bg-white dark:bg-[#2E3B4B]/40 px-3 py-2 text-sm outline-none focus:border-[#6393C4]/50"
-                  />
-                </div>
-                <button
-                  type="button"
-                  disabled={fundBusy}
-                  onClick={() => void onFundPool()}
-                  className="px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] disabled:opacity-60"
-                >
-                  {fundBusy ? '…' : 'Fund'}
-                </button>
+            {/* Founder: auto-forward from vault (production) + optional personal top-up */}
+            {(poolSnap?.isOrganizer || vaultSnap?.isOrganizer) && (
+              <div className="mt-3 space-y-3 border-t border-stone-100 dark:border-white/10 pt-3">
+                {vaultMode && (
+                  <div className="rounded-xl bg-stone-50 dark:bg-white/5 px-3 py-2.5 text-[11px] text-stone-600 dark:text-white/55 leading-relaxed">
+                    {vaultSnap?.lendingPool ? (
+                      <p>
+                        Auto-funding is on — each treasury deposit sends the{' '}
+                        <strong>30% loan share</strong> into this pool (from the vault, not personal wallets).
+                        Forwarded so far:{' '}
+                        <strong>{formatCurrency(vaultSnap.loanPoolForwarded ?? 0, currency)}</strong>
+                        {(vaultSnap.residualLoanPool ?? 0) > 0 && (
+                          <>
+                            {' '}· residual in vault:{' '}
+                            <strong>{formatCurrency(vaultSnap.residualLoanPool, currency)}</strong>
+                          </>
+                        )}
+                      </p>
+                    ) : (
+                      <p>
+                        Link the vault so deposits auto-fund the loan pool. Until then, “Fund” pulls USDC from{' '}
+                        <strong>your personal wallet</strong> (not the treasury).
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {!vaultSnap?.lendingPool && vaultSnap?.isOrganizer && (
+                        <button
+                          type="button"
+                          disabled={vaultBusy}
+                          onClick={() => void onEnableAutoLoanFunding()}
+                          className="px-3 py-1.5 rounded-lg bg-[#6393C4] text-white text-[11px] font-semibold hover:bg-[#5289B8] disabled:opacity-60"
+                        >
+                          {vaultBusy ? '…' : 'Enable auto loan funding'}
+                        </button>
+                      )}
+                      {(vaultSnap?.residualLoanPool ?? 0) > 0 && vaultSnap?.isOrganizer && vaultSnap?.lendingPool && (
+                        <button
+                          type="button"
+                          disabled={vaultBusy}
+                          onClick={() => void onPushVaultLoanShare()}
+                          className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-white/15 text-[11px] font-semibold text-stone-700 dark:text-white/80 hover:bg-white dark:hover:bg-white/5 disabled:opacity-60"
+                        >
+                          {vaultBusy ? '…' : 'Transfer residual from vault'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {poolSnap?.isOrganizer && (
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide">
+                        Optional personal top-up
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        step="0.01"
+                        value={fundAmount}
+                        onChange={(e) => setFundAmount(e.target.value)}
+                        placeholder="USDC from your wallet"
+                        className="mt-1 w-full rounded-xl border border-stone-200 dark:border-white/10 bg-white dark:bg-[#2E3B4B]/40 px-3 py-2 text-sm outline-none focus:border-[#6393C4]/50"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={fundBusy}
+                      onClick={() => void onFundPool()}
+                      className="px-4 py-2.5 rounded-xl border border-stone-200 dark:border-white/15 text-sm font-semibold text-stone-700 dark:text-white/80 hover:bg-stone-50 dark:hover:bg-white/5 disabled:opacity-60"
+                    >
+                      {fundBusy ? '…' : 'Top up'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

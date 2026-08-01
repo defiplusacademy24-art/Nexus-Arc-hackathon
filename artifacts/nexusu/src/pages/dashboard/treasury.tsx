@@ -34,6 +34,7 @@ import type { CashFlowPoint, Loan } from '@/types';
 import { Link } from 'wouter';
 import { OnChainVaultPanel } from '@/components/treasury/OnChainVaultPanel';
 import {
+  fetchVaultContributionStats,
   fetchVaultSnapshot,
   isVaultConfigured,
 } from '@/services/treasury/vault';
@@ -190,6 +191,17 @@ export default function Treasury() {
         // Keep coop cache aligned after a real chain read (not before)
         if ((activeCooperative.treasuryBalance ?? 0) !== balance) {
           updateCooperative(activeCooperative.id, { treasuryBalance: balance });
+        }
+        // Monthly contributions from vault history (not the fragile app ledger)
+        try {
+          const stats = await fetchVaultContributionStats(snap.currentCycle);
+          setMonthlyInflow(stats.monthlyInflow);
+        } catch {
+          if (snap.paidCount > 0 && snap.contributionAmount > 0) {
+            setMonthlyInflow(
+              Math.round(snap.paidCount * snap.contributionAmount * 100) / 100,
+            );
+          }
         }
       } catch {
         balance = 0;

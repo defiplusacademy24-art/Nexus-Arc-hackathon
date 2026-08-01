@@ -109,6 +109,13 @@ export const treasuryVaultAbi = [
   },
   {
     type: 'function',
+    name: 'loanPool',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
     name: 'setLendingPool',
     stateMutability: 'nonpayable',
     inputs: [{ name: 'pool', type: 'address' }],
@@ -120,6 +127,24 @@ export const treasuryVaultAbi = [
     stateMutability: 'nonpayable',
     inputs: [],
     outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'getAllContributions',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple[]',
+        components: [
+          { name: 'member', type: 'address' },
+          { name: 'amount', type: 'uint256' },
+          { name: 'timestamp', type: 'uint64' },
+          { name: 'cycle', type: 'uint32' },
+        ],
+      },
+    ],
   },
   {
     type: 'function',
