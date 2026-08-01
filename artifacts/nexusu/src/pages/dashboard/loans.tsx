@@ -492,6 +492,16 @@ const EMPTY_FORM: FormState = {
   agreed: false,
 };
 
+/**
+ * `approveLoan` enforces both that the principal is available and that it is
+ * no more than `maxLoanBps` of the pool. This is the smallest pool balance
+ * that can approve a particular principal (before any concurrent approvals).
+ */
+function minimumPoolLiquidityForLoan(principal: number, maxLoanBps: number): number {
+  if (!Number.isFinite(principal) || principal <= 0 || maxLoanBps <= 0) return 0;
+  return Math.ceil(((principal * 10_000) / maxLoanBps) * 1_000_000) / 1_000_000;
+}
+
 function nextPaymentEstimate(loan: Loan): number {
   const L = ensureLoanFinance(loan);
   const rem = remainingBalance(L);
@@ -524,6 +534,7 @@ export default function Loans() {
   const [fundAmount, setFundAmount] = useState('');
   const [fundBusy, setFundBusy] = useState(false);
   const [chainMsg, setChainMsg] = useState<string | null>(null);
+  const [poolError, setPoolError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!activeCooperative) {
@@ -552,7 +563,7 @@ export default function Loans() {
         setLoans(chainLoans);
         setVaultBalance(vault?.totalBalance ?? null);
       } catch (e) {
-        setFormError(friendlyLoanError(e));
+        setPoolError(friendlyLoanError(e));
         setLoans([]);
         setVaultBalance(null);
       } finally {
@@ -611,9 +622,23 @@ export default function Loans() {
   const treasuryBalance = vaultMode
     ? (vaultBalance ?? 0)
     : (activeCooperative?.treasuryBalance ?? 0);
-  const treasuryLoanAvailable = Math.round(
+  const treasuryLoanPool = Math.round(
     treasuryBalance * 0.3 * 100,
   ) / 100;
+  // A request does not reserve capital. Capacity is consumed only when the
+  // organizer approves and the principal is actually disbursed on-chain.
+  const deployedPrincipal = onChainMode
+    ? (poolSnap?.outstandingPrincipal ?? 0)
+    : outstanding;
+  const treasuryLoanAvailable = Math.max(
+    0,
+    Math.round((treasuryLoanPool - deployedPrincipal) * 100) / 100,
+  );
+  const poolLiquidity = poolSnap?.liquidity ?? 0;
+  const maxLoanBps = poolSnap?.maxLoanBps ?? 2500;
+  const poolApprovalCapacity = Math.floor((poolLiquidity * maxLoanBps) / 10_000 * 1_000_000) / 1_000_000;
+  const requestedPoolLiquidity = minimumPoolLiquidityForLoan(Number(form.amount), maxLoanBps);
+  const additionalFundingForRequest = Math.max(0, requestedPoolLiquidity - poolLiquidity);
 
   const myOutstanding = useMemo(() => {
     if (!walletAddress) return [];
@@ -788,7 +813,23 @@ export default function Loans() {
     if (!chainId) return;
     setActionBusyId(loan.id);
     setChainMsg(null);
+    setPoolError(null);
     try {
+      // Check immediately before the wallet transaction. A pending request is
+      // valid without funds, while approval requires live pool liquidity.
+      const currentPool = await fetchPoolSnapshot(walletAddress);
+      const requiredLiquidity = minimumPoolLiquidityForLoan(
+        loan.requestedAmount,
+        currentPool.maxLoanBps,
+      );
+      if (currentPool.liquidity + 0.000001 < requiredLiquidity) {
+        const shortfall = Math.max(0, requiredLiquidity - currentPool.liquidity);
+        setPoolError(
+          `Cannot approve this loan yet. The pool has ${formatCurrency(currentPool.liquidity, currency)}, but this ${formatCurrency(loan.requestedAmount, currency)} loan needs at least ${formatCurrency(requiredLiquidity, currency)} in pool liquidity under the ${((currentPool.maxLoanBps / 100).toFixed(0))}% single-loan limit. Fund at least ${formatCurrency(shortfall, currency)} and try again.`,
+        );
+        setPoolSnap(currentPool);
+        return;
+      }
       await approveLoanOnChain(chainId);
       setChainMsg(
         `Approve submitted for ${formatCurrency(loan.requestedAmount, currency)}. USDC will disburse after confirmation.`,
@@ -796,7 +837,7 @@ export default function Loans() {
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
     } catch (e) {
-      setFormError(friendlyLoanError(e));
+      setPoolError(friendlyLoanError(e));
     } finally {
       setActionBusyId(null);
     }
@@ -822,12 +863,13 @@ export default function Loans() {
   const onFundPool = async () => {
     const amt = Number(fundAmount);
     if (!Number.isFinite(amt) || amt <= 0) {
-      setFormError('Enter a valid USDC amount to fund the pool.');
+      setPoolError('Enter a valid USDC amount to fund the pool.');
       return;
     }
     setFundBusy(true);
     setFormError('');
     setChainMsg(null);
+    setPoolError(null);
     try {
       await fundPoolOnChain({ amountUsd: amt });
       setChainMsg(`Fund pool of ${formatCurrency(amt, currency)} submitted.`);
@@ -835,7 +877,7 @@ export default function Loans() {
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
     } catch (e) {
-      setFormError(friendlyLoanError(e));
+      setPoolError(friendlyLoanError(e));
     } finally {
       setFundBusy(false);
     }
@@ -843,11 +885,11 @@ export default function Loans() {
 
   const onRegisterSelf = async () => {
     if (!walletAddress) {
-      setFormError('Connect your wallet first.');
+      setPoolError('Connect your wallet first.');
       return;
     }
     setActionBusyId('register');
-    setFormError('');
+    setPoolError(null);
     setChainMsg(null);
     try {
       await registerBorrowerOnChain(walletAddress as `0x${string}`);
@@ -855,7 +897,7 @@ export default function Loans() {
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
     } catch (e) {
-      setFormError(friendlyLoanError(e));
+      setPoolError(friendlyLoanError(e));
     } finally {
       setActionBusyId(null);
     }
@@ -951,15 +993,9 @@ export default function Loans() {
         });
         setAssessment(result);
 
-        // Soft liquidity check — approve-time still enforces hard limits on-chain
-        if (poolSnap && amount > poolSnap.liquidity) {
-          setEvaluating(false);
-          setFormError(
-            `Requested amount exceeds on-chain pool liquidity (${formatCurrency(poolSnap.liquidity, currency)}). Organizer must fund the pool or request less.`,
-          );
-          return;
-        }
-
+        // An application creates a pending on-chain request only. Do not block
+        // it based on a cached treasury or pool balance; approval is guarded by
+        // a fresh on-chain liquidity check immediately before disbursement.
         await applyForLoanOnChain({
           principalUsd: amount,
           termMonths: form.months,
@@ -1063,7 +1099,10 @@ export default function Loans() {
           <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Loans</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
-              {formatCurrency(treasuryLoanAvailable, currency)} available from Treasury ·{' '}
+              {onChainMode
+                ? `${formatCurrency(poolApprovalCapacity, currency)} current approval capacity`
+                : `${formatCurrency(treasuryLoanAvailable, currency)} available from Treasury`}
+              {' · '}
               {formatCurrency(outstanding, currency)} outstanding
               {onChainMode && loadingChain ? ' · refreshing…' : ''}
             </p>
@@ -1147,15 +1186,15 @@ export default function Loans() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Loan Pool</p>
+                <p className="text-stone-400 dark:text-white/35">USDC liquidity</p>
                 <p className="font-bold text-stone-800 dark:text-white tabular-nums">
-                  {formatCurrency(treasuryLoanAvailable, currency)}
+                  {formatCurrency(poolLiquidity, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Available</p>
+                <p className="text-stone-400 dark:text-white/35">Approval capacity</p>
                 <p className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  {formatCurrency(treasuryLoanAvailable, currency)}
+                  {formatCurrency(poolApprovalCapacity, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
@@ -1208,6 +1247,12 @@ export default function Loans() {
             {!poolSnap?.isEligibleBorrower && poolSnap?.configured && isConnected && (
               <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-3">
                 Not eligible — register on the vault or ask the organizer to add your wallet.
+              </p>
+            )}
+            {poolError && (
+              <p role="alert" className="text-xs text-red-700 dark:text-red-400 mt-3 flex items-start gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                {poolError}
               </p>
             )}
             {chainMsg && (
@@ -1654,6 +1699,33 @@ export default function Loans() {
               />
             </div>
           </div>
+
+          {onChainMode && previewFinance && (
+            <div
+              className={cn(
+                'mb-4 rounded-xl border px-3.5 py-3 text-xs leading-relaxed',
+                additionalFundingForRequest > 0
+                  ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+              )}
+            >
+              <p className="font-semibold mb-0.5">Approval readiness</p>
+              {additionalFundingForRequest > 0 ? (
+                <p>
+                  You can submit this request now, but it cannot be approved until the pool is funded.
+                  This {formatCurrency(previewFinance.principal, currency)} loan needs at least{' '}
+                  {formatCurrency(requestedPoolLiquidity, currency)} in pool liquidity under the{' '}
+                  {(maxLoanBps / 100).toFixed(0)}% single-loan limit. Add at least{' '}
+                  {formatCurrency(additionalFundingForRequest, currency)} to the pool.
+                </p>
+              ) : (
+                <p>
+                  Current pool liquidity can support this amount, subject to the on-chain check at approval
+                  time and any other pending approvals.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Interest schedule */}
           <div className="mb-4 rounded-xl border border-stone-100 dark:border-white/8 bg-stone-50/80 dark:bg-[#2E3B4B]/25 p-4">
