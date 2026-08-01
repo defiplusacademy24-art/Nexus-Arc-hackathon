@@ -54,6 +54,25 @@ export const loanPoolAbi = [
   },
   {
     type: 'function',
+    name: 'cancelApplication',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'loanId', type: 'uint256' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'updateApplication',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'loanId', type: 'uint256' },
+      { name: 'principal', type: 'uint256' },
+      { name: 'termMonths', type: 'uint8' },
+      { name: 'purpose', type: 'string' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'repay',
     stateMutability: 'nonpayable',
     inputs: [

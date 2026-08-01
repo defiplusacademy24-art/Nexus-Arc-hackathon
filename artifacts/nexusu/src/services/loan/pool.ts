@@ -589,7 +589,7 @@ export async function rejectLoanOnChain(
   opts?: { ucSession?: UcSession | null },
 ): Promise<void> {
   const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured. Set VITE_LOAN_POOL_ADDRESS.');
+  if (!pool) throw new Error('Loan pool not configured.');
 
   const callData = encodeFunctionData({
     abi: loanPoolAbi,
@@ -601,6 +601,62 @@ export async function rejectLoanOnChain(
     contractAddress: pool,
     callData,
     ucSession: opts?.ucSession ?? loadStoredUcSession(),
+  });
+}
+
+/** Borrower cancels a pending application. */
+export async function cancelLoanOnChain(
+  loanId: number,
+  opts?: { ucSession?: UcSession | null },
+): Promise<void> {
+  const pool = getLoanPoolAddress();
+  if (!pool) throw new Error('Loan pool not configured.');
+
+  const callData = encodeFunctionData({
+    abi: loanPoolAbi,
+    functionName: 'cancelApplication',
+    args: [BigInt(loanId)],
+  });
+
+  await writeContract({
+    contractAddress: pool,
+    callData,
+    ucSession: opts?.ucSession ?? loadStoredUcSession(),
+  });
+}
+
+/** Borrower updates a pending application. */
+export async function updateLoanOnChain(params: {
+  loanId: number;
+  principalUsd: number;
+  termMonths: number;
+  purpose: string;
+  ucSession?: UcSession | null;
+}): Promise<void> {
+  const pool = getLoanPoolAddress();
+  if (!pool) throw new Error('Loan pool not configured.');
+  if (!Number.isFinite(params.principalUsd) || params.principalUsd <= 0) {
+    throw new Error('Enter a valid loan amount.');
+  }
+  if (params.termMonths < 1 || params.termMonths > 6) {
+    throw new Error('Term must be 1–6 months.');
+  }
+
+  const callData = encodeFunctionData({
+    abi: loanPoolAbi,
+    functionName: 'updateApplication',
+    args: [
+      BigInt(params.loanId),
+      usdcToRaw(params.principalUsd),
+      params.termMonths,
+      params.purpose || 'Other',
+    ],
+  });
+
+  await writeContract({
+    contractAddress: pool,
+    callData,
+    ucSession: params.ucSession ?? loadStoredUcSession(),
   });
 }
 

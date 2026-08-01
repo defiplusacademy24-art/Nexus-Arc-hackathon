@@ -57,6 +57,34 @@ contract CooperativeLoanPoolTest is Test {
         assertEq(due6, 1_100e6);
     }
 
+    function test_BorrowerCancelAndUpdatePending() public {
+        vm.prank(alice);
+        uint256 loanId = pool.applyForLoan(1_000e6, 3, "Business");
+        assertEq(pool.openLoanId(alice), loanId);
+
+        // Update while pending
+        vm.prank(alice);
+        pool.updateApplication(loanId, 500e6, 2, "Education");
+        CooperativeLoanPool.Loan memory mid = pool.getLoan(loanId);
+        assertEq(mid.principal, 500e6);
+        assertEq(mid.termMonths, 2);
+        assertEq(mid.interestBps, 600);
+        assertEq(uint8(mid.status), uint8(CooperativeLoanPool.LoanStatus.Pending));
+
+        // Cancel
+        vm.prank(alice);
+        pool.cancelApplication(loanId);
+        assertEq(uint8(pool.getLoan(loanId).status), uint8(CooperativeLoanPool.LoanStatus.Rejected));
+        assertEq(pool.openLoanId(alice), 0);
+
+        // Bob cannot cancel Alice's loan
+        vm.prank(alice);
+        uint256 id2 = pool.applyForLoan(200e6, 1, "Other");
+        vm.prank(bob);
+        vm.expectRevert(CooperativeLoanPool.NotBorrower.selector);
+        pool.cancelApplication(id2);
+    }
+
     function test_ApplyApproveDisburseAndRepay() public {
         vm.prank(alice);
         uint256 loanId = pool.applyForLoan(1_000e6, 3, "Business");

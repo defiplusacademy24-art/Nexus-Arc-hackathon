@@ -101,6 +101,15 @@ contract CooperativeLoanPool is ReentrancyGuard {
     );
     event LoanApproved(uint256 indexed loanId, address indexed borrower, uint256 principal);
     event LoanRejected(uint256 indexed loanId, address indexed borrower);
+    event LoanCancelled(uint256 indexed loanId, address indexed borrower);
+    event LoanUpdated(
+        uint256 indexed loanId,
+        address indexed borrower,
+        uint256 principal,
+        uint8 termMonths,
+        uint16 interestBps,
+        uint256 totalDue
+    );
     event LoanRepaid(
         uint256 indexed loanId,
         address indexed borrower,
@@ -117,6 +126,7 @@ contract CooperativeLoanPool is ReentrancyGuard {
 
     error NotOrganizer();
     error NotApprover();
+    error NotBorrower();
     error NotEligibleBorrower();
     error HasOpenLoan();
     error ZeroAddress();
@@ -346,6 +356,51 @@ contract CooperativeLoanPool is ReentrancyGuard {
             openLoanId[loan.borrower] = 0;
         }
         emit LoanRejected(loanId, loan.borrower);
+    }
+
+    /**
+     * @notice Borrower cancels their own pending application (no funds moved).
+     */
+    function cancelApplication(uint256 loanId) external {
+        Loan storage loan = _loans[loanId];
+        if (loan.borrower == address(0)) revert LoanNotFound();
+        if (msg.sender != loan.borrower) revert NotBorrower();
+        if (loan.status != LoanStatus.Pending) revert BadStatus();
+        loan.status = LoanStatus.Rejected;
+        if (openLoanId[msg.sender] == loanId) {
+            openLoanId[msg.sender] = 0;
+        }
+        emit LoanCancelled(loanId, msg.sender);
+    }
+
+    /**
+     * @notice Borrower updates amount / term / purpose while still pending.
+     */
+    function updateApplication(
+        uint256 loanId,
+        uint256 principal,
+        uint8 termMonths,
+        string calldata purpose
+    ) external {
+        Loan storage loan = _loans[loanId];
+        if (loan.borrower == address(0)) revert LoanNotFound();
+        if (msg.sender != loan.borrower) revert NotBorrower();
+        if (loan.status != LoanStatus.Pending) revert BadStatus();
+        if (principal == 0) revert InvalidAmount();
+        if (termMonths < 1 || termMonths > 6) revert InvalidTerm();
+
+        uint16 bps = interestBpsByTerm[termMonths];
+        if (bps == 0) revert InvalidTerm();
+
+        uint256 totalInterest = (principal * uint256(bps)) / 10_000;
+        loan.principal = principal;
+        loan.interestBps = bps;
+        loan.totalInterest = totalInterest;
+        loan.totalDue = principal + totalInterest;
+        loan.termMonths = termMonths;
+        loan.purpose = purpose;
+
+        emit LoanUpdated(loanId, msg.sender, principal, termMonths, bps, loan.totalDue);
     }
 
     /**

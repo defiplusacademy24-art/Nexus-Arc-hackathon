@@ -34,6 +34,7 @@ import { getMemberByWallet, loadMembersInPayoutOrder } from '@/services/cooperat
 import {
   applyForLoanOnChain,
   approveLoanOnChain,
+  cancelLoanOnChain,
   fetchOnChainLoans,
   fetchPoolSnapshot,
   friendlyLoanError,
@@ -43,6 +44,7 @@ import {
   registerBorrowerOnChain,
   rejectLoanOnChain,
   repayLoanOnChain,
+  updateLoanOnChain,
   type PoolSnapshot,
 } from '@/services/loan/pool';
 import {
@@ -83,7 +85,7 @@ type DistLogLine = {
 
 const STATUS_CONFIG: Record<LoanStatus, { label: string; class: string; icon: React.ElementType }> = {
   pending: {
-    label: 'Pending Governance',
+    label: 'Pending',
     class: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
     icon: Clock,
   },
@@ -313,16 +315,22 @@ function LoanCard({
   loan,
   currency,
   canApprove,
+  isMine,
   busyId,
   onApprove,
   onReject,
+  onCancel,
+  onEdit,
 }: {
   loan: Loan;
   currency: string;
   canApprove?: boolean;
+  isMine?: boolean;
   busyId?: string | null;
   onApprove?: (loan: Loan) => void;
   onReject?: (loan: Loan) => void;
+  onCancel?: (loan: Loan) => void;
+  onEdit?: (loan: Loan) => void;
 }) {
   const config = STATUS_CONFIG[loan.status];
   const Icon = config.icon;
@@ -338,6 +346,7 @@ function LoanCard({
   const ratePct = formatInterestPct(L.interestRate ?? 0.05);
   const isOnChain = Boolean(onChainLoanIdFromAppId(loan.id));
   const busy = busyId === loan.id;
+  const canManage = Boolean(isMine && loan.status === 'pending' && isOnChain);
 
   return (
     <motion.div
@@ -430,13 +439,50 @@ function LoanCard({
         </div>
       )}
 
-      {isOnChain && (
-        <p className="text-[10px] font-semibold text-[#6393C4] mb-2 flex items-center gap-1">
-          <Shield className="w-3 h-3" /> On-chain · {loan.id}
-        </p>
+      {canManage && (
+        <div className="flex gap-2 mb-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onEdit?.(loan)}
+            className="flex-1 py-2 rounded-xl border border-stone-200 dark:border-white/10 text-stone-700 dark:text-white/80 text-xs font-semibold hover:bg-stone-50 dark:hover:bg-white/5 disabled:opacity-60"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onCancel?.(loan)}
+            className="flex-1 py-2 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-500/10 disabled:opacity-60"
+          >
+            {busy ? '…' : 'Cancel'}
+          </button>
+        </div>
       )}
 
-      {canApprove && loan.status === 'pending' && isOnChain && (
+      {canApprove && loan.status === 'pending' && isOnChain && !isMine && (
+        <div className="flex gap-2 mb-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onApprove?.(loan)}
+            className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {busy ? '…' : 'Approve & disburse'}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onReject?.(loan)}
+            className="flex-1 py-2 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-500/10 disabled:opacity-60"
+          >
+            Reject
+          </button>
+        </div>
+      )}
+
+      {/* Founder can still approve their own application if they are approver */}
+      {canApprove && loan.status === 'pending' && isOnChain && isMine && (
         <div className="flex gap-2 mb-3">
           <button
             type="button"
@@ -462,7 +508,7 @@ function LoanCard({
           <div className="flex items-center gap-1.5 mb-1">
             <Sparkles className="w-3 h-3 text-[#6393C4]" />
             <span className="text-[10px] font-semibold text-[#6393C4] uppercase tracking-wide">
-              {isOnChain ? 'On-chain pool' : 'AI Lending Agent'}
+              Assessment
             </span>
           </div>
           <p className="text-xs text-stone-600 dark:text-white/60 leading-relaxed line-clamp-3">
@@ -526,6 +572,8 @@ export default function Loans() {
   const [fundAmount, setFundAmount] = useState('');
   const [fundBusy, setFundBusy] = useState(false);
   const [chainMsg, setChainMsg] = useState<string | null>(null);
+  /** When set, form submits an updateApplication for this on-chain loan id. */
+  const [editingLoanId, setEditingLoanId] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     if (!activeCooperative) {
@@ -831,7 +879,7 @@ export default function Loans() {
     setChainMsg(null);
     try {
       await rejectLoanOnChain(chainId);
-      setChainMsg('Reject transaction submitted.');
+      setChainMsg('Application rejected.');
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
     } catch (e) {
@@ -839,6 +887,59 @@ export default function Loans() {
     } finally {
       setActionBusyId(null);
     }
+  };
+
+  const onCancelLoan = async (loan: Loan) => {
+    const chainId = onChainLoanIdFromAppId(loan.id);
+    if (!chainId) return;
+    if (
+      !window.confirm(
+        `Cancel your application for ${formatCurrency(loan.requestedAmount, currency)}?`,
+      )
+    ) {
+      return;
+    }
+    setActionBusyId(loan.id);
+    setFormError('');
+    setChainMsg(null);
+    try {
+      await cancelLoanOnChain(chainId);
+      setChainMsg('Application cancelled.');
+      if (editingLoanId === chainId) {
+        setEditingLoanId(null);
+        setForm(EMPTY_FORM);
+      }
+      await new Promise((r) => setTimeout(r, 2500));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const onEditLoan = (loan: Loan) => {
+    const chainId = onChainLoanIdFromAppId(loan.id);
+    if (!chainId) return;
+    setShowRepay(false);
+    setAssessment(null);
+    setLastCreated(null);
+    setFormError('');
+    setEditingLoanId(chainId);
+    setForm({
+      amount: String(loan.requestedAmount ?? ''),
+      purpose: (loan.purposeCategory as LoanPurposeCategory) || '',
+      months: loan.repaymentMonths || 3,
+      reason: loan.reason || '',
+      agreed: true,
+    });
+    // Scroll form into view
+    window.requestAnimationFrame(() => {
+      document.getElementById('loan-apply-form')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
   };
 
   const onFundPool = async () => {
@@ -985,17 +1086,28 @@ export default function Loans() {
         });
         setAssessment(result);
 
-        // applyForLoan does NOT require pool liquidity on-chain — only approve does.
-        // Never block applications with the old "liquidity $0" soft check.
-        await applyForLoanOnChain({
-          principalUsd: amount,
-          termMonths: form.months,
-          purpose: form.purpose,
-        });
+        if (editingLoanId != null) {
+          await updateLoanOnChain({
+            loanId: editingLoanId,
+            principalUsd: amount,
+            termMonths: form.months,
+            purpose: form.purpose,
+          });
+          setChainMsg(
+            `Application updated to ${formatCurrency(amount, currency)}.`,
+          );
+          setEditingLoanId(null);
+        } else {
+          await applyForLoanOnChain({
+            principalUsd: amount,
+            termMonths: form.months,
+            purpose: form.purpose,
+          });
+          setChainMsg(
+            `Application submitted for ${formatCurrency(amount, currency)}.`,
+          );
+        }
 
-        setChainMsg(
-          `Application submitted for ${formatCurrency(amount, currency)} — pending founder approval.`,
-        );
         setForm(EMPTY_FORM);
         await new Promise((r) => setTimeout(r, 2500));
         await reload();
@@ -1570,23 +1682,39 @@ export default function Loans() {
           </motion.section>
         )}
 
-        {/* Apply for Loan */}
+        {/* Apply / edit loan */}
         {!showRepay && (
         <motion.section
+          id="loan-apply-form"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 sm:p-6 mb-6"
         >
-          <div className="flex items-start gap-3 mb-5">
-            <div className="w-9 h-9 rounded-xl bg-[#6393C4]/10 flex items-center justify-center flex-shrink-0">
-              <Banknote className="w-4 h-4 text-[#6393C4]" />
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#6393C4]/10 flex items-center justify-center flex-shrink-0">
+                <Banknote className="w-4 h-4 text-[#6393C4]" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-stone-900 dark:text-white text-base">
+                  {editingLoanId != null ? 'Edit application' : 'Apply for Loan'}
+                </h2>
+              </div>
             </div>
-            <div>
-              <h2 className="font-display font-bold text-stone-900 dark:text-white text-base">
-                Apply for Loan
-              </h2>
-            </div>
+            {editingLoanId != null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingLoanId(null);
+                  setForm(EMPTY_FORM);
+                  setFormError('');
+                }}
+                className="text-xs font-semibold text-stone-500 hover:text-stone-700 dark:text-white/50 dark:hover:text-white/70"
+              >
+                Cancel edit
+              </button>
+            )}
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4 mb-4">
@@ -1744,12 +1872,12 @@ export default function Loans() {
             {evaluating ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Evaluating…
+                {editingLoanId != null ? 'Updating…' : 'Submitting…'}
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                Apply for Loan
+                {editingLoanId != null ? 'Save changes' : 'Apply for Loan'}
               </>
             )}
           </button>
@@ -1908,9 +2036,18 @@ export default function Loans() {
                 loan={loan}
                 currency={currency}
                 canApprove={Boolean(poolSnap?.isApprover)}
+                isMine={
+                  Boolean(
+                    walletAddress &&
+                      loan.borrowerWallet?.toLowerCase() ===
+                        walletAddress.toLowerCase(),
+                  )
+                }
                 busyId={actionBusyId}
                 onApprove={(l) => void onApproveLoan(l)}
                 onReject={(l) => void onRejectLoan(l)}
+                onCancel={(l) => void onCancelLoan(l)}
+                onEdit={onEditLoan}
               />
             ))}
           </div>
@@ -1925,9 +2062,18 @@ export default function Loans() {
                 loan={loan}
                 currency={currency}
                 canApprove={Boolean(poolSnap?.isApprover)}
+                isMine={
+                  Boolean(
+                    walletAddress &&
+                      loan.borrowerWallet?.toLowerCase() ===
+                        walletAddress.toLowerCase(),
+                  )
+                }
                 busyId={actionBusyId}
                 onApprove={(l) => void onApproveLoan(l)}
                 onReject={(l) => void onRejectLoan(l)}
+                onCancel={(l) => void onCancelLoan(l)}
+                onEdit={onEditLoan}
               />
             ))}
           </div>
