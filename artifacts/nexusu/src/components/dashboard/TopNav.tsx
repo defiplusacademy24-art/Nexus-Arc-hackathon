@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { useLocation, Link } from 'wouter';
-import { Menu, Bell, Search, Sun, Moon, ShieldCheck } from 'lucide-react';
+import { Menu, Bell, Sun, Moon, ShieldCheck } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { cn } from '@/lib/utils';
 import { useWallet } from '@/providers/WalletProvider';
 import { useNotifications } from '@/hooks/useNotifications';
 import { UserAvatar } from '@/components/profile/UserAvatar';
@@ -16,11 +14,12 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/savings': 'Savings',
   '/dashboard/loans': 'Loans',
   '/dashboard/nexa': 'Nexa AI',
+  '/dashboard/agents': 'AI Agents',
   '/dashboard/governance': 'Governance',
   '/dashboard/analytics': 'Analytics',
   '/dashboard/notifications': 'Notifications',
   '/dashboard/settings': 'Settings',
-  '/dashboard/wallet': 'Wallet Profile',
+  '/dashboard/wallet': 'Wallet',
   '/dashboard/profile': 'Profile',
 };
 
@@ -32,7 +31,6 @@ export function TopNav({ onMenuClick }: TopNavProps) {
   const [location] = useLocation();
   const { resolvedTheme, setTheme } = useTheme();
   const { identity, walletAddress } = useWallet();
-  const [searchOpen, setSearchOpen] = useState(false);
 
   const title = PAGE_TITLES[location] ?? 'Dashboard';
   const { unreadCount } = useNotifications();
@@ -53,19 +51,11 @@ export function TopNav({ onMenuClick }: TopNavProps) {
         {title}
       </h1>
 
-      {/* Desktop: search */}
-      <div className={cn(
-        'hidden lg:flex flex-1 max-w-sm items-center gap-2 bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] rounded-xl px-3 py-2 transition-all',
-        searchOpen && 'ring-2 ring-[#6393C4]/30',
-      )}>
-        <Search className="w-4 h-4 text-stone-400 dark:text-white/30 flex-shrink-0" />
-        <input
-          type="text"
-          placeholder="Search members, loans, proposals…"
-          onFocus={() => setSearchOpen(true)}
-          onBlur={() => setSearchOpen(false)}
-          className="flex-1 bg-transparent text-sm text-stone-700 dark:text-white placeholder:text-stone-400 dark:placeholder:text-white/30 outline-none"
-        />
+      {/* Desktop: page context (search ships when global index is ready) */}
+      <div className="hidden lg:flex flex-1 items-center min-w-0">
+        <h1 className="text-sm font-semibold text-stone-900 dark:text-white truncate">
+          {title}
+        </h1>
       </div>
 
       <div className="ml-auto flex items-center gap-2">

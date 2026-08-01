@@ -98,6 +98,8 @@ export default function SettingsPage() {
     return map;
   });
 
+  // Theme is the only setting persisted today; other rows are preference previews.
+
   const flip = (key: string) => setToggles((p) => ({ ...p, [key]: !p[key] }));
 
   return (
@@ -106,7 +108,9 @@ export default function SettingsPage() {
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
           <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Settings</h1>
-          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">Manage your Nexusu preferences</p>
+          <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
+            Appearance is saved on this device. Other preferences are previews for the full release.
+          </p>
         </motion.div>
 
         {/* Theme */}

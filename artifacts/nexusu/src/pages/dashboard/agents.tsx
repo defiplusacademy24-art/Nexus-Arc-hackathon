@@ -181,12 +181,12 @@ export default function AgentsPage() {
               )}
               <div>
                 <p className="text-sm font-semibold text-stone-800 dark:text-white">
-                  {enabled ? 'Agent runtime is online' : 'Agent runtime is offline'}
+                  {enabled ? 'Agents are online' : 'Agents are offline'}
                 </p>
                 <p className="text-xs text-stone-600 dark:text-white/55 mt-0.5 leading-relaxed">
                   {enabled
-                    ? `Workers are polling events. Model: ${llmModel || '—'}. Wallets ready: ${walletsReady}/${agents.length}.`
-                    : 'Set AGENTS_ENABLED=true on the long-running API worker, DATABASE_URL, CIRCLE_BIN, contract addresses, XAI_API_KEY, and CIRCLE_AGENT_WALLET_*_ADDRESS for each agent. Connecting Circle wallets alone is not enough until the worker is running.'}
+                    ? `${running} of ${agents.length} agents ready · ${walletsReady} Circle wallets configured · model ${llmModel || '—'}`
+                    : 'Autonomous agents need the API worker enabled. Member features (contributions, loans, treasury) still work on-chain. See product docs for setup.'}
                 </p>
                 {error && (
                   <p className="text-xs text-red-600 dark:text-red-400 mt-1">{error}</p>

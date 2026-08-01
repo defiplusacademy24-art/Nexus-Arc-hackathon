@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Scale, Plus, CheckCircle2, XCircle, Clock, Sparkles, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
+import { Scale, Plus, CheckCircle2, XCircle, Clock, Sparkles } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { loadProposals } from '@/services/cooperative/proposals';
@@ -49,7 +49,6 @@ function VoteDonut({ votesFor, votesAgainst, abstain }: { votesFor: number; vote
 }
 
 function ProposalCard({ proposal }: { proposal: Proposal }) {
-  const [voted, setVoted] = useState<'for' | 'against' | 'abstain' | null>(null);
   const config = STATUS_CONFIG[proposal.status];
   const Icon = config.icon;
 
@@ -110,25 +109,10 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       )}
 
       {proposal.status === 'active' && (
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-          {[
-            { key: 'for' as const, label: 'For', icon: ThumbsUp, active: 'bg-emerald-500 text-white', base: 'border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/8' },
-            { key: 'against' as const, label: 'Against', icon: ThumbsDown, active: 'bg-red-500 text-white', base: 'border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/8' },
-            { key: 'abstain' as const, label: 'Abstain', icon: Minus, active: 'bg-stone-400 text-white', base: 'border-stone-200 dark:border-white/10 text-stone-400 dark:text-white/40 hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/50' },
-          ].map(({ key, label, icon: Ic, active, base }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setVoted(voted === key ? null : key)}
-              className={cn(
-                'flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-semibold border transition-all min-w-0',
-                voted === key ? active : base,
-              )}
-            >
-              <Ic className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{label}</span>
-            </button>
-          ))}
+        <div className="rounded-xl border border-stone-100 dark:border-white/10 bg-stone-50 dark:bg-white/5 px-3 py-2.5 text-center">
+          <p className="text-[11px] text-stone-500 dark:text-white/45">
+            On-chain voting opens with the next governance release.
+          </p>
         </div>
       )}
 
@@ -177,13 +161,16 @@ export default function Governance() {
           <div className="min-w-0 sm:flex-1">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Governance</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5">
-              {activeCount} active proposal{activeCount === 1 ? '' : 's'}
-              {activeCooperative ? ` · Score: ${govScore}/100` : ''}
+              {activeCount > 0
+                ? `${activeCount} active proposal${activeCount === 1 ? '' : 's'}`
+                : 'Member voting and proposals'}
             </p>
           </div>
           <button
             type="button"
-            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors w-full sm:w-auto flex-shrink-0"
+            disabled
+            title="On-chain proposals after redeploy"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl bg-stone-200 dark:bg-white/10 text-stone-500 dark:text-white/40 text-sm font-semibold cursor-not-allowed w-full sm:w-auto flex-shrink-0"
           >
             <Plus className="w-4 h-4" /> New Proposal
           </button>
@@ -196,10 +183,10 @@ export default function Governance() {
           className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-6"
         >
           {[
-            { l: 'Governance Score', v: `${govScore}/100`, c: 'text-purple-500' },
-            { l: 'Active Proposals', v: String(activeCount), c: 'text-[#6393C4]' },
-            { l: 'Proposals Passed', v: String(passedCount), c: 'text-emerald-500' },
-            { l: 'Participation Rate', v: proposals.length === 0 ? '—' : `${participation}%`, c: 'text-blue-500' },
+            { l: 'Active proposals', v: String(activeCount), c: 'text-[#6393C4]' },
+            { l: 'Passed', v: String(passedCount), c: 'text-emerald-500' },
+            { l: 'Participation', v: proposals.length === 0 ? '—' : `${participation}%`, c: 'text-blue-500' },
+            { l: 'Status', v: activeCount > 0 ? 'Voting open' : 'Quiet', c: 'text-purple-500' },
           ].map(({ l, v, c }) => (
             <div
               key={l}
@@ -233,6 +220,9 @@ export default function Governance() {
           <div className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl py-16 text-center px-6">
             <Scale className="w-10 h-10 text-stone-200 dark:text-white/10 mx-auto mb-3" />
             <p className="font-semibold text-stone-700 dark:text-white/70 mb-1">No proposals yet</p>
+            <p className="text-xs text-stone-400 dark:text-white/40 max-w-sm mx-auto mt-1 leading-relaxed">
+              When your cooperative opens a vote on rules, spending, or loans, it will appear here.
+            </p>
           </div>
         ) : (
           <div className="grid lg:grid-cols-2 gap-4">

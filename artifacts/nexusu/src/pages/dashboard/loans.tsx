@@ -1997,7 +1997,7 @@ export default function Loans() {
               >
                 <Loader2 className="w-5 h-5 text-[#6393C4] animate-spin flex-shrink-0" />
                 <p className="text-sm font-semibold text-[#5289B8] dark:text-[#77A6DB]">
-                  Evaluating application…
+                  Submitting application…
                 </p>
               </motion.div>
             )}

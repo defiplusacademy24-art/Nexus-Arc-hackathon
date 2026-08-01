@@ -540,16 +540,17 @@ export default function Overview() {
           className="mb-7"
         >
           <h1 className="text-xl sm:text-2xl font-display font-bold text-stone-900 dark:text-white break-words">
-            {greeting}, {displayName} 👋
+            {greeting}, {displayName}
           </h1>
           <p className="text-sm text-stone-400 dark:text-white/40 mt-1 break-words">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            {' · '}{coopName}
+            {' · '}
+            <span className="text-stone-600 dark:text-white/70 font-medium">{coopName}</span>
             {summary && (
               <span className="ml-1">
                 · {summary.memberCount}
                 {summary.maxMembers != null ? ` / ${summary.maxMembers}` : ''} members
-                · {summary.status}
+                {summary.status === 'active' ? ' · Active' : ` · ${summary.status}`}
               </span>
             )}
           </p>
@@ -576,15 +577,7 @@ export default function Overview() {
             value={monthlyInflow}
             format="currency"
             loading={treasuryLoading}
-            changeLabel={
-              !treasuryLoading
-                ? monthlyInflow > 0
-                  ? vaultConfigured
-                    ? 'on-chain this month'
-                    : 'this month'
-                  : undefined
-                : undefined
-            }
+            changeLabel={!treasuryLoading && monthlyInflow > 0 ? 'this month' : undefined}
             icon={PiggyBank}
             href="/dashboard/savings"
             delay={0.05}
@@ -629,29 +622,44 @@ export default function Overview() {
             delay={0.2}
           />
           <StatCard
-            label="Governance Score"
-            value={activeCooperative.governanceScore ?? 0}
-            format="score"
+            label="Open proposals"
+            value={0}
+            format="number"
+            changeLabel="Governance"
             icon={Scale}
             iconColor="text-purple-500"
             href="/dashboard/governance"
             delay={0.25}
-          />
-          <StatCard
-            label="AI Health Score"
-            value={activeCooperative.aiHealthScore ?? 0}
-            format="score"
-            icon={Sparkles}
-            iconColor="text-[#6393C4]"
-            delay={0.3}
+            empty
           />
           <StatCard
             label="Contribution / cycle"
             value={activeCooperative.contributionAmount}
             format="currency"
-            changeLabel={activeCooperative.contributionFrequency}
+            changeLabel={
+              activeCooperative.contributionFrequency === 'bi-weekly'
+                ? 'Bi-weekly'
+                : activeCooperative.contributionFrequency === 'weekly'
+                  ? 'Weekly'
+                  : 'Monthly'
+            }
             icon={Activity}
             iconColor="text-teal-500"
+            delay={0.3}
+          />
+          <StatCard
+            label="Members paid (cycle)"
+            value={vaultConfigured ? vaultPaidCount : activeMembers || members.length || 0}
+            format="number"
+            changeLabel={
+              vaultConfigured && vaultContribAmount > 0
+                ? `${formatCurrency(vaultContribAmount, currency)} each`
+                : activeCooperative.maxMembers
+                  ? `of ${activeCooperative.maxMembers}`
+                  : undefined
+            }
+            icon={Sparkles}
+            iconColor="text-[#6393C4]"
             delay={0.35}
           />
         </div>
