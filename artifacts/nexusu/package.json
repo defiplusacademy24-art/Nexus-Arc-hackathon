@@ -81,6 +81,7 @@
     "@reown/appkit-adapter-wagmi": "^1.8.22",
     "qrcode.react": "^4.2.0",
     "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "viem": "^2.55.1",
     "wagmi": "^3.7.1"
   }

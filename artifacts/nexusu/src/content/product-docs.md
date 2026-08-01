@@ -1,17 +1,3 @@
-# Nexusu
-
-## The Operating System for Community Finance
-
-| | |
-|---|---|
-| **Version** | 1.0 |
-| **Status** | Arc Hackathon MVP |
-| **Network** | Arc Testnet |
-| **Stablecoin** | USDC |
-| **AI Infrastructure** | Circle Agent Stack |
-
----
-
 ## Overview
 
 Nexusu is an AI-powered cooperative finance operating system that digitizes traditional savings groups such as Esusu, Ajo, Chama, and Stokvel.
@@ -19,8 +5,6 @@ Nexusu is an AI-powered cooperative finance operating system that digitizes trad
 Instead of relying on manual bookkeeping and administrators, Nexusu combines smart contracts, AI agents, and Circle's Agent Stack to automate contributions, treasury management, lending, governance, and rotating payouts.
 
 Funds remain secured on-chain while AI agents monitor activity, make recommendations, and execute approved actions autonomously.
-
----
 
 ## Objectives
 
@@ -37,99 +21,45 @@ Build a production-ready MVP demonstrating:
 - Circle Agent Stack integration
 - USDC payments on Arc Testnet
 
----
-
 ## Core Technologies
 
-### Frontend
+**Frontend** — React · TypeScript · Tailwind CSS · Vite
 
-- React
-- TypeScript
-- Tailwind CSS
-- Vite
+**Backend** — Node.js · Express · TypeScript
 
-### Backend
+**Blockchain** — Arc Testnet · Solidity · Foundry · OpenZeppelin · viem
 
-- Node.js
-- Express
-- TypeScript
+**Authentication** — Circle User-Controlled Wallets · Email OTP
 
-### Blockchain
+**Payments** — USDC on Arc
 
-- Arc Testnet
-- Solidity
-- Foundry
-- OpenZeppelin
-
-### Authentication
-
-- Circle User-Controlled Wallets
-- Email OTP
-
-### Payments
-
-- USDC on Arc
-
-### AI
-
-- Circle Agent Stack
-- SpaceXAI / OpenAI-compatible SDK
-
-### Blockchain Libraries
-
-- viem
-
----
+**AI** — Circle Agent Stack · SpaceXAI / OpenAI-compatible SDK
 
 ## System Architecture
 
-```
-Users
-  ↓
-Frontend
-  ↓
-Backend API
-  ↓
-Circle User-Controlled Wallets
-  ↓
-Arc Smart Contracts
-  ↓
-Circle Agent Stack
-  ↓
-Autonomous AI Agents
+```architecture
 ```
 
----
+Request path:
+
+1. Members use the web app (React)
+2. Backend API (Express) handles domain data and Circle UC flows
+3. Circle User-Controlled Wallets sign member transactions
+4. Arc smart contracts hold and move USDC
+5. Circle Agent Stack + autonomous agents observe and act under policy
 
 ## Smart Contracts
 
 ### Cooperative Registry
 
-**Responsibilities**
-
-- Create cooperatives
-- Join cooperatives
-- Store cooperative settings
-- Store payout strategy
-- Store member order
-- Store member metadata
-
-**Stores**
-
-- Cooperative name, description, organizer
-- Contribution amount and frequency
-- Member list and join position
-- Payout strategy
-- Treasury address, loan pool address
+Creates cooperatives, manages joins, settings, payout strategy, member order, and metadata (name, organizer, contribution rules, treasury and loan pool addresses).
 
 ### Treasury Vault
 
-**Responsibilities**
-
-Receive all cooperative contributions. Automatically account for:
+Receives all cooperative contributions and accounts for:
 
 | Bucket | Share |
-|--------|-------|
+| --- | --- |
 | Rotation Fund | 60% |
 | Loan Pool | 30% |
 | Emergency Reserve | 5% |
@@ -137,59 +67,23 @@ Receive all cooperative contributions. Automatically account for:
 
 When `lendingPool` is configured, the loan share is forwarded on-chain into the Cooperative Loan Pool on each deposit.
 
-**Stores**
-
-- Treasury balances
-- Contribution history
-- Fund allocations
-- Treasury health
-
 ### Loan Pool
 
-**Responsibilities**
-
-- Store loan capital
-- Disburse approved loans
-- Receive repayments
-- Calculate interest
-- Return principal to loan pool
-- Transfer interest to treasury (when profit recipient is set)
-
-Members may apply, edit, or cancel **pending** applications. Organizer (or lending agent) approves disbursement.
+Holds loan capital, disburses approved loans, receives repayments, calculates interest, returns principal to the pool, and can forward interest to the treasury. Members apply, edit, or cancel **pending** applications; the organizer or lending agent approves disbursement.
 
 ### Rotation Manager
 
-**Responsibilities**
+Determines the payout recipient, executes payouts, advances the queue, and stores history.
 
-- Determine payout recipient
-- Read member order
-- Execute payouts
-- Advance recipient
-- Maintain payout history
-
-**Supported payout strategies**
-
-- Join Order
-- Random Draw
-- Organizer Assigned
-- Governance Vote
-
----
+**Strategies:** Join Order · Random Draw · Organizer Assigned · Governance Vote
 
 ## Circle Integration
 
-Members authenticate using:
-
-- Circle User-Controlled Wallets
-- Email OTP
-
-No seed phrases. Every member receives a smart wallet.
-
----
+Members authenticate with **Circle User-Controlled Wallets** and **Email OTP**. No seed phrases. Every member receives a smart wallet.
 
 ## Circle Agent Stack
 
-Every AI agent owns an independent Circle Agent Wallet with least-privilege permissions:
+Each AI agent owns an independent Circle Agent Wallet with least-privilege permissions. Agents never custody member funds — capital stays in smart contracts.
 
 - Treasury Agent
 - Loan Agent
@@ -200,64 +94,56 @@ Every AI agent owns an independent Circle Agent Wallet with least-privilege perm
 - Fraud Detection Agent
 - Nexa AI Assistant
 
-Agents **never custody member funds**. Capital stays in smart contracts.
-
----
-
 ## AI Agents
 
 ### Treasury Agent
 
-Monitor treasury, watch deposits, generate analytics, track allocations, detect anomalies. Never move funds without authorization.
+Monitors treasury, deposits, allocations, and anomalies. Never moves funds without authorization.
 
 ### Contribution Agent
 
-Monitor contribution deadlines, track payments, detect missed contributions, notify members, signal payout readiness.
+Tracks deadlines and payments, detects misses, notifies members, signals payout readiness.
 
 ### Rotation Agent
 
-Read payout schedule, detect completed cycles, execute automatic payouts, advance recipient, notify members.
+Reads the schedule, detects completed cycles, executes payouts, advances recipients, notifies members.
 
 ### Loan Agent
 
-Evaluate applications, review contribution and repayment history, calculate schedules, recommend decisions, monitor repayments, update reputation.
+Evaluates applications, contribution and repayment history, schedules, recommendations, and reputation.
 
 ### Savings Agent
 
-Track cooperative savings, monitor treasury growth, generate recommendations (never invest automatically).
+Tracks cooperative savings and growth; recommendations only (no automatic investing).
 
 ### Governance Agent
 
-Summarize proposals, track voting, execute only approved actions, notify members.
+Summarizes proposals, tracks votes, executes only approved actions.
 
 ### Fraud Detection Agent
 
-Monitor duplicate wallets, abnormal transactions, rapid withdrawals; generate risk alerts.
+Watches for duplicate wallets, abnormal activity, and rapid withdrawals; raises risk alerts.
 
 ### Nexa AI Assistant
 
-Financial assistant for members: treasury health, loan eligibility, payout schedules, contribution status — never exposes other members' private data.
-
----
+Member-scoped assistant for treasury health, eligibility, payouts, and contributions — never exposes other members' private data.
 
 ## Cooperative Lifecycle
 
-1. **Create** — Organizer defines name, contribution amount/frequency, max members, payout strategy.
-2. **Join** — Members authenticate with Email OTP + Circle Wallet; receive payout position.
-3. **Contribute** — Members deposit USDC; treasury records deposits; AI updates analytics.
+1. **Create** — Organizer sets name, contribution amount/frequency, max members, payout strategy.
+2. **Join** — Members sign in with Email OTP + Circle Wallet; receive a payout position.
+3. **Contribute** — Members deposit USDC; treasury and analytics update.
 4. **Allocate** — Rotation / Loan / Emergency / Savings shares applied (loan share can auto-fund the Loan Pool).
-5. **Lend** — Members apply; Loan Agent evaluates; organizer/agent disburses from Loan Pool.
-6. **Repay** — Principal returns to Loan Pool; interest to treasury profit recipient.
-7. **Rotate** — When contributions complete, Rotation Agent / vault payout advances recipient and history.
-
----
+5. **Lend** — Members apply; AI evaluates; organizer/agent disburses from the Loan Pool.
+6. **Repay** — Principal returns to the Loan Pool; interest can go to treasury.
+7. **Rotate** — When contributions complete, payout advances and history is recorded.
 
 ## Loan Rules
 
-### Interest (simple, full term)
+### Interest schedule (simple, full term)
 
 | Term | Rate |
-|------|------|
+| --- | --- |
 | 1 month | 5% |
 | 2 months | 6% |
 | 3 months | 7% |
@@ -267,118 +153,73 @@ Financial assistant for members: treasury health, loan eligibility, payout sched
 
 ### Decision inputs
 
-- Contribution consistency
-- Repayment history
-- Treasury / pool liquidity
-- Member reputation
-- Open loans
-- Risk score
+Contribution consistency · repayment history · pool liquidity · reputation · open loans · risk score
 
 ### On-chain caps
 
 Default max single loan is **25% of Loan Pool liquidity** (`maxLoanBps = 2500`) at approval time.
 
----
-
 ## Savings Module
 
-Savings is **not** personal savings — it belongs to the cooperative.
-
-Treasury allocates **5%** to Savings Reserve. Yield currently comes from loan interest.
+Savings is **not** personal savings — it belongs to the cooperative. Treasury allocates **5%** to Savings Reserve. Yield currently comes from loan interest.
 
 **Future:** external DeFi yield, tokenized treasury assets, member votes on profit use.
 
----
-
 ## Governance
 
-Members vote on rule changes, emergency spending, treasury allocation, profit distribution, and loan overrides. AI generates recommendations; members make final decisions.
-
----
+Members vote on rule changes, emergency spending, treasury allocation, profit distribution, and loan overrides. AI recommends; members decide.
 
 ## Dashboards
 
-### Treasury
+**Treasury** — Balances, buckets, monthly contributions, health, AI insights.
 
-Treasury balance, loan pool, emergency reserve, savings reserve, monthly contributions, health, contribution completion, AI insights.
+**Member** — Contributions, payout position, eligibility, credit score, notifications.
 
-### Member
+**Loans** — Amount, interest, progress, schedule; apply / edit / cancel pending apps.
 
-Contribution history, payout position, next payout, loan eligibility, credit score, contribution streak, notifications.
-
-### Loans
-
-Amount, interest, remaining balance, repayment progress, schedule, risk score; apply / edit / cancel pending applications.
-
-### Savings
-
-Savings balance, allocation, yield, treasury growth, history, AI recommendations.
-
----
+**Savings** — Allocation, yield, growth, AI recommendations.
 
 ## Backend API
 
-| Area | Examples |
-|------|----------|
+| Area | Endpoints |
+| --- | --- |
 | Health | `GET /api/health` |
-| Circle UC | `POST /api/uc/*` (email OTP + PIN) |
+| Circle UC | `POST /api/uc/*` |
 | Cooperatives | `POST/GET /api/cooperatives` |
 | Transactions | `POST/GET /api/transactions` |
 | Notifications | `GET /api/notifications` |
 | On-chain | `/api/onchain/*` |
-| Agents | `GET /api/agents/health`, audit, events, Nexa |
+| Agents | `/api/agents/*` |
 
 Autonomous agents run on a **long-lived worker** (`AGENTS_ENABLED=true`), not serverless alone.
 
----
-
 ## Database
 
-Cooperatives, members, contributions/transactions, loans, notifications, governance, agent events/tasks/memory/audit.
-
----
+Cooperatives, members, transactions, notifications, governance, agent events / tasks / memory / audit.
 
 ## Notifications
 
-Contribution reminders, loan approvals/repayments, rotation payouts, governance voting, treasury and risk alerts — dashboard today; email/push later.
-
----
+Contribution reminders · loan approvals & repayments · rotation payouts · governance · treasury & risk alerts (dashboard today; email/push later).
 
 ## Security
 
-- Never expose private keys or seed phrases
+- No private keys or seed phrases in the app
 - Circle User-Controlled Wallets for members
 - Circle Agent Wallets for agents (least privilege)
-- Validate every contract interaction
-- Role-based permissions (organizer, lending agent, borrower)
-- OpenZeppelin patterns; rate limits; idempotent agent tasks
-
----
+- Validated contract calls and role-based permissions
+- OpenZeppelin patterns, rate limits, idempotent agent work
 
 ## Production Goals
 
-Responsive UI, dark mode, modular architecture, logging, error handling, env configuration, scalable multi-agent framework.
-
----
+Responsive UI · dark mode · modular architecture · logging · error handling · env configuration · scalable multi-agent framework
 
 ## Success Criteria
 
-- Create cooperatives; join with Email OTP
-- USDC contributions on Arc Testnet
-- Treasury allocations tracked
-- AI-assisted loan evaluation; interest returned to treasury
-- Rotation payouts
-- Agents monitor contracts
-- Members receive notifications
-- Circle + Arc infrastructure end-to-end
-
----
+Create and join cooperatives with Email OTP · USDC on Arc Testnet · treasury allocations · AI-assisted loans · rotation payouts · agent monitoring · notifications · Circle + Arc end-to-end
 
 ## Future Roadmap
 
-Cross-cooperative lending, investment vaults, yield strategies, cross-border coops, DAO governance, mobile app, on-chain reputation, credit passport, multi-currency, institutional cooperative banking.
-
----
+Cross-cooperative lending · investment vaults · yield strategies · cross-border coops · DAO governance · mobile app · on-chain reputation · credit passport · multi-currency · institutional cooperative banking
 
 ## Vision
 
