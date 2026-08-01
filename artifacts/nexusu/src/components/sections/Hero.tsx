@@ -1,4 +1,5 @@
 import { ArrowRight, BookOpen } from 'lucide-react';
+import { Link } from 'wouter';
 
 export function Hero() {
   return (
@@ -29,20 +30,20 @@ export function Hero() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center max-w-md sm:max-w-none mx-auto">
-          <a
+          <Link
             href="/app"
             className="bg-[#6393C4] hover:bg-[#5289B8] text-white px-7 py-3.5 rounded-lg text-sm font-semibold transition-colors inline-flex items-center justify-center gap-2"
           >
             Launch App
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
-          </a>
-          <a
+          </Link>
+          <Link
             href="/docs"
             className="px-7 py-3.5 rounded-lg text-sm font-semibold text-stone-700 dark:text-white/85 border border-stone-200 dark:border-[#1A2A3A] hover:bg-stone-50 dark:hover:bg-[#2E3B4B]/40 transition-colors inline-flex items-center justify-center gap-2 bg-white dark:bg-transparent"
           >
             <BookOpen className="w-4 h-4" aria-hidden="true" />
             Read Docs
-          </a>
+          </Link>
         </div>
       </div>
     </section>

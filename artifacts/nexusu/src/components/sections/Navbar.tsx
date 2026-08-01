@@ -21,7 +21,7 @@ export function Navbar() {
 
   const isDark = resolvedTheme === 'dark';
 
-  const navLinks = [
+  const navLinks: Array<{ name: string; href: string; external?: boolean }> = [
     { name: 'Features', href: '#features' },
     { name: 'How it works', href: '#how' },
     { name: 'Docs', href: '/docs' },
@@ -44,15 +44,25 @@ export function Navbar() {
         </Link>
 
         <nav aria-label="Main navigation" className="hidden md:flex items-center gap-6">
-          {navLinks.map((link) => (
-            <a
-              key={link.name}
-              href={link.href}
-              className="text-sm text-stone-600 dark:text-white/65 hover:text-[#030F1F] dark:hover:text-white transition-colors"
-            >
-              {link.name}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.href.startsWith('/') ? (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="text-sm text-stone-600 dark:text-white/65 hover:text-[#030F1F] dark:hover:text-white transition-colors"
+              >
+                {link.name}
+              </Link>
+            ) : (
+              <a
+                key={link.name}
+                href={link.href}
+                className="text-sm text-stone-600 dark:text-white/65 hover:text-[#030F1F] dark:hover:text-white transition-colors"
+              >
+                {link.name}
+              </a>
+            ),
+          )}
 
           {mounted && (
             <button
@@ -105,16 +115,27 @@ export function Navbar() {
               transition={{ duration: 0.15 }}
               className="absolute top-full left-0 right-0 bg-white dark:bg-[#030F1F] border-b border-stone-200 dark:border-[#1A2A3A] px-5 py-4 flex flex-col gap-1 md:hidden shadow-sm"
             >
-              {navLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="py-2.5 text-sm font-medium text-[#030F1F] dark:text-white"
-                >
-                  {link.name}
-                </a>
-              ))}
+              {navLinks.map((link) =>
+                link.href.startsWith('/') ? (
+                  <Link
+                    key={link.name}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2.5 text-sm font-medium text-[#030F1F] dark:text-white"
+                  >
+                    {link.name}
+                  </Link>
+                ) : (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-2.5 text-sm font-medium text-[#030F1F] dark:text-white"
+                  >
+                    {link.name}
+                  </a>
+                ),
+              )}
               <a
                 href="/app"
                 className="mt-2 bg-[#6393C4] text-white py-3 rounded-lg text-center text-sm font-semibold"

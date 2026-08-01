@@ -138,6 +138,10 @@ Nexusu is powered by specialised agents:
 | **Governance Agent** | Executes community-approved proposals |
 | **Nexa Assistant** | Conversational AI for treasury insights and Q&A |
 
+**Product documentation** (architecture, contracts, agents, lifecycle):
+
+→ **[docs/PRODUCT.md](./docs/PRODUCT.md)** · in-app: `/docs`
+
 **Make agents work end-to-end** (Circle Agent Wallets, env, on-chain roles, smoke tests):
 
 → **[docs/AGENT_AND_CIRCLE_WALLET_SETUP.md](./docs/AGENT_AND_CIRCLE_WALLET_SETUP.md)**

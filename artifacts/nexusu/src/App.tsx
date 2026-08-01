@@ -10,6 +10,7 @@ import { Route, Switch, Router as WouterRouter } from 'wouter';
 
 // Pages
 import Home from '@/pages/home';
+import DocsPage from '@/pages/docs';
 import AppPage from '@/pages/app';
 import Onboarding from '@/pages/onboarding';
 import NotFound from '@/pages/not-found';
@@ -36,6 +37,7 @@ function Router() {
     <Switch>
       {/* Landing */}
       <Route path="/" component={Home} />
+      <Route path="/docs" component={DocsPage} />
 
       {/* Auth flow */}
       <Route path="/app" component={AppPage} />
