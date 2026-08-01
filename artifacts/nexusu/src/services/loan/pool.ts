@@ -117,6 +117,18 @@ const STATUS_TO_UI: LoanStatus[] = [
 
 export function friendlyLoanError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err ?? 'Unknown error');
+  if (/not_eligible_borrower/i.test(msg)) {
+    return 'You are not an eligible borrower yet. Join the Treasury Vault as a member, or ask the organizer to register your wallet on the Loan Pool.';
+  }
+  if (/has_open_loan|open loan/i.test(msg)) {
+    return 'You already have an open loan (pending or active). Finish or repay it before applying again.';
+  }
+  if (/InsufficientLiquidity|not enough USDC liquidity/i.test(msg)) {
+    return 'Loan Pool has insufficient USDC. Fund the pool with fundPool, then approve the loan.';
+  }
+  if (/ExceedsMaxLoan|max loan share/i.test(msg)) {
+    return 'Amount exceeds the max share of pool liquidity allowed for a single loan (default 25%). Fund more or request less.';
+  }
   if (/request limit reached|rate limit|429|too many requests/i.test(msg)) {
     return 'Arc testnet RPC is busy (rate limited). Wait a few seconds and try again.';
   }

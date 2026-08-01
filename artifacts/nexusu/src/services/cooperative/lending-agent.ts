@@ -26,6 +26,13 @@ export interface LendingContext {
   existingLoans: Loan[];
   requestedAmount: number;
   repaymentMonths: number;
+  /**
+   * When set, use real CooperativeLoanPool.availableLiquidity() instead of
+   * estimating from treasuryBalance × 30% (which is vault accounting only).
+   */
+  onChainPoolLiquidity?: number;
+  /** Pool maxLoanBps (default 2500 = 25%). */
+  onChainMaxLoanBps?: number;
 }
 
 function gradeContributionHistory(member: Member): ContributionHistoryGrade {
@@ -162,7 +169,15 @@ function decide(input: {
  * UI should delay 2–3s to simulate agent processing.
  */
 export function evaluateLoanApplication(ctx: LendingContext): AiLoanAssessment {
-  const { cooperative, applicant, existingLoans, requestedAmount, repaymentMonths } = ctx;
+  const {
+    cooperative,
+    applicant,
+    existingLoans,
+    requestedAmount,
+    repaymentMonths,
+    onChainPoolLiquidity,
+    onChainMaxLoanBps,
+  } = ctx;
   const treasury = cooperative.treasuryBalance ?? 0;
   const contributionAmount = cooperative.contributionAmount || 1;
 
@@ -185,10 +200,22 @@ export function evaluateLoanApplication(ctx: LendingContext): AiLoanAssessment {
       return s + Math.max(0, principal - paid);
     }, 0);
 
-  const poolAvail = loanPoolAvailable(treasury, coopOutstanding);
-  const maxAllowed = Math.round(
-    Math.min(treasury * MAX_LOAN_TREASURY_PCT, poolAvail > 0 ? poolAvail : treasury * MAX_LOAN_TREASURY_PCT) * 100,
-  ) / 100;
+  // Prefer real on-chain pool liquidity (USDC sitting in CooperativeLoanPool).
+  // Vault "loan pool" bps is only an accounting bucket — it does not fund the pool.
+  const poolAvail =
+    typeof onChainPoolLiquidity === 'number' && Number.isFinite(onChainPoolLiquidity)
+      ? Math.max(0, onChainPoolLiquidity)
+      : loanPoolAvailable(treasury, coopOutstanding);
+  const maxBps =
+    typeof onChainMaxLoanBps === 'number' && onChainMaxLoanBps > 0
+      ? onChainMaxLoanBps
+      : Math.round(MAX_LOAN_TREASURY_PCT * 10_000);
+  const maxFromPool =
+    poolAvail > 0 ? Math.round(((poolAvail * maxBps) / 10_000) * 100) / 100 : 0;
+  const maxAllowed =
+    maxFromPool > 0
+      ? maxFromPool
+      : Math.round(treasury * MAX_LOAN_TREASURY_PCT * 100) / 100;
 
   const history = gradeContributionHistory(applicant);
   const reputation = reputationScore(applicant);
