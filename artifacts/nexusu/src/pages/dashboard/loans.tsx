@@ -45,6 +45,10 @@ import {
   repayLoanOnChain,
   type PoolSnapshot,
 } from '@/services/loan/pool';
+import {
+  fetchVaultSnapshot,
+  isVaultConfigured,
+} from '@/services/treasury/vault';
 import { formatCurrency, formatDate, riskColor, riskLabel } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import type {
@@ -498,9 +502,11 @@ export default function Loans() {
   const { activeCooperative, updateCooperative, refresh } = useCooperative();
   const { walletAddress, identity, isConnected } = useWallet();
   const onChainMode = isLoanPoolConfigured();
+  const vaultMode = isVaultConfigured();
   const [tab, setTab] = useState<FilterTab>('all');
   const [loans, setLoans] = useState<Loan[]>([]);
   const [poolSnap, setPoolSnap] = useState<PoolSnapshot | null>(null);
+  const [vaultBalance, setVaultBalance] = useState<number | null>(null);
   const [loadingChain, setLoadingChain] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
@@ -523,6 +529,7 @@ export default function Loans() {
     if (!activeCooperative) {
       setLoans([]);
       setPoolSnap(null);
+      setVaultBalance(null);
       return;
     }
 
@@ -536,15 +543,18 @@ export default function Loans() {
             nameByWallet[m.walletIdentity.toLowerCase()] = m.name;
           }
         }
-        const [snap, chainLoans] = await Promise.all([
+        const [snap, chainLoans, vault] = await Promise.all([
           fetchPoolSnapshot(walletAddress),
           fetchOnChainLoans({ nameByWallet }),
+          vaultMode ? fetchVaultSnapshot().catch(() => null) : Promise.resolve(null),
         ]);
         setPoolSnap(snap);
         setLoans(chainLoans);
+        setVaultBalance(vault?.totalBalance ?? null);
       } catch (e) {
         setFormError(friendlyLoanError(e));
         setLoans([]);
+        setVaultBalance(null);
       } finally {
         setLoadingChain(false);
       }
@@ -553,7 +563,17 @@ export default function Loans() {
 
     setLoans(loadLoans(activeCooperative.id));
     setPoolSnap(null);
-  }, [activeCooperative, onChainMode, walletAddress]);
+    if (vaultMode) {
+      try {
+        const vault = await fetchVaultSnapshot();
+        setVaultBalance(vault.totalBalance);
+      } catch {
+        setVaultBalance(null);
+      }
+    } else {
+      setVaultBalance(null);
+    }
+  }, [activeCooperative, onChainMode, vaultMode, walletAddress]);
 
   useEffect(() => {
     void reload();
@@ -586,9 +606,13 @@ export default function Loans() {
   const pendingN = pendingReviewCount(loans);
   const activeN = activeLoansCount(loans);
   const repayRate = repaymentRate(loans);
-  // Keep this in sync with the Treasury page's 30% Loan Pool allocation.
+  // The deployed treasury vault is the source of truth when available.
+  // Do not briefly substitute the local cache while that on-chain value loads.
+  const treasuryBalance = vaultMode
+    ? (vaultBalance ?? 0)
+    : (activeCooperative?.treasuryBalance ?? 0);
   const treasuryLoanAvailable = Math.round(
-    (activeCooperative?.treasuryBalance ?? 0) * 0.3 * 100,
+    treasuryBalance * 0.3 * 100,
   ) / 100;
 
   const myOutstanding = useMemo(() => {
@@ -1092,7 +1116,7 @@ export default function Loans() {
           </div>
         </motion.div>
 
-        {/* Treasury allocation and on-chain disbursement status */}
+        {/* On-chain pool status */}
         {onChainMode ? (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -1107,7 +1131,7 @@ export default function Loans() {
                     Loan Pool
                   </p>
                   <p className="text-[11px] text-stone-500 dark:text-white/45 mt-0.5">
-                    Treasury reserves 30% for loans. On-chain USDC is tracked separately for disbursements.
+                    Max {((poolSnap?.maxLoanBps ?? 2500) / 100).toFixed(0)}% of pool liquidity
                   </p>
                 </div>
               </div>
@@ -1123,21 +1147,15 @@ export default function Loans() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3">
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Treasury loan pool</p>
+                <p className="text-stone-400 dark:text-white/35">Loan Pool</p>
                 <p className="font-bold text-stone-800 dark:text-white tabular-nums">
                   {formatCurrency(treasuryLoanAvailable, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">Available from Treasury</p>
+                <p className="text-stone-400 dark:text-white/35">Available</p>
                 <p className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                   {formatCurrency(treasuryLoanAvailable, currency)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
-                <p className="text-stone-400 dark:text-white/35">On-chain pool USDC</p>
-                <p className="font-bold text-stone-800 dark:text-white tabular-nums">
-                  {formatCurrency(poolSnap?.usdcBalance ?? 0, currency)}
                 </p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
@@ -1146,11 +1164,13 @@ export default function Loans() {
                   {formatCurrency(poolSnap?.outstandingPrincipal ?? 0, currency)}
                 </p>
               </div>
+              <div className="rounded-xl bg-white/70 dark:bg-black/20 px-3 py-2">
+                <p className="text-stone-400 dark:text-white/35">You can apply</p>
+                <p className="font-bold text-stone-800 dark:text-white">
+                  {poolSnap?.canApply ? 'Yes' : poolSnap?.isEligibleBorrower === false ? 'Not eligible' : 'No'}
+                </p>
+              </div>
             </div>
-            <p className="text-[11px] text-stone-500 dark:text-white/45">
-              {poolSnap?.canApply ? 'You can apply.' : poolSnap?.isEligibleBorrower === false ? 'You are not eligible to apply.' : 'Applications are currently unavailable.'}
-              {' '}The organizer must fund the on-chain pool before approved loans can be disbursed.
-            </p>
             {poolSnap?.isOrganizer && (
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
                 <div className="flex-1">
@@ -1221,7 +1241,7 @@ export default function Loans() {
               bg: 'bg-emerald-50 dark:bg-emerald-500/10',
             },
             {
-              label: onChainMode ? 'On-chain liquidity' : 'Total Disbursed',
+              label: onChainMode ? 'Pool liquidity' : 'Total Disbursed',
               value: onChainMode
                 ? formatCurrency(poolSnap?.liquidity ?? 0, currency)
                 : formatCurrency(disbursed, currency),
