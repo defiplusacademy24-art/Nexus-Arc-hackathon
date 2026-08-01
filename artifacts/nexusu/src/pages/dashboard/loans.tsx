@@ -586,6 +586,10 @@ export default function Loans() {
   const pendingN = pendingReviewCount(loans);
   const activeN = activeLoansCount(loans);
   const repayRate = repaymentRate(loans);
+  // Keep this in sync with the Treasury page's 30% Loan Pool allocation.
+  const treasuryLoanAvailable = Math.round(
+    (activeCooperative?.treasuryBalance ?? 0) * 0.3 * 100,
+  ) / 100;
 
   const myOutstanding = useMemo(() => {
     if (!walletAddress) return [];
@@ -1035,18 +1039,9 @@ export default function Loans() {
           <div className="min-w-0">
             <h1 className="text-xl font-display font-bold text-stone-900 dark:text-white">Loans</h1>
             <p className="text-sm text-stone-400 dark:text-white/40 mt-0.5 break-words">
-              {onChainMode ? (
-                <>
-                  {formatCurrency(outstanding, currency)} outstanding ·{' '}
-                  {formatCurrency(poolSnap?.liquidity ?? 0, currency)} pool liquidity
-                  {loadingChain ? ' · refreshing…' : ''}
-                </>
-              ) : (
-                <>
-                  {formatCurrency(outstanding, currency)} outstanding ·{' '}
-                  {formatCurrency(activeCooperative.treasuryBalance ?? 0, currency)} cash on hand
-                </>
-              )}
+              {formatCurrency(treasuryLoanAvailable, currency)} available from Treasury ·{' '}
+              {formatCurrency(outstanding, currency)} outstanding
+              {onChainMode && loadingChain ? ' · refreshing…' : ''}
             </p>
           </div>
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
