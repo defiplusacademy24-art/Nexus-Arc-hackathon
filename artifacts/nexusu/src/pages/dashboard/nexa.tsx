@@ -1,22 +1,13 @@
-import { motion } from 'framer-motion';
-import { Sparkles, Bot, Zap, ShieldCheck, BarChart3, FileText, Users, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link } from 'wouter';
+import { Sparkles, Bot, Zap, ShieldCheck, BarChart3, FileText, Users, TrendingUp, ArrowRight } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { NexaChat } from '@/components/ai/NexaChat';
 import {
-  TreasuryAgent, ContributionAgent, LoanAgent,
-  GovernanceAgent, FraudDetectionAgent, NotificationAgent, ReportingAgent,
-} from '@/services/ai/nexa';
+  fetchAgentsDashboard,
+  type AgentDashboardRow,
+} from '@/services/agents/api';
 import { cn } from '@/lib/utils';
-
-const AGENTS = [
-  { agent: TreasuryAgent, icon: BarChart3, color: 'text-teal-500 bg-teal-50 dark:bg-teal-500/10' },
-  { agent: ContributionAgent, icon: TrendingUp, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' },
-  { agent: LoanAgent, icon: Zap, color: 'text-blue-500 bg-blue-50 dark:bg-blue-500/10' },
-  { agent: GovernanceAgent, icon: ShieldCheck, color: 'text-purple-500 bg-purple-50 dark:bg-purple-500/10' },
-  { agent: FraudDetectionAgent, icon: ShieldCheck, color: 'text-red-500 bg-red-50 dark:bg-red-500/10' },
-  { agent: NotificationAgent, icon: Bot, color: 'text-[#6393C4] bg-[#6393C4]/8 dark:bg-[#6393C4]/10' },
-  { agent: ReportingAgent, icon: FileText, color: 'text-[#6393C4] bg-[#6393C4]/5 dark:bg-[#6393C4]/10' },
-];
 
 const CAPABILITIES = [
   { icon: BarChart3, title: 'Treasury Analysis', desc: 'Cash flow and forecasts' },
@@ -28,6 +19,21 @@ const CAPABILITIES = [
 ];
 
 export default function NexaPage() {
+  const [runtimeOn, setRuntimeOn] = useState(false);
+  const [agents, setAgents] = useState<AgentDashboardRow[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchAgentsDashboard().then((data) => {
+      if (cancelled) return;
+      setRuntimeOn(data.enabled);
+      setAgents(data.agents.slice(0, 7));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <DashboardLayout>
       {/* Height: top nav 3.5rem + mobile bottom nav ~4.5rem + safe area */}
@@ -42,8 +48,20 @@ export default function NexaPage() {
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-stone-900 dark:text-white">Nexa AI</h1>
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                <span className="text-[11px] text-emerald-500 truncate">Online</span>
+                <span
+                  className={cn(
+                    'w-2 h-2 rounded-full flex-shrink-0',
+                    runtimeOn ? 'bg-emerald-400' : 'bg-amber-400',
+                  )}
+                />
+                <span
+                  className={cn(
+                    'text-[11px] truncate',
+                    runtimeOn ? 'text-emerald-500' : 'text-amber-600 dark:text-amber-400',
+                  )}
+                >
+                  {runtimeOn ? 'Runtime online' : 'Assistant only · agents offline'}
+                </span>
               </div>
             </div>
           </div>
@@ -51,36 +69,75 @@ export default function NexaPage() {
           <NexaChat />
         </div>
 
-        {/* Right panel — agents & capabilities */}
+        {/* Right panel — live agents + capabilities */}
         <aside className="hidden xl:flex flex-col w-72 border-l border-stone-100 dark:border-[#1A2A3A] bg-white dark:bg-[#081827] overflow-y-auto flex-shrink-0">
           <div className="p-5">
-            <h2 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-3">
-              Agents
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest">
+                Agents
+              </h2>
+              <Link
+                href="/dashboard/agents"
+                className="text-[10px] font-semibold text-[#6393C4] inline-flex items-center gap-0.5 hover:underline"
+              >
+                View all
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
             <div className="space-y-2 mb-6">
-              {AGENTS.map(({ agent, icon: Icon, color }) => (
-                <div key={agent.name} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-stone-50 dark:hover:bg-white/4 transition-colors">
-                  <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0', color.split(' ').slice(1).join(' '))}>
-                    <Icon className={cn('w-3.5 h-3.5', color.split(' ')[0])} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-stone-700 dark:text-white/80 truncate">{agent.name}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                      <span className="text-[10px] text-emerald-500">Active</span>
+              {agents.length === 0 ? (
+                <p className="text-[11px] text-stone-400 dark:text-white/35 py-2">
+                  Loading agent status…
+                </p>
+              ) : (
+                agents.map((agent) => (
+                  <div
+                    key={agent.name}
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-stone-50 dark:hover:bg-white/4 transition-colors"
+                  >
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-[#6393C4]/10">
+                      <Bot className="w-3.5 h-3.5 text-[#6393C4]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-stone-700 dark:text-white/80 truncate">
+                        {agent.displayName}
+                      </p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span
+                          className={cn(
+                            'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                            runtimeOn && agent.ready
+                              ? 'bg-emerald-400'
+                              : agent.walletConfigured
+                                ? 'bg-amber-400'
+                                : 'bg-stone-300 dark:bg-white/20',
+                          )}
+                        />
+                        <span className="text-[10px] text-stone-400 dark:text-white/40">
+                          {!runtimeOn
+                            ? 'Offline'
+                            : agent.ready
+                              ? 'Running'
+                              : agent.walletConfigured
+                                ? 'Wallet set'
+                                : 'No wallet'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
-            {/* Capabilities */}
             <h2 className="text-xs font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-3">
               Capabilities
             </h2>
             <div className="space-y-2">
               {CAPABILITIES.map(({ icon: Icon, title, desc }) => (
-                <div key={title} className="p-3 rounded-xl border border-stone-100 dark:border-[#1A2A3A] hover:border-[#6393C4]/20 dark:hover:border-[#6393C4]/20 transition-colors group">
+                <div
+                  key={title}
+                  className="p-3 rounded-xl border border-stone-100 dark:border-[#1A2A3A] hover:border-[#6393C4]/20 dark:hover:border-[#6393C4]/20 transition-colors group"
+                >
                   <div className="flex items-center gap-2 mb-1">
                     <Icon className="w-3.5 h-3.5 text-[#6393C4]" />
                     <p className="text-xs font-semibold text-stone-700 dark:text-white/80">{title}</p>

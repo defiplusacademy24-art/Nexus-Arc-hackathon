@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Building2, Users, Vault, PiggyBank,
   Banknote, Sparkles, Scale, BarChart3, Bell, Settings,
-  X, LogOut, UserCircle,
+  X, LogOut, UserCircle, Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWallet } from '@/providers/WalletProvider';
@@ -36,7 +36,8 @@ const BASE_NAV_ITEMS: Omit<NavItem, 'badge'>[] = [
   { label: 'Treasury', href: '/dashboard/treasury', icon: Vault, section: 'Finance' },
   { label: 'Savings', href: '/dashboard/savings', icon: PiggyBank },
   { label: 'Loans', href: '/dashboard/loans', icon: Banknote },
-  { label: 'Nexa AI', href: '/dashboard/nexa', icon: Sparkles, section: 'Intelligence' },
+  { label: 'AI Agents', href: '/dashboard/agents', icon: Bot, section: 'Intelligence' },
+  { label: 'Nexa AI', href: '/dashboard/nexa', icon: Sparkles },
   { label: 'Governance', href: '/dashboard/governance', icon: Scale },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell, section: 'Account' },

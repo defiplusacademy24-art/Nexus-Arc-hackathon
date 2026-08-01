@@ -23,6 +23,7 @@ import Treasury from '@/pages/dashboard/treasury';
 import Savings from '@/pages/dashboard/savings';
 import Loans from '@/pages/dashboard/loans';
 import NexaPage from '@/pages/dashboard/nexa';
+import AgentsPage from '@/pages/dashboard/agents';
 import Governance from '@/pages/dashboard/governance';
 import Analytics from '@/pages/dashboard/analytics';
 import Notifications from '@/pages/dashboard/notifications';
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/dashboard/savings" component={Savings} />
       <Route path="/dashboard/loans" component={Loans} />
       <Route path="/dashboard/nexa" component={NexaPage} />
+      <Route path="/dashboard/agents" component={AgentsPage} />
       <Route path="/dashboard/governance" component={Governance} />
       <Route path="/dashboard/analytics" component={Analytics} />
       <Route path="/dashboard/notifications" component={Notifications} />
