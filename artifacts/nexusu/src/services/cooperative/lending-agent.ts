@@ -14,11 +14,12 @@ import type {
   TreasuryHealthLabel,
   Loan,
 } from '@/types';
+import { computeLoanPoolAvailable, TREASURY_ALLOCATION } from '@/services/treasury';
 
 /** Max share of treasury that can be requested as a single loan (policy). */
 export const MAX_LOAN_TREASURY_PCT = 0.25;
 /** Loan pool is modelled as 30% of treasury (matches treasury UI allocation). */
-export const LOAN_POOL_PCT = 0.3;
+export const LOAN_POOL_PCT = TREASURY_ALLOCATION.loanPool;
 
 export interface LendingContext {
   cooperative: Cooperative;
@@ -53,11 +54,6 @@ function treasuryHealth(balance: number, contributionAmount: number): TreasuryHe
   if (balance >= contributionAmount * 4) return 'Healthy';
   if (balance >= contributionAmount) return 'Moderate';
   return 'Low';
-}
-
-function loanPoolAvailable(treasury: number, outstanding: number): number {
-  const pool = Math.max(0, treasury * LOAN_POOL_PCT);
-  return Math.max(0, Math.round((pool - outstanding) * 100) / 100);
 }
 
 function liquidityLabel(available: number, requested: number): LiquidityLabel {
@@ -109,11 +105,19 @@ function decide(input: {
     };
   }
 
-  if (requested > maxAllowed && maxAllowed > 0) {
+  if (maxAllowed <= 0) {
+    return {
+      decision: 'DECLINED',
+      explanation:
+        'The loan pool has no available capital. Outstanding loans have used the 30% treasury allocation.',
+    };
+  }
+
+  if (requested > maxAllowed) {
     return {
       decision: 'REQUIRES_GOVERNANCE_REVIEW',
       explanation:
-        'This request exceeds the current lending limit. Governance review is required.',
+        'This request exceeds the available loan pool. Reduce the amount or wait for repayments.',
     };
   }
 
@@ -185,9 +189,14 @@ export function evaluateLoanApplication(ctx: LendingContext): AiLoanAssessment {
       return s + Math.max(0, principal - paid);
     }, 0);
 
-  const poolAvail = loanPoolAvailable(treasury, coopOutstanding);
+  // 30% treasury loan pool minus outstanding disbursed loans (matches Loans UI)
+  const poolAvail = computeLoanPoolAvailable(treasury, coopOutstanding);
   const maxAllowed = Math.round(
-    Math.min(treasury * MAX_LOAN_TREASURY_PCT, poolAvail > 0 ? poolAvail : treasury * MAX_LOAN_TREASURY_PCT) * 100,
+    Math.min(
+      treasury * MAX_LOAN_TREASURY_PCT,
+      poolAvail > 0 ? poolAvail : 0,
+      treasury,
+    ) * 100,
   ) / 100;
 
   const history = gradeContributionHistory(applicant);

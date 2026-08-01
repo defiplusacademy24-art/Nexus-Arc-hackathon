@@ -244,6 +244,7 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionFrequency' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'contributionPeriodSeconds' },
       { address: vault, abi: treasuryVaultAbi, functionName: 'getCurrentPayoutRecipient' },
+      { address: vault, abi: treasuryVaultAbi, functionName: 'getTreasuryAllocationBreakdown' },
     ],
   });
 
@@ -255,6 +256,9 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   const freqRaw = resultValue<number | bigint>(core[5]);
   const periodRaw = resultValue<bigint | number>(core[6]);
   const currentPayee = resultValue<readonly [Address, number | bigint]>(core[7]);
+  const breakdownRaw = resultValue<
+    readonly [bigint, bigint, bigint, bigint, bigint]
+  >(core[8]);
 
   // If core amount failed entirely, surface a soft rate-limit style failure upstream
   if (contribRaw == null && balRaw == null) {
@@ -264,6 +268,15 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
   const contributionFrequency: OnChainFrequency | null =
     freqRaw != null ? frequencyFromOnChain(Number(freqRaw)) : null;
   const periodSeconds = periodRaw != null ? Number(periodRaw) : null;
+  const breakdown: VaultBreakdown | null = breakdownRaw
+    ? {
+        totalBalance: usdcToNumber(breakdownRaw[0]),
+        rotationFund: usdcToNumber(breakdownRaw[1]),
+        loanPool: usdcToNumber(breakdownRaw[2]),
+        emergencyReserve: usdcToNumber(breakdownRaw[3]),
+        savingsInvestment: usdcToNumber(breakdownRaw[4]),
+      }
+    : null;
 
   let isMember = false;
   let contributionStatus: VaultSnapshot['contributionStatus'] = 'unknown';
@@ -383,7 +396,7 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
     isCurrentRecipient,
     paidCount: Number(paid),
     requiredCount: Number(required),
-    breakdown: null,
+    breakdown,
     joinPosition,
     nextContributionAt,
     canDepositNow,

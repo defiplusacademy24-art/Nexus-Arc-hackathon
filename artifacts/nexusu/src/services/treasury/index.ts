@@ -67,6 +67,50 @@ export function buildSnapshotFromBalance(
   };
 }
 
+/**
+ * Loan pool capacity & available capital (same 30% policy as Treasury UI).
+ *
+ * Capacity uses economic base (cash + outstanding) so that when a loan is
+ * disbursed (cash ↓, outstanding ↑), capacity stays stable and Available
+ * falls by the disbursed amount. Available is capped by liquid cash.
+ */
+export function computeLoanPoolMetrics(
+  treasuryCash: number,
+  outstandingLoans: number,
+): {
+  cashOnHand: number;
+  outstanding: number;
+  /** 30% of (cash + outstanding) — total loan pool size */
+  capacity: number;
+  /** capacity − outstanding, capped by cash — still available to lend */
+  available: number;
+  pct: number;
+} {
+  const cash = Math.max(0, treasuryCash);
+  const outstanding = Math.max(0, outstandingLoans);
+  const pct = TREASURY_ALLOCATION.loanPool;
+  const economic = cash + outstanding;
+  const capacity = Math.round(economic * pct * 100) / 100;
+  const available = Math.round(
+    Math.min(cash, Math.max(0, capacity - outstanding)) * 100,
+  ) / 100;
+  return {
+    cashOnHand: cash,
+    outstanding,
+    capacity,
+    available,
+    pct: pct * 100,
+  };
+}
+
+/** Available loan capital for new applications. */
+export function computeLoanPoolAvailable(
+  treasuryCash: number,
+  outstandingLoans: number,
+): number {
+  return computeLoanPoolMetrics(treasuryCash, outstandingLoans).available;
+}
+
 export function buildCashFlowFromTransactions(
   txns: TreasuryTxn[],
   currentBalance: number,
