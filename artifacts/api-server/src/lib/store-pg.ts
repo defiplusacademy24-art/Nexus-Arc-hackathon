@@ -13,11 +13,13 @@ import {
   notificationsTable,
   onchainTransfersTable,
   agentsTable,
+  userProfilesTable,
   type CooperativeRow,
   type MemberRow,
   type TransactionRow,
   type NotificationRow,
   type OnchainTransferRow,
+  type UserProfileRow,
 } from "@workspace/db";
 import type {
   CreateCoopInput,
@@ -29,6 +31,8 @@ import type {
   StoredNotification,
   StoredOnchainTransfer,
   StoredTransaction,
+  StoredUserProfile,
+  UpsertUserProfileInput,
   TxType,
   RotationMode,
 } from "./store-types";
@@ -1096,4 +1100,132 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     storage: "postgres",
     updatedAt: new Date().toISOString(),
   };
+}
+
+// ── User profiles (cross-device display name / prefs) ───────────────────────────
+
+const DEFAULT_NOTIF = {
+  contributions: true,
+  loans: true,
+  governance: true,
+  security: true,
+  aiInsights: false,
+};
+
+function mapProfile(r: UserProfileRow): StoredUserProfile {
+  const np =
+    r.notifPrefs && typeof r.notifPrefs === "object"
+      ? (r.notifPrefs as Record<string, boolean>)
+      : {};
+  return {
+    walletIdentity: r.walletIdentity,
+    displayName: r.displayName ?? "",
+    avatarColor: r.avatarColor ?? "sky",
+    avatarEmoji: r.avatarEmoji ?? "",
+    avatarUrl: r.avatarUrl ?? "",
+    language: r.language ?? "en",
+    timezone: r.timezone ?? "UTC",
+    notifPrefs: {
+      contributions: np.contributions ?? DEFAULT_NOTIF.contributions,
+      loans: np.loans ?? DEFAULT_NOTIF.loans,
+      governance: np.governance ?? DEFAULT_NOTIF.governance,
+      security: np.security ?? DEFAULT_NOTIF.security,
+      aiInsights: np.aiInsights ?? DEFAULT_NOTIF.aiInsights,
+    },
+    updatedAt: ts(r.updatedAt),
+    createdAt: ts(r.createdAt),
+  };
+}
+
+export async function getUserProfile(
+  wallet: string,
+): Promise<StoredUserProfile | null> {
+  const db = await readyDb();
+  const w = wallet.trim().toLowerCase();
+  const [row] = await db
+    .select()
+    .from(userProfilesTable)
+    .where(eq(userProfilesTable.walletIdentity, w))
+    .limit(1);
+  return row ? mapProfile(row) : null;
+}
+
+export async function upsertUserProfile(
+  wallet: string,
+  input: UpsertUserProfileInput,
+): Promise<StoredUserProfile> {
+  const db = await readyDb();
+  const w = wallet.trim().toLowerCase();
+  const existing = await getUserProfile(w);
+  const now = new Date();
+
+  const displayName =
+    input.displayName !== undefined
+      ? input.displayName.trim()
+      : (existing?.displayName ?? "");
+  const avatarColor =
+    input.avatarColor !== undefined
+      ? input.avatarColor
+      : (existing?.avatarColor ?? "sky");
+  const avatarEmoji =
+    input.avatarEmoji !== undefined
+      ? input.avatarEmoji
+      : (existing?.avatarEmoji ?? "");
+  const avatarUrl =
+    input.avatarUrl !== undefined
+      ? input.avatarUrl
+      : (existing?.avatarUrl ?? "");
+  const language =
+    input.language !== undefined ? input.language : (existing?.language ?? "en");
+  const timezone =
+    input.timezone !== undefined
+      ? input.timezone
+      : (existing?.timezone ?? "UTC");
+  const notifPrefs = {
+    ...DEFAULT_NOTIF,
+    ...(existing?.notifPrefs ?? {}),
+    ...(input.notifPrefs ?? {}),
+  };
+
+  await db
+    .insert(userProfilesTable)
+    .values({
+      walletIdentity: w,
+      displayName: displayName || null,
+      avatarColor,
+      avatarEmoji: avatarEmoji || null,
+      avatarUrl: avatarUrl || null,
+      language,
+      timezone,
+      notifPrefs,
+      updatedAt: now,
+      createdAt: existing ? new Date(existing.createdAt) : now,
+    })
+    .onConflictDoUpdate({
+      target: userProfilesTable.walletIdentity,
+      set: {
+        displayName: displayName || null,
+        avatarColor,
+        avatarEmoji: avatarEmoji || null,
+        avatarUrl: avatarUrl || null,
+        language,
+        timezone,
+        notifPrefs,
+        updatedAt: now,
+      },
+    });
+
+  // Keep cooperative member rows in sync so directories show the new name
+  if (displayName) {
+    await db
+      .update(membersTable)
+      .set({ displayName, name: displayName })
+      .where(sql`lower(${membersTable.walletIdentity}) = ${w}`);
+  }
+
+  const saved = await getUserProfile(w);
+  if (!saved) {
+    throw new Error("Failed to save user profile");
+  }
+  return saved;
 }

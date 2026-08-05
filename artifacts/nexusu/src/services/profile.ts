@@ -1,9 +1,9 @@
 /**
  * Profile preferences for Nexusu.
  *
- * User-editable settings that live alongside wallet identity
- * but are stored locally in localStorage (not in the wallet).
- * These never override the canonical on-chain identity from the SDK.
+ * Cached in localStorage for instant UI, and synced to the API (/api/profile)
+ * so display name and avatar prefs persist across devices when DATABASE_URL
+ * (Vercel Postgres) is configured.
  */
 
 const PREFS_KEY = 'nexusu-profile-prefs';
@@ -55,20 +55,28 @@ const DEFAULT_PREFS: ProfilePrefs = {
   },
 };
 
+function normalizePrefs(parsed: Partial<ProfilePrefs> | null | undefined): ProfilePrefs {
+  return {
+    ...DEFAULT_PREFS,
+    ...(parsed ?? {}),
+    avatarUrl: typeof parsed?.avatarUrl === 'string' ? parsed.avatarUrl : '',
+    displayNameOverride:
+      typeof parsed?.displayNameOverride === 'string'
+        ? parsed.displayNameOverride
+        : '',
+    notifPrefs: {
+      ...DEFAULT_PREFS.notifPrefs,
+      ...(parsed?.notifPrefs ?? {}),
+    },
+  };
+}
+
 export function loadProfilePrefs(): ProfilePrefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (!raw) return { ...DEFAULT_PREFS };
     const parsed = JSON.parse(raw) as Partial<ProfilePrefs>;
-    return {
-      ...DEFAULT_PREFS,
-      ...parsed,
-      avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : '',
-      notifPrefs: {
-        ...DEFAULT_PREFS.notifPrefs,
-        ...(parsed.notifPrefs ?? {}),
-      },
-    };
+    return normalizePrefs(parsed);
   } catch {
     return { ...DEFAULT_PREFS };
   }
@@ -81,9 +89,93 @@ export function notifyProfileUpdated(prefs?: ProfilePrefs): void {
   );
 }
 
+/** Local cache only — also call syncProfileToServer when wallet is known. */
 export function saveProfilePrefs(prefs: ProfilePrefs): void {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
   notifyProfileUpdated(prefs);
+}
+
+/**
+ * Load profile from API (Postgres when DATABASE_URL is set).
+ * Merges server → localStorage so other devices see the same username.
+ */
+export async function fetchProfileFromServer(
+  wallet: string,
+): Promise<ProfilePrefs | null> {
+  if (!wallet?.trim()) return null;
+  try {
+    const res = await fetch('/api/profile', {
+      headers: {
+        Accept: 'application/json',
+        'x-wallet-address': wallet,
+      },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      profile: Partial<ProfilePrefs> | null;
+    };
+    if (!data.profile) return null;
+    const prefs = normalizePrefs(data.profile);
+    // Server is source of truth for cross-device fields
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    notifyProfileUpdated(prefs);
+    return prefs;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist prefs to API so they survive login on another device.
+ * Still writes localStorage first for snappy UI.
+ */
+export async function syncProfileToServer(
+  wallet: string,
+  prefs: ProfilePrefs,
+): Promise<{ ok: boolean; storage?: string; error?: string }> {
+  if (!wallet?.trim()) {
+    return { ok: false, error: 'No wallet' };
+  }
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  notifyProfileUpdated(prefs);
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'x-wallet-address': wallet,
+      },
+      body: JSON.stringify({
+        displayNameOverride: prefs.displayNameOverride,
+        avatarColor: prefs.avatarColor,
+        avatarEmoji: prefs.avatarEmoji,
+        avatarUrl: prefs.avatarUrl,
+        language: prefs.language,
+        timezone: prefs.timezone,
+        notifPrefs: prefs.notifPrefs,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: string };
+      return { ok: false, error: err.error ?? res.statusText };
+    }
+    const data = (await res.json()) as {
+      storage?: string;
+      profile?: Partial<ProfilePrefs>;
+    };
+    if (data.profile) {
+      const merged = normalizePrefs(data.profile);
+      localStorage.setItem(PREFS_KEY, JSON.stringify(merged));
+      notifyProfileUpdated(merged);
+    }
+    return { ok: true, storage: data.storage };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Network error',
+    };
+  }
 }
 
 /**

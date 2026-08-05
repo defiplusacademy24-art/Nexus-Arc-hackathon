@@ -172,6 +172,20 @@ CREATE TABLE IF NOT EXISTS platform_agents (
 );
 CREATE INDEX IF NOT EXISTS platform_agents_status_idx ON platform_agents (status);
 CREATE INDEX IF NOT EXISTS platform_agents_coop_idx ON platform_agents (coop_id);
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+  wallet_identity TEXT PRIMARY KEY,
+  display_name TEXT,
+  avatar_color TEXT,
+  avatar_emoji TEXT,
+  avatar_url TEXT,
+  language TEXT,
+  timezone TEXT,
+  notif_prefs JSONB,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS user_profiles_updated_idx ON user_profiles (updated_at);
 `);
     })().catch((err) => {
       schemaReady = null;

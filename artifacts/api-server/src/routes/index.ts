@@ -7,6 +7,7 @@ import transactionsRouter from "./transactions";
 import onchainRouter from "./onchain";
 import platformRouter from "./platform";
 import agentsRouter from "./agents";
+import profileRouter from "./profile";
 import { ucEnabled } from "../lib/circle-user";
 import { logger } from "../lib/logger";
 import { storageBackend } from "../lib/store";
@@ -21,12 +22,13 @@ router.use("/transactions", transactionsRouter);
 router.use("/onchain", onchainRouter);
 router.use("/platform", platformRouter);
 router.use("/agents", agentsRouter);
+router.use("/profile", profileRouter);
 
 logger.info(
   {
     storage: storageBackend(),
   },
-  "Domain APIs enabled: /api/platform, /api/notifications, /api/cooperatives, /api/transactions, /api/onchain, /api/agents",
+  "Domain APIs enabled: /api/platform, /api/notifications, /api/cooperatives, /api/transactions, /api/onchain, /api/agents, /api/profile",
 );
 
 if (ucEnabled()) {

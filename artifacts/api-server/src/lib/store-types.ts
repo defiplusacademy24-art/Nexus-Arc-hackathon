@@ -200,3 +200,33 @@ export interface PlatformStats {
   storage: "postgres" | "file";
   updatedAt: string;
 }
+
+/** Cross-device profile prefs keyed by wallet (Postgres when DATABASE_URL is set). */
+export interface StoredUserProfile {
+  walletIdentity: string;
+  displayName: string;
+  avatarColor: string;
+  avatarEmoji: string;
+  avatarUrl: string;
+  language: string;
+  timezone: string;
+  notifPrefs: {
+    contributions: boolean;
+    loans: boolean;
+    governance: boolean;
+    security: boolean;
+    aiInsights: boolean;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+
+export type UpsertUserProfileInput = {
+  displayName?: string;
+  avatarColor?: string;
+  avatarEmoji?: string;
+  avatarUrl?: string;
+  language?: string;
+  timezone?: string;
+  notifPrefs?: Partial<StoredUserProfile["notifPrefs"]>;
+};

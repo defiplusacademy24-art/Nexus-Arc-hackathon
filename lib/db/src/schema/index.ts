@@ -144,6 +144,28 @@ export const onchainTransfersTable = pgTable(
 );
 
 /**
+ * Per-wallet user profile (display name, avatar prefs).
+ * Keyed by wallet so the same Circle login sees the same name on every device.
+ */
+export const userProfilesTable = pgTable(
+  "user_profiles",
+  {
+    walletIdentity: text("wallet_identity").primaryKey(),
+    displayName: text("display_name"),
+    avatarColor: text("avatar_color"),
+    avatarEmoji: text("avatar_emoji"),
+    /** Small JPEG data URL (resized client-side). */
+    avatarUrl: text("avatar_url"),
+    language: text("language"),
+    timezone: text("timezone"),
+    notifPrefs: jsonb("notif_prefs").$type<Record<string, boolean>>(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("user_profiles_updated_idx").on(t.updatedAt)],
+);
+
+/**
  * Hosted autonomous agents (treasury, lending, governance, risk, etc.).
  * Empty until agent hosting is provisioned; landing page counts status=running.
  */
@@ -168,4 +190,5 @@ export type MemberRow = typeof membersTable.$inferSelect;
 export type TransactionRow = typeof transactionsTable.$inferSelect;
 export type NotificationRow = typeof notificationsTable.$inferSelect;
 export type OnchainTransferRow = typeof onchainTransfersTable.$inferSelect;
+export type UserProfileRow = typeof userProfilesTable.$inferSelect;
 export type AgentRow = typeof agentsTable.$inferSelect;

@@ -5,8 +5,6 @@ import type { UseProfileState } from '@/hooks/useProfile';
 import {
   AVATAR_COLORS,
   LANGUAGES,
-  loadProfilePrefs,
-  saveProfilePrefs,
   type AvatarColor,
 } from '@/services/profile';
 
@@ -31,7 +29,16 @@ const TIMEZONES = [
 
 export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
   const { resolvedTheme, setTheme } = useTheme();
-  const { prefs, isDirty, update, setNotifPref, save, setAvatarColor } = profile;
+  const {
+    prefs,
+    isDirty,
+    syncing,
+    syncError,
+    update,
+    setNotifPref,
+    save,
+    setAvatarColor,
+  } = profile;
 
   return (
     <motion.div
@@ -46,17 +53,28 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
           <Settings className="w-4 h-4 text-[#6393C4]" />
           <span className="text-sm font-semibold text-stone-800 dark:text-white">Preferences</span>
         </div>
-        {isDirty && (
-          <motion.button
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            onClick={save}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#6393C4] text-white text-xs font-semibold hover:bg-[#d43e1b] transition-colors"
-          >
-            <Save className="w-3 h-3" />
-            Save
-          </motion.button>
-        )}
+        <div className="flex items-center gap-2">
+          {syncing && (
+            <span className="text-[10px] text-stone-400 dark:text-white/35">Syncing…</span>
+          )}
+          {syncError && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 max-w-[10rem] truncate" title={syncError}>
+              Offline save only
+            </span>
+          )}
+          {isDirty && (
+            <motion.button
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={save}
+              disabled={syncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#6393C4] text-white text-xs font-semibold hover:bg-[#d43e1b] transition-colors disabled:opacity-60"
+            >
+              <Save className="w-3 h-3" />
+              Save
+            </motion.button>
+          )}
+        </div>
       </div>
 
       <div className="p-5 space-y-6">
@@ -95,16 +113,15 @@ export function PreferencesCard({ profile, delay = 0 }: PreferencesCardProps) {
             value={prefs.displayNameOverride}
             onChange={(e) => update('displayNameOverride', e.target.value)}
             onBlur={() => {
-              // Persist name immediately so Overview greeting updates without an extra Save click
-              const next = {
-                ...loadProfilePrefs(),
-                displayNameOverride: prefs.displayNameOverride.trim(),
-              };
-              saveProfilePrefs(next);
+              // Persist name immediately (local + API) so other devices see it
+              save();
             }}
             placeholder="Display name"
             className="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-200 dark:border-[#1A2A3A] text-sm text-stone-700 dark:text-white placeholder:text-stone-300 dark:placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-[#6393C4]/30 transition-all"
           />
+          <p className="text-[11px] text-stone-400 dark:text-white/35 mt-1.5">
+            Saved to your account so it appears on every device when you sign in.
+          </p>
         </div>
 
         {/* Language */}

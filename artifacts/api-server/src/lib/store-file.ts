@@ -7,6 +7,10 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type {
+  StoredUserProfile,
+  UpsertUserProfileInput,
+} from "./store-types";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -170,6 +174,8 @@ interface StoreData {
   onchainTransfers: StoredOnchainTransfer[];
   /** Hosted agents — empty until agent hosting is provisioned. */
   agents: import("./store-types").StoredAgent[];
+  /** Per-wallet profile prefs (display name, avatar). */
+  userProfiles: import("./store-types").StoredUserProfile[];
 }
 
 // ── Persistence ────────────────────────────────────────────────────────────────
@@ -182,6 +188,7 @@ function emptyStore(): StoreData {
     notifications: [],
     onchainTransfers: [],
     agents: [],
+    userProfiles: [],
   };
 }
 
@@ -197,6 +204,7 @@ function load(): StoreData {
       notifications: parsed.notifications ?? [],
       onchainTransfers: parsed.onchainTransfers ?? [],
       agents: parsed.agents ?? [],
+      userProfiles: parsed.userProfiles ?? [],
     };
   } catch {
     return emptyStore();
@@ -1047,4 +1055,83 @@ export function getPlatformStats(): import("./store-types").PlatformStats {
     storage: "file",
     updatedAt: new Date().toISOString(),
   };
+}
+
+// ── User profiles ──────────────────────────────────────────────────────────────
+
+const DEFAULT_NOTIF_PREFS = {
+  contributions: true,
+  loans: true,
+  governance: true,
+  security: true,
+  aiInsights: false,
+};
+
+export function getUserProfile(wallet: string): StoredUserProfile | null {
+  const w = wallet.trim().toLowerCase();
+  return (
+    getStore().userProfiles.find((p) => p.walletIdentity.toLowerCase() === w) ??
+    null
+  );
+}
+
+export function upsertUserProfile(
+  wallet: string,
+  input: UpsertUserProfileInput,
+): StoredUserProfile {
+  const data = getStore();
+  const w = wallet.trim().toLowerCase();
+  const idx = data.userProfiles.findIndex(
+    (p) => p.walletIdentity.toLowerCase() === w,
+  );
+  const existing = idx >= 0 ? data.userProfiles[idx] : null;
+  const now = new Date().toISOString();
+
+  const displayName =
+    input.displayName !== undefined
+      ? input.displayName.trim()
+      : (existing?.displayName ?? "");
+  const profile: StoredUserProfile = {
+    walletIdentity: w,
+    displayName,
+    avatarColor:
+      input.avatarColor !== undefined
+        ? input.avatarColor
+        : (existing?.avatarColor ?? "sky"),
+    avatarEmoji:
+      input.avatarEmoji !== undefined
+        ? input.avatarEmoji
+        : (existing?.avatarEmoji ?? ""),
+    avatarUrl:
+      input.avatarUrl !== undefined
+        ? input.avatarUrl
+        : (existing?.avatarUrl ?? ""),
+    language:
+      input.language !== undefined ? input.language : (existing?.language ?? "en"),
+    timezone:
+      input.timezone !== undefined
+        ? input.timezone
+        : (existing?.timezone ?? "UTC"),
+    notifPrefs: {
+      ...DEFAULT_NOTIF_PREFS,
+      ...(existing?.notifPrefs ?? {}),
+      ...(input.notifPrefs ?? {}),
+    },
+    updatedAt: now,
+    createdAt: existing?.createdAt ?? now,
+  };
+
+  if (idx >= 0) data.userProfiles[idx] = profile;
+  else data.userProfiles.push(profile);
+
+  if (displayName) {
+    data.members = data.members.map((m) =>
+      m.walletIdentity.toLowerCase() === w
+        ? { ...m, displayName, name: displayName }
+        : m,
+    );
+  }
+
+  commit(data);
+  return profile;
 }

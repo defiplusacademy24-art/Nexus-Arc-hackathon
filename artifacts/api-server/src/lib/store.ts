@@ -255,3 +255,18 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   if (usePg()) return pg.getPlatformStats();
   return file.getPlatformStats();
 }
+
+// ── User profiles (display name / prefs — cross-device when Postgres is on) ────
+
+export async function getUserProfile(wallet: string) {
+  if (usePg()) return pg.getUserProfile(wallet);
+  return file.getUserProfile(wallet);
+}
+
+export async function upsertUserProfile(
+  wallet: string,
+  input: import("./store-types").UpsertUserProfileInput,
+) {
+  if (usePg()) return pg.upsertUserProfile(wallet, input);
+  return file.upsertUserProfile(wallet, input);
+}
