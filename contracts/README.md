@@ -4,9 +4,40 @@ Solidity vault for Nexusu cooperatives on **Arc Testnet** (chain ID `5042002`).
 
 Holds member **USDC** contributions, allocates them across configured buckets, tracks per-cycle status, and pays out using the cooperative’s rotation strategy.
 
+## Multi-workspace isolation
+
+**Each cooperative must use its own `CooperativeTreasuryVault` instance.**
+
+A single shared vault cannot serve multiple workspaces: membership, cycle
+contributions, frequency cooldowns, and balances all live in one contract state.
+If two coops pointed at the same address, a user who deposited in coop A would
+see that balance in coop B and could be blocked from depositing again.
+
+Deploy the factory, then create one vault per cooperative (app stores the
+address on the cooperative record as `treasuryVaultAddress`):
+
+```bash
+forge script script/DeployFactory.s.sol:DeployFactory \
+  --rpc-url https://rpc.testnet.arc.network \
+  --broadcast --legacy
+# Set TREASURY_VAULT_FACTORY_ADDRESS / VITE_TREASURY_VAULT_FACTORY_ADDRESS
+```
+
+`src/CooperativeTreasuryVaultFactory.sol` → `createVault(...)` returns a new vault.
+
+`src/CooperativeLoanPoolFactory.sol` → `createPool(...)` returns a loan pool bound to that vault.
+Wire `vault.setLendingPool(pool)` so **30% of each deposit** auto-funds that coop’s pool only.
+
+```bash
+forge script script/DeployLoanFactory.s.sol:DeployLoanFactory \
+  --rpc-url https://rpc.testnet.arc.network \
+  --broadcast --legacy
+# Set LOAN_POOL_FACTORY_ADDRESS / VITE_LOAN_POOL_FACTORY_ADDRESS
+```
+
 ## Contract
 
-`src/CooperativeTreasuryVault.sol`
+`src/CooperativeTreasuryVault.sol` (one instance per cooperative)
 
 | Responsibility | Implementation |
 | --- | --- |

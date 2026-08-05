@@ -62,9 +62,13 @@ export function JoinModal({ onClose }: { onClose: () => void }) {
         email: email.trim(),
       });
       if (result.ok && result.coop) {
-        // Silent vault membership so joiners can deposit without a separate step
-        const { ensureVaultMembership } = await import('@/services/treasury/vault');
-        await ensureVaultMembership(identity.walletAddress).catch(() => null);
+        // Join THIS coop's isolated vault only (not another workspace's vault)
+        if (result.coop.treasuryVaultAddress) {
+          const { ensureVaultMembership } = await import('@/services/treasury/vault');
+          await ensureVaultMembership(identity.walletAddress, {
+            vaultAddress: result.coop.treasuryVaultAddress,
+          }).catch(() => null);
+        }
         setJoined({
           coop: result.coop,
           joinPosition: result.joinPosition ?? result.member?.joinPosition ?? 0,

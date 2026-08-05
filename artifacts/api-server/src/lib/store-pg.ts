@@ -77,6 +77,8 @@ function mapCoop(r: CooperativeRow): StoredCooperative {
     rotationMode: (r.rotationMode as RotationMode) ?? undefined,
     currentRecipientPosition: r.currentRecipientPosition ?? undefined,
     currentCycle: r.currentCycle ?? undefined,
+    treasuryVaultAddress: r.treasuryVaultAddress ?? undefined,
+    loanPoolAddress: r.loanPoolAddress ?? undefined,
     createdAt: ts(r.createdAt),
   };
 }
@@ -476,6 +478,8 @@ export async function createCooperative(
     rotationMode,
     currentRecipientPosition: 1,
     currentCycle: 1,
+    treasuryVaultAddress: null,
+    loanPoolAddress: null,
     createdAt: now.toISOString(),
   };
 
@@ -520,6 +524,8 @@ export async function createCooperative(
     rotationMode: coop.rotationMode ?? null,
     currentRecipientPosition: 1,
     currentCycle: 1,
+    treasuryVaultAddress: null,
+    loanPoolAddress: null,
     createdAt: now,
   });
 
@@ -669,6 +675,58 @@ export async function joinCooperative(
 
   const updated = (await getCooperative(coop.id))!;
   return { coop: updated, member, joined: true, joinPosition };
+}
+
+/** Persist the isolated on-chain vault address for a cooperative workspace. */
+export async function setCooperativeTreasuryVault(
+  coopId: string,
+  treasuryVaultAddress: string,
+): Promise<StoredCooperative | null> {
+  const db = await readyDb();
+  const addr = treasuryVaultAddress.trim();
+  if (!addr) return getCooperative(coopId);
+  await db
+    .update(cooperativesTable)
+    .set({ treasuryVaultAddress: addr })
+    .where(eq(cooperativesTable.id, coopId));
+  return getCooperative(coopId);
+}
+
+export async function setCooperativeLoanPool(
+  coopId: string,
+  loanPoolAddress: string,
+): Promise<StoredCooperative | null> {
+  const db = await readyDb();
+  const addr = loanPoolAddress.trim();
+  if (!addr) return getCooperative(coopId);
+  await db
+    .update(cooperativesTable)
+    .set({ loanPoolAddress: addr })
+    .where(eq(cooperativesTable.id, coopId));
+  return getCooperative(coopId);
+}
+
+export async function setCooperativeOnchainAddresses(
+  coopId: string,
+  addrs: { treasuryVaultAddress?: string | null; loanPoolAddress?: string | null },
+): Promise<StoredCooperative | null> {
+  const db = await readyDb();
+  const patch: {
+    treasuryVaultAddress?: string | null;
+    loanPoolAddress?: string | null;
+  } = {};
+  if (addrs.treasuryVaultAddress !== undefined) {
+    patch.treasuryVaultAddress = addrs.treasuryVaultAddress?.trim() || null;
+  }
+  if (addrs.loanPoolAddress !== undefined) {
+    patch.loanPoolAddress = addrs.loanPoolAddress?.trim() || null;
+  }
+  if (Object.keys(patch).length === 0) return getCooperative(coopId);
+  await db
+    .update(cooperativesTable)
+    .set(patch)
+    .where(eq(cooperativesTable.id, coopId));
+  return getCooperative(coopId);
 }
 
 export async function activateCooperative(

@@ -20,7 +20,6 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CashFlowPoint, Member } from '@/types';
 import {
   fetchVaultContributionStats,
-  isVaultConfigured,
 } from '@/services/treasury/vault';
 
 function ChartCard({ title, subtitle, children, delay = 0, className = '', empty }: {
@@ -145,7 +144,10 @@ export default function Analytics() {
       try {
         if (vaultConfigured) {
           try {
-            const stats = await fetchVaultContributionStats();
+            const stats = await fetchVaultContributionStats(
+              undefined,
+              activeCooperative?.treasuryVaultAddress,
+            );
             if (cancelled) return;
             setMonthlyInflow(stats.monthlyInflow);
             const byMonth = new Map<string, number>();
@@ -183,7 +185,7 @@ export default function Analytics() {
           limit: 200,
         });
         let txns = res.transactions ?? [];
-        if (isVaultConfigured()) {
+        if (vaultConfigured) {
           txns = txns.filter((t) => {
             const n = String((t as { note?: string }).note ?? '').toLowerCase();
             return n.includes('on-chain') || n.includes('arc vault');

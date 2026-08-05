@@ -86,8 +86,13 @@ CREATE TABLE IF NOT EXISTS cooperatives (
   rotation_mode TEXT,
   current_recipient_position INTEGER,
   current_cycle INTEGER,
+  treasury_vault_address TEXT,
+  loan_pool_address TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Multi-workspace isolation: one vault + loan pool per cooperative
+ALTER TABLE cooperatives ADD COLUMN IF NOT EXISTS treasury_vault_address TEXT;
+ALTER TABLE cooperatives ADD COLUMN IF NOT EXISTS loan_pool_address TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS cooperatives_invite_code_uidx ON cooperatives (invite_code);
 CREATE INDEX IF NOT EXISTS cooperatives_founder_idx ON cooperatives (founder_wallet_identity);
 

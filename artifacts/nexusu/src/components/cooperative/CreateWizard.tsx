@@ -533,7 +533,7 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
     setCreating(true);
     try {
       const wallet = identity?.walletAddress ?? '';
-      await createCooperative({
+      const created = await createCooperative({
         name: form.name,
         description: form.description,
         country: form.country,
@@ -552,11 +552,12 @@ export function CreateWizard({ onClose }: { onClose: () => void }) {
         inviteCode: preview.inviteCode,
         cooperativeId: preview.cooperativeId,
       }, wallet);
-      // Silent vault membership so founder can deposit without a separate step.
-      // Operator (deploy) key stays organizer — never transfer on create.
-      if (wallet) {
+      // Join THIS coop's isolated vault only (never a shared global vault).
+      if (wallet && created?.treasuryVaultAddress) {
         const { ensureVaultMembership } = await import('@/services/treasury/vault');
-        await ensureVaultMembership(wallet).catch(() => null);
+        await ensureVaultMembership(wallet, {
+          vaultAddress: created.treasuryVaultAddress,
+        }).catch(() => null);
       }
       onClose();
     } catch {

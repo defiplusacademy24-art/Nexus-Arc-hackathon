@@ -13,6 +13,8 @@ import { scanWalletTransfers } from "../lib/arc-scan";
 import { requireWallet } from "../lib/wallet";
 import {
   bootstrapVaultMember,
+  loanPoolFactoryConfigured,
+  vaultFactoryConfigured,
   vaultOperatorConfigured,
 } from "../lib/vault-operator";
 
@@ -225,11 +227,22 @@ router.post("/transfers", async (req: Request, res: Response) => {
 
 /**
  * GET /api/onchain/vault/operator-status
- * Whether the server can register Circle wallets on the treasury vault.
+ * Whether the server can register Circle wallets / deploy per-coop vaults.
  */
 router.get("/vault/operator-status", (_req: Request, res: Response) => {
   res.json({
     configured: vaultOperatorConfigured(),
+    factoryConfigured: vaultFactoryConfigured(),
+    loanPoolFactoryConfigured: loanPoolFactoryConfigured(),
+    factory:
+      process.env.TREASURY_VAULT_FACTORY_ADDRESS?.trim() ||
+      process.env.VITE_TREASURY_VAULT_FACTORY_ADDRESS?.trim() ||
+      null,
+    loanPoolFactory:
+      process.env.LOAN_POOL_FACTORY_ADDRESS?.trim() ||
+      process.env.VITE_LOAN_POOL_FACTORY_ADDRESS?.trim() ||
+      null,
+    /** @deprecated Shared vault — only for legacy single-coop installs. */
     vault:
       process.env.TREASURY_VAULT_ADDRESS?.trim() ||
       process.env.VITE_TREASURY_VAULT_ADDRESS?.trim() ||
@@ -239,21 +252,25 @@ router.get("/vault/operator-status", (_req: Request, res: Response) => {
 
 /**
  * POST /api/onchain/vault/register
- * Body: { claimOrganizer?: boolean }  — default false; keep deploy key as organizer
+ * Body: {
+ *   vaultAddress?: string  — required for multi-workspace (coop.treasuryVaultAddress)
+ *   claimOrganizer?: boolean  — default false; keep deploy key as organizer
+ * }
  *
- * Registers the caller's Circle wallet (x-wallet-address) on CooperativeTreasuryVault
- * using VAULT_OPERATOR_PRIVATE_KEY (the forge deploy key). The operator must remain
- * organizer so every create/join/deposit can auto-register new Circle wallets.
- * Do not transfer organizer away unless you know what you're doing.
+ * Registers the caller's Circle wallet on the given CooperativeTreasuryVault
+ * (or legacy global vault if vaultAddress omitted). Prefer per-coop vaultAddress.
  */
 router.post("/vault/register", async (req: Request, res: Response) => {
   try {
     const wallet = requireWallet(req);
-    const body = (req.body ?? {}) as { claimOrganizer?: boolean };
-    // Default false: Vercel operator key must stay organizer for all future members
+    const body = (req.body ?? {}) as {
+      claimOrganizer?: boolean;
+      vaultAddress?: string;
+    };
     const claimOrganizer = body.claimOrganizer === true;
     const result = await bootstrapVaultMember({
       member: wallet,
+      vaultAddress: body.vaultAddress ?? null,
       claimOrganizer,
     });
     res.json(result);

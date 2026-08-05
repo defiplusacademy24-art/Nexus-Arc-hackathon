@@ -116,6 +116,14 @@ function mapRemoteCoop(
     ),
     currentRecipientPosition: Number(remote.currentRecipientPosition ?? 1),
     currentCycle: Number(remote.currentCycle ?? 1),
+    treasuryVaultAddress:
+      remote.treasuryVaultAddress != null && String(remote.treasuryVaultAddress).trim()
+        ? String(remote.treasuryVaultAddress)
+        : null,
+    loanPoolAddress:
+      remote.loanPoolAddress != null && String(remote.loanPoolAddress).trim()
+        ? String(remote.loanPoolAddress)
+        : null,
     privacy: remote.privacy as Cooperative['privacy'],
     votingModel: remote.votingModel as Cooperative['votingModel'],
     approvalThreshold:

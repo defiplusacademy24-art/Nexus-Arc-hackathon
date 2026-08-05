@@ -87,13 +87,34 @@ export function usdcToRaw(amount: number): bigint {
   return parseUnits(fixed, 6);
 }
 
-export function isLoanPoolConfigured(): boolean {
-  return Boolean(LOAN_POOL_ADDRESS && /^0x[a-fA-F0-9]{40}$/.test(LOAN_POOL_ADDRESS));
+/** Optional per-cooperative loan pool address (preferred over global env). */
+export type LoanPoolAddressInput = string | null | undefined;
+
+function isHexAddress(value: string | null | undefined): value is string {
+  return Boolean(value && /^0x[a-fA-F0-9]{40}$/.test(value));
 }
 
+/**
+ * Resolve the loan pool for a workspace.
+ * Prefer the cooperative's own address — never silently reuse another coop's pool.
+ */
+export function resolveLoanPoolAddress(coopPool?: LoanPoolAddressInput): Address | null {
+  if (isHexAddress(coopPool)) return coopPool as Address;
+  if (coopPool === null || coopPool === '') return null;
+  if (isHexAddress(LOAN_POOL_ADDRESS)) return LOAN_POOL_ADDRESS as Address;
+  return null;
+}
+
+/** True when this workspace (or legacy global) has a loan pool address. */
+export function isLoanPoolConfigured(coopPool?: LoanPoolAddressInput): boolean {
+  return Boolean(resolveLoanPoolAddress(coopPool));
+}
+
+/**
+ * @deprecated Use resolveLoanPoolAddress(coop.loanPoolAddress).
+ */
 export function getLoanPoolAddress(): Address | null {
-  if (!isLoanPoolConfigured()) return null;
-  return LOAN_POOL_ADDRESS as Address;
+  return resolveLoanPoolAddress(undefined);
 }
 
 export function onChainLoanIdFromAppId(appId: string): number | null {
@@ -196,8 +217,11 @@ function resultValue<T>(r: { status: 'success' | 'failure'; result?: unknown }):
   return r.result as T;
 }
 
-export async function fetchPoolSnapshot(wallet?: string | null): Promise<PoolSnapshot> {
-  const pool = getLoanPoolAddress();
+export async function fetchPoolSnapshot(
+  wallet?: string | null,
+  coopPool?: LoanPoolAddressInput,
+): Promise<PoolSnapshot> {
+  const pool = resolveLoanPoolAddress(coopPool);
   if (!pool) return emptySnapshot();
 
   const account = wallet && /^0x[a-fA-F0-9]{40}$/i.test(wallet) ? (wallet as Address) : null;
@@ -424,8 +448,9 @@ async function readLoan(pool: Address, loanId: number): Promise<OnChainLoanRaw |
  */
 export async function fetchOnChainLoans(opts?: {
   nameByWallet?: Record<string, string>;
+  poolAddress?: LoanPoolAddressInput;
 }): Promise<Loan[]> {
-  const pool = getLoanPoolAddress();
+  const pool = resolveLoanPoolAddress(opts?.poolAddress);
   if (!pool) return [];
 
   const nextId = (await publicClient.readContract({
@@ -540,9 +565,10 @@ export async function applyForLoanOnChain(params: {
   termMonths: number;
   purpose: string;
   ucSession?: UcSession | null;
+  poolAddress?: LoanPoolAddressInput;
 }): Promise<void> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured. Set VITE_LOAN_POOL_ADDRESS.');
+  const pool = resolveLoanPoolAddress(params.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet. Provision on-chain infrastructure first.');
   if (!Number.isFinite(params.principalUsd) || params.principalUsd <= 0) {
     throw new Error('Enter a valid loan amount.');
   }
@@ -566,10 +592,10 @@ export async function applyForLoanOnChain(params: {
 
 export async function approveLoanOnChain(
   loanId: number,
-  opts?: { ucSession?: UcSession | null },
+  opts?: { ucSession?: UcSession | null; poolAddress?: LoanPoolAddressInput },
 ): Promise<void> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured. Set VITE_LOAN_POOL_ADDRESS.');
+  const pool = resolveLoanPoolAddress(opts?.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet.');
 
   const callData = encodeFunctionData({
     abi: loanPoolAbi,
@@ -586,10 +612,10 @@ export async function approveLoanOnChain(
 
 export async function rejectLoanOnChain(
   loanId: number,
-  opts?: { ucSession?: UcSession | null },
+  opts?: { ucSession?: UcSession | null; poolAddress?: LoanPoolAddressInput },
 ): Promise<void> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured.');
+  const pool = resolveLoanPoolAddress(opts?.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet.');
 
   const callData = encodeFunctionData({
     abi: loanPoolAbi,
@@ -607,10 +633,10 @@ export async function rejectLoanOnChain(
 /** Borrower cancels a pending application. */
 export async function cancelLoanOnChain(
   loanId: number,
-  opts?: { ucSession?: UcSession | null },
+  opts?: { ucSession?: UcSession | null; poolAddress?: LoanPoolAddressInput },
 ): Promise<void> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured.');
+  const pool = resolveLoanPoolAddress(opts?.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet.');
 
   const callData = encodeFunctionData({
     abi: loanPoolAbi,
@@ -632,9 +658,10 @@ export async function updateLoanOnChain(params: {
   termMonths: number;
   purpose: string;
   ucSession?: UcSession | null;
+  poolAddress?: LoanPoolAddressInput;
 }): Promise<void> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured.');
+  const pool = resolveLoanPoolAddress(params.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet.');
   if (!Number.isFinite(params.principalUsd) || params.principalUsd <= 0) {
     throw new Error('Enter a valid loan amount.');
   }
@@ -667,9 +694,10 @@ export async function repayLoanOnChain(params: {
   loanId: number;
   amountUsd: number;
   ucSession?: UcSession | null;
+  poolAddress?: LoanPoolAddressInput;
 }): Promise<{ amount: number }> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured. Set VITE_LOAN_POOL_ADDRESS.');
+  const pool = resolveLoanPoolAddress(params.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet.');
   if (!Number.isFinite(params.amountUsd) || params.amountUsd <= 0) {
     throw new Error('Enter a valid repayment amount.');
   }
@@ -710,9 +738,10 @@ export async function repayLoanOnChain(params: {
 export async function fundPoolOnChain(params: {
   amountUsd: number;
   ucSession?: UcSession | null;
+  poolAddress?: LoanPoolAddressInput;
 }): Promise<void> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured.');
+  const pool = resolveLoanPoolAddress(params.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet.');
   if (!Number.isFinite(params.amountUsd) || params.amountUsd <= 0) {
     throw new Error('Enter a valid fund amount.');
   }
@@ -738,10 +767,10 @@ export async function fundPoolOnChain(params: {
 
 export async function registerBorrowerOnChain(
   borrower: Address,
-  opts?: { ucSession?: UcSession | null },
+  opts?: { ucSession?: UcSession | null; poolAddress?: LoanPoolAddressInput },
 ): Promise<void> {
-  const pool = getLoanPoolAddress();
-  if (!pool) throw new Error('Loan pool not configured. Set VITE_LOAN_POOL_ADDRESS.');
+  const pool = resolveLoanPoolAddress(opts?.poolAddress);
+  if (!pool) throw new Error('This cooperative has no loan pool yet.');
 
   const callData = encodeFunctionData({
     abi: loanPoolAbi,
@@ -759,13 +788,14 @@ export async function registerBorrowerOnChain(
 export async function quoteLoanOnChain(
   principalUsd: number,
   termMonths: number,
+  poolAddress?: LoanPoolAddressInput,
 ): Promise<{
   interestBps: number;
   totalInterest: number;
   totalDue: number;
   monthlyPayment: number;
 } | null> {
-  const pool = getLoanPoolAddress();
+  const pool = resolveLoanPoolAddress(poolAddress);
   if (!pool || !Number.isFinite(principalUsd) || principalUsd <= 0) return null;
   if (termMonths < 1 || termMonths > 6) return null;
 

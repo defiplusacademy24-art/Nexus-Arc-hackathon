@@ -13,10 +13,16 @@ import {
   hydrateForWallet,
   joinCooperative,
   listCooperativesForWallet,
+  setCooperativeOnchainAddresses,
   storageBackend,
 } from "../lib/store";
 import { notifyCoopCreated, notifyMemberJoined, notifyCoopActivated } from "../lib/notify";
 import { requireWallet } from "../lib/wallet";
+import {
+  loanPoolFactoryConfigured,
+  provisionCoopOnchainInfrastructure,
+  vaultFactoryConfigured,
+} from "../lib/vault-operator";
 
 const router: IRouter = Router();
 
@@ -131,7 +137,7 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const { coop, member, created } = await createCooperative(
+    let { coop, member, created } = await createCooperative(
       {
         name: body.name,
         description: body.description,
@@ -155,12 +161,54 @@ router.post("/", async (req: Request, res: Response) => {
       wallet,
     );
 
+    // Provision isolated vault + loan pool (30% auto-fund) for this workspace only.
+    let onchain: {
+      vault: string;
+      loanPool: string | null;
+      message: string;
+    } | null = null;
+    let vaultError: string | null = null;
+    if (
+      created &&
+      (!coop.treasuryVaultAddress || !coop.loanPoolAddress) &&
+      vaultFactoryConfigured()
+    ) {
+      try {
+        const provisioned = await provisionCoopOnchainInfrastructure({
+          coopId: coop.id,
+          name: coop.name,
+          contributionAmountUsd: coop.contributionAmount || 10,
+          contributionFrequency: coop.contributionFrequency,
+          existingVaultAddress: coop.treasuryVaultAddress,
+          existingLoanPoolAddress: coop.loanPoolAddress,
+        });
+        const updated = await setCooperativeOnchainAddresses(coop.id, {
+          treasuryVaultAddress: provisioned.vault,
+          loanPoolAddress: provisioned.loanPool,
+        });
+        if (updated) coop = updated;
+        onchain = {
+          vault: provisioned.vault,
+          loanPool: provisioned.loanPool,
+          message: provisioned.message,
+        };
+      } catch (e) {
+        vaultError = e instanceof Error ? e.message : "On-chain provision failed";
+        // Coop still created off-chain; client can retry POST .../vault
+      }
+    }
+
     const notifications = created ? await notifyCoopCreated(coop, wallet) : [];
 
     res.status(created ? 201 : 200).json({
       cooperative: coop,
       member,
       created,
+      onchain,
+      vaultDeploy: onchain
+        ? { vault: onchain.vault, loanPool: onchain.loanPool, alreadyExisted: false }
+        : null,
+      vaultError,
       notificationsCreated: notifications.length,
       storage: storageBackend(),
     });
@@ -205,6 +253,79 @@ router.post("/join", async (req: Request, res: Response) => {
       message: joined
         ? `Welcome to the cooperative! You have been assigned Payout Position #${joinPosition}. You will receive the pooled contribution during Cycle ${joinPosition}.`
         : "You are already a member of this cooperative.",
+    });
+  } catch (e) {
+    sendError(res, e);
+  }
+});
+
+/**
+ * POST /api/cooperatives/:id/vault
+ * Deploy (or re-bind) isolated treasury vault + loan pool for this workspace.
+ * Wires vault.setLendingPool so 30% of deposits fund this coop's loan pool only.
+ * Idempotent when factories already indexed the coop id.
+ */
+router.post("/:id/vault", async (req: Request, res: Response) => {
+  try {
+    requireWallet(req);
+    const coopId = paramId(req);
+    const existing = await getCooperative(coopId);
+    if (!existing) {
+      res.status(404).json({ error: "Cooperative not found" });
+      return;
+    }
+
+    if (existing.treasuryVaultAddress && existing.loanPoolAddress) {
+      res.json({
+        cooperative: existing,
+        vault: existing.treasuryVaultAddress,
+        loanPool: existing.loanPoolAddress,
+        alreadyExisted: true,
+        message:
+          "Cooperative already has an isolated treasury vault and loan pool.",
+      });
+      return;
+    }
+
+    if (!vaultFactoryConfigured() && !existing.treasuryVaultAddress) {
+      res.status(503).json({
+        error:
+          "Vault factory not configured. Set TREASURY_VAULT_FACTORY_ADDRESS and VAULT_OPERATOR_PRIVATE_KEY, then retry.",
+      });
+      return;
+    }
+
+    if (
+      existing.treasuryVaultAddress &&
+      !existing.loanPoolAddress &&
+      !loanPoolFactoryConfigured()
+    ) {
+      res.status(503).json({
+        error:
+          "Loan pool factory not configured. Set LOAN_POOL_FACTORY_ADDRESS and VAULT_OPERATOR_PRIVATE_KEY.",
+      });
+      return;
+    }
+
+    const provisioned = await provisionCoopOnchainInfrastructure({
+      coopId: existing.id,
+      name: existing.name,
+      contributionAmountUsd: existing.contributionAmount || 10,
+      contributionFrequency: existing.contributionFrequency,
+      existingVaultAddress: existing.treasuryVaultAddress,
+      existingLoanPoolAddress: existing.loanPoolAddress,
+    });
+    const coop = await setCooperativeOnchainAddresses(existing.id, {
+      treasuryVaultAddress: provisioned.vault,
+      loanPoolAddress: provisioned.loanPool,
+    });
+    res.status(existing.treasuryVaultAddress ? 200 : 201).json({
+      cooperative: coop,
+      vault: provisioned.vault,
+      loanPool: provisioned.loanPool,
+      alreadyExisted: Boolean(existing.treasuryVaultAddress && existing.loanPoolAddress),
+      message: provisioned.message,
+      loanPoolFactoryConfigured: loanPoolFactoryConfigured(),
     });
   } catch (e) {
     sendError(res, e);

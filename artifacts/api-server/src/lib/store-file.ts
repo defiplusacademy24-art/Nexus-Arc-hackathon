@@ -103,6 +103,13 @@ export interface StoredCooperative {
   currentRecipientPosition?: number;
   /** Contribution cycle counter (1-based) */
   currentCycle?: number;
+  /**
+   * Isolated CooperativeTreasuryVault for this workspace only.
+   * Each cooperative must have its own vault address.
+   */
+  treasuryVaultAddress?: string | null;
+  /** Isolated CooperativeLoanPool for this workspace (30% deposit share). */
+  loanPoolAddress?: string | null;
   createdAt: string;
 }
 
@@ -538,6 +545,8 @@ export function createCooperative(
     rotationMode,
     currentRecipientPosition: 1,
     currentCycle: 1,
+    treasuryVaultAddress: null,
+    loanPoolAddress: null,
     createdAt: new Date().toISOString(),
   };
   const member = makeFounderMember(id, founderWallet, 1, {
@@ -548,6 +557,60 @@ export function createCooperative(
   data.members.push(member);
   commit(data);
   return { coop, member, created: true };
+}
+
+/** Persist the isolated on-chain vault address for a cooperative workspace. */
+export function setCooperativeTreasuryVault(
+  coopId: string,
+  treasuryVaultAddress: string,
+): StoredCooperative | null {
+  const data = getStore();
+  const idx = data.cooperatives.findIndex((c) => c.id === coopId);
+  if (idx < 0) return null;
+  const addr = treasuryVaultAddress.trim();
+  data.cooperatives[idx] = {
+    ...data.cooperatives[idx],
+    treasuryVaultAddress: addr || null,
+  };
+  commit(data);
+  return data.cooperatives[idx];
+}
+
+/** Persist the isolated loan pool address for a cooperative workspace. */
+export function setCooperativeLoanPool(
+  coopId: string,
+  loanPoolAddress: string,
+): StoredCooperative | null {
+  const data = getStore();
+  const idx = data.cooperatives.findIndex((c) => c.id === coopId);
+  if (idx < 0) return null;
+  const addr = loanPoolAddress.trim();
+  data.cooperatives[idx] = {
+    ...data.cooperatives[idx],
+    loanPoolAddress: addr || null,
+  };
+  commit(data);
+  return data.cooperatives[idx];
+}
+
+/** Bind vault + loan pool addresses in one write. */
+export function setCooperativeOnchainAddresses(
+  coopId: string,
+  addrs: { treasuryVaultAddress?: string | null; loanPoolAddress?: string | null },
+): StoredCooperative | null {
+  const data = getStore();
+  const idx = data.cooperatives.findIndex((c) => c.id === coopId);
+  if (idx < 0) return null;
+  const next = { ...data.cooperatives[idx] };
+  if (addrs.treasuryVaultAddress !== undefined) {
+    next.treasuryVaultAddress = addrs.treasuryVaultAddress?.trim() || null;
+  }
+  if (addrs.loanPoolAddress !== undefined) {
+    next.loanPoolAddress = addrs.loanPoolAddress?.trim() || null;
+  }
+  data.cooperatives[idx] = next;
+  commit(data);
+  return data.cooperatives[idx];
 }
 
 export type JoinCoopInput = {

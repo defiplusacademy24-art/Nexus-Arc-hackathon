@@ -18,7 +18,7 @@ import { useWallet } from '@/providers/WalletProvider';
 import { useCooperative } from '@/providers/CooperativeProvider';
 import { formatCurrency } from '@/utils/format';
 import { ARC_EXPLORER_URL } from '@/config/arc';
-import { TREASURY_VAULT_ADDRESS, MIN_CONTRIBUTION_USDC } from '@/config/treasury-vault';
+import { MIN_CONTRIBUTION_USDC } from '@/config/treasury-vault';
 import {
   applyCoopRulesToVault,
   depositToVault,
@@ -26,6 +26,7 @@ import {
   formatFrequencyLabel,
   friendlyVaultError,
   isVaultConfigured,
+  resolveVaultAddress,
   rulesOutOfSync,
   triggerVaultPayout,
   type VaultSnapshot,
@@ -48,11 +49,13 @@ type Props = {
 
 export function OnChainVaultPanel({ onDepositSuccess }: Props) {
   const { walletAddress, isConnected } = useWallet();
-  const { activeCooperative } = useCooperative();
-  const configured = isVaultConfigured();
+  const { activeCooperative, updateCooperative } = useCooperative();
+  const vaultAddr = activeCooperative?.treasuryVaultAddress ?? null;
+  const configured = isVaultConfigured(vaultAddr);
+  const resolvedVault = resolveVaultAddress(vaultAddr);
   const [snap, setSnap] = useState<VaultSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState<'deposit' | 'payout' | 'sync' | null>(null);
+  const [busy, setBusy] = useState<'deposit' | 'payout' | 'sync' | 'provision' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -68,14 +71,15 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
 
   const refresh = useCallback(
     async (opts?: { softRateLimit?: boolean }) => {
-      if (!configured) {
+      if (!configured || !vaultAddr) {
         setSnap(null);
         return;
       }
       setLoading(true);
       if (!opts?.softRateLimit) setError(null);
       try {
-        const data = await fetchVaultSnapshot(walletAddress);
+        // Always scope reads to this workspace's vault — never a shared global vault
+        const data = await fetchVaultSnapshot(walletAddress, vaultAddr);
         setSnap(data);
         if (opts?.softRateLimit) setError(null);
       } catch (e) {
@@ -87,23 +91,60 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
         setLoading(false);
       }
     },
-    [configured, walletAddress],
+    [configured, walletAddress, vaultAddr],
   );
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, activeCooperative?.id]);
+
+  const onProvisionVault = async () => {
+    if (!walletAddress || !activeCooperative) {
+      setError('Connect your wallet and select a cooperative first');
+      return;
+    }
+    setBusy('provision');
+    setError(null);
+    setSuccess(null);
+    try {
+      const { apiProvisionCoopVault } = await import('@/services/notifications/api');
+      const res = await apiProvisionCoopVault(walletAddress, activeCooperative.id);
+      const addr = res.vault || res.cooperative?.treasuryVaultAddress;
+      const pool = res.loanPool || res.cooperative?.loanPoolAddress;
+      if (addr) {
+        updateCooperative(activeCooperative.id, {
+          treasuryVaultAddress: addr,
+          loanPoolAddress: pool ? String(pool) : activeCooperative.loanPoolAddress,
+        });
+        setSuccess(
+          pool
+            ? `Isolated vault + loan pool ready (30% of deposits fund lending).`
+            : `Isolated treasury vault ready: ${String(addr).slice(0, 8)}…`,
+        );
+      } else {
+        setError('Vault provision returned no address');
+      }
+    } catch (e) {
+      setError(friendlyVaultError(e));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const onDeposit = async () => {
     if (!isConnected) {
       setError('Connect your wallet first');
       return;
     }
+    if (!vaultAddr) {
+      setError('This cooperative has no isolated vault yet. Provision a vault first.');
+      return;
+    }
     setBusy('deposit');
     setError(null);
     setSuccess(null);
     try {
-      const result = await depositToVault({ walletAddress });
+      const result = await depositToVault({ walletAddress, vaultAddress: vaultAddr });
       const link = result.explorerUrl ? ` · ${result.explorerUrl}` : '';
       setSuccess(`Deposited ${formatCurrency(result.amount)} confirmed on Arc.${link}`);
       if (onDepositSuccess) {
@@ -122,11 +163,15 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
       setError('Connect your wallet first');
       return;
     }
+    if (!vaultAddr) {
+      setError('This cooperative has no isolated vault yet.');
+      return;
+    }
     setBusy('payout');
     setError(null);
     setSuccess(null);
     try {
-      await triggerVaultPayout({ walletAddress });
+      await triggerVaultPayout({ walletAddress, vaultAddress: vaultAddr });
       setSuccess('Payout claimed.');
       await new Promise((r) => setTimeout(r, 2500));
       await refresh({ softRateLimit: true });
@@ -142,6 +187,10 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
       setError('Select a cooperative first');
       return;
     }
+    if (!vaultAddr) {
+      setError('This cooperative has no isolated vault yet. Provision a vault first.');
+      return;
+    }
     if ((coopAmount ?? 0) < MIN_CONTRIBUTION_USDC) {
       setError(`Contribution must be at least $${MIN_CONTRIBUTION_USDC}.`);
       return;
@@ -153,6 +202,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
       await applyCoopRulesToVault({
         amountUsd: coopAmount!,
         frequency: coopFrequency ?? 'monthly',
+        vaultAddress: vaultAddr,
       });
       setSuccess('Vault rules updated.');
       await new Promise((r) => setTimeout(r, 2500));
@@ -164,7 +214,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
     }
   };
 
-  if (!configured) {
+  if (!configured || !vaultAddr) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -175,20 +225,42 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
           <div className="w-10 h-10 rounded-xl bg-[#6393C4]/10 flex items-center justify-center flex-shrink-0">
             <Shield className="w-5 h-5 text-[#6393C4]" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
               Treasury Vault
             </h2>
             <p className="text-xs text-stone-500 dark:text-white/45 mt-1">
-              Vault not configured.
+              Each cooperative needs its own isolated vault. This workspace has none yet —
+              provision one so deposits and balances stay separate from other groups.
             </p>
+            {activeCooperative && (
+              <button
+                type="button"
+                onClick={() => void onProvisionVault()}
+                disabled={busy === 'provision' || !walletAddress}
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#6393C4] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                {busy === 'provision' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Zap className="w-3.5 h-3.5" />
+                )}
+                Provision isolated vault
+              </button>
+            )}
+            {error && (
+              <p className="text-xs text-red-500 mt-2">{error}</p>
+            )}
+            {success && (
+              <p className="text-xs text-emerald-600 mt-2">{success}</p>
+            )}
           </div>
         </div>
       </motion.div>
     );
   }
 
-  const explorerVault = `${ARC_EXPLORER_URL}/address/${TREASURY_VAULT_ADDRESS}`;
+  const explorerVault = `${ARC_EXPLORER_URL}/address/${resolvedVault ?? vaultAddr}`;
   const displayAmount = snap?.contributionAmount ?? coopAmount ?? 0;
   const displayFreq = snap?.contributionFrequency ?? coopFrequency ?? null;
 
@@ -217,7 +289,7 @@ export function OnChainVaultPanel({ onDepositSuccess }: Props) {
             rel="noreferrer"
             className="inline-flex items-center gap-1 mt-1 text-[11px] font-mono text-[#6393C4] hover:underline"
           >
-            {shortAddr(TREASURY_VAULT_ADDRESS)} <ExternalLink className="w-3 h-3" />
+            {shortAddr(resolvedVault ?? vaultAddr)} <ExternalLink className="w-3 h-3" />
           </a>
         </div>
         <button

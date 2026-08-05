@@ -50,6 +50,16 @@ export interface Cooperative {
   currentRecipientPosition?: number;
   /** Contribution cycle counter (1-based). Advances with payouts. */
   currentCycle?: number;
+  /**
+   * Isolated on-chain CooperativeTreasuryVault for this workspace only.
+   * Each cooperative must have its own vault — never share across workspaces.
+   */
+  treasuryVaultAddress?: string | null;
+  /**
+   * Isolated CooperativeLoanPool for this workspace (30% of vault deposits).
+   * Never share one pool across cooperatives.
+   */
+  loanPoolAddress?: string | null;
   // Identity
   inviteCode?: string;
   cooperativeId?: string;

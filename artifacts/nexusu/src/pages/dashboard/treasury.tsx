@@ -93,9 +93,11 @@ type TxRow = {
 export default function Treasury() {
   const { walletAddress } = useWallet();
   const { activeCooperative, updateCooperative } = useCooperative();
+  const coopVault = activeCooperative?.treasuryVaultAddress ?? null;
+  const vaultMode = isVaultConfigured(coopVault);
   // Never seed from localStorage treasuryBalance when vault is configured — that caused $200 flashes.
   const [totalBalance, setTotalBalance] = useState(0);
-  const [balanceReady, setBalanceReady] = useState(!isVaultConfigured());
+  const [balanceReady, setBalanceReady] = useState(() => !isVaultConfigured(null));
   const [monthlyInflow, setMonthlyInflow] = useState(0);
   const [monthlyOutflow, setMonthlyOutflow] = useState(0);
   const [txns, setTxns] = useState<TxRow[]>([]);
@@ -178,23 +180,25 @@ export default function Treasury() {
   const refresh = useCallback(async () => {
     if (!activeCooperative) return;
     setError(null);
-    if (isVaultConfigured()) {
+    const vaultForCoop = activeCooperative.treasuryVaultAddress ?? null;
+    const onChain = isVaultConfigured(vaultForCoop);
+    if (onChain) {
       setBalanceReady(false);
     }
 
-    // Source of truth: on-chain vault when configured (never show offline ledger as cash)
+    // Source of truth: this cooperative's vault only (never another workspace's vault)
     let balance = 0;
-    if (isVaultConfigured()) {
+    if (onChain && vaultForCoop) {
       try {
-        const snap = await fetchVaultSnapshot(walletAddress);
+        const snap = await fetchVaultSnapshot(walletAddress, vaultForCoop);
         balance = snap.totalBalance;
         // Keep coop cache aligned after a real chain read (not before)
         if ((activeCooperative.treasuryBalance ?? 0) !== balance) {
           updateCooperative(activeCooperative.id, { treasuryBalance: balance });
         }
-        // Monthly contributions from vault history (not the fragile app ledger)
+        // Monthly contributions from THIS vault's history only
         try {
-          const stats = await fetchVaultContributionStats(snap.currentCycle);
+          const stats = await fetchVaultContributionStats(snap.currentCycle, vaultForCoop);
           setMonthlyInflow(stats.monthlyInflow);
         } catch {
           if (snap.paidCount > 0 && snap.contributionAmount > 0) {
@@ -238,7 +242,7 @@ export default function Treasury() {
       }).catch(() => ({ transactions: [] as TxRow[] }));
       let rows = (list.transactions ?? []) as TxRow[];
       // With vault live: only count real Arc deposit mirrors — drop phantom ledger cash
-      if (isVaultConfigured()) {
+      if (onChain) {
         rows = rows.filter(isOnChainLedgerTx);
       }
       setTxns(rows);
@@ -411,11 +415,11 @@ export default function Treasury() {
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
           <p className="text-sm font-medium text-white/70 mb-2">
             Cash on hand
-            {!balanceReady && isVaultConfigured() && (
+            {!balanceReady && vaultMode && (
               <span className="ml-2 text-white/50 font-normal">· loading on-chain</span>
             )}
           </p>
-          {!balanceReady && isVaultConfigured() ? (
+          {!balanceReady && vaultMode ? (
             <div className="h-12 sm:h-14 w-48 sm:w-64 rounded-lg bg-white/20 animate-pulse mb-1" />
           ) : (
             <p className="text-3xl sm:text-5xl font-display font-bold mb-1 tabular-nums break-all">
@@ -426,7 +430,7 @@ export default function Treasury() {
             <TrendingUp className="w-4 h-4" />
             <span>
               Net deposits this month:{' '}
-              {!balanceReady && isVaultConfigured()
+              {!balanceReady && vaultMode
                 ? '…'
                 : formatCurrency(monthlyInflow - monthlyOutflow)}
             </span>
@@ -437,7 +441,7 @@ export default function Treasury() {
               <div className="flex items-center gap-1">
                 <ArrowUpRight className="w-4 h-4 text-white" />
                 <span className="text-lg font-bold">
-                  {!balanceReady && isVaultConfigured() ? '…' : formatCurrency(monthlyInflow)}
+                  {!balanceReady && vaultMode ? '…' : formatCurrency(monthlyInflow)}
                 </span>
               </div>
             </div>
@@ -446,7 +450,7 @@ export default function Treasury() {
               <div className="flex items-center gap-1">
                 <ArrowDownRight className="w-4 h-4 text-white/70" />
                 <span className="text-lg font-bold text-white/80">
-                  {!balanceReady && isVaultConfigured() ? '…' : formatCurrency(monthlyOutflow)}
+                  {!balanceReady && vaultMode ? '…' : formatCurrency(monthlyOutflow)}
                 </span>
               </div>
             </div>
@@ -457,7 +461,7 @@ export default function Treasury() {
             <div>
               <p className="text-white/60 text-xs mb-1">Cash + loans</p>
               <span className="text-lg font-bold">
-                {!balanceReady && isVaultConfigured()
+                {!balanceReady && vaultMode
                   ? '…'
                   : formatCurrency(totalBalance + loansOutstanding)}
               </span>
@@ -477,7 +481,7 @@ export default function Treasury() {
               Treasury allocation
             </h2>
             <p className="text-xs font-medium text-stone-500 dark:text-white/45">
-              {!balanceReady && isVaultConfigured()
+              {!balanceReady && vaultMode
                 ? 'Loading…'
                 : formatCurrency(totalBalance, currency)}
             </p>
@@ -498,7 +502,7 @@ export default function Treasury() {
               color="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
               icon={RotateCcw}
               delay={0.1}
-              loading={!balanceReady && isVaultConfigured()}
+              loading={!balanceReady && vaultMode}
             />
             <TreasuryCard
               label="Loan Pool · 30%"
@@ -506,7 +510,7 @@ export default function Treasury() {
               color="bg-[#6393C4]/8 dark:bg-[#6393C4]/10 text-[#5289B8] dark:text-[#77A6DB]"
               icon={Banknote}
               delay={0.15}
-              loading={!balanceReady && isVaultConfigured()}
+              loading={!balanceReady && vaultMode}
             />
             <TreasuryCard
               label="Emergency Reserve · 5%"
@@ -514,7 +518,7 @@ export default function Treasury() {
               color="bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
               icon={Shield}
               delay={0.2}
-              loading={!balanceReady && isVaultConfigured()}
+              loading={!balanceReady && vaultMode}
             />
             <TreasuryCard
               label="Savings / Investments · 5%"
@@ -522,7 +526,7 @@ export default function Treasury() {
               color="bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400"
               icon={PiggyBank}
               delay={0.25}
-              loading={!balanceReady && isVaultConfigured()}
+              loading={!balanceReady && vaultMode}
             />
           </div>
         </motion.div>

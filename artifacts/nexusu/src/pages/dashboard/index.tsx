@@ -29,7 +29,6 @@ import { cn } from '@/lib/utils';
 import type { CashFlowPoint, Loan, Member } from '@/types';
 import {
   fetchVaultContributionStats,
-  isVaultConfigured,
 } from '@/services/treasury/vault';
 
 // ── Animated Stat Card ─────────────────────────────────────────────────────────
@@ -313,7 +312,10 @@ export default function Overview() {
       // Production path: monthly contributions from vault ContributionDeposited history
       if (vaultConfigured) {
         try {
-          const stats = await fetchVaultContributionStats();
+          const stats = await fetchVaultContributionStats(
+            undefined,
+            activeCooperative?.treasuryVaultAddress,
+          );
           if (cancelled) return;
           setMonthlyInflow(stats.monthlyInflow);
           setMonthlyOutflow(0);
@@ -393,7 +395,7 @@ export default function Overview() {
           limit: 200,
         });
         let txns = res.transactions ?? [];
-        if (isVaultConfigured()) {
+        if (vaultConfigured) {
           txns = txns.filter((t) => {
             const n = String((t as { note?: string }).note ?? '').toLowerCase();
             return n.includes('on-chain') || n.includes('arc vault');

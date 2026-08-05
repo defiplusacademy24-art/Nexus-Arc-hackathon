@@ -67,6 +67,16 @@ export interface StoredCooperative {
   rotationMode?: RotationMode;
   currentRecipientPosition?: number;
   currentCycle?: number;
+  /**
+   * Isolated CooperativeTreasuryVault address for this workspace.
+   * Required for multi-coop deposits — never share one vault across coops.
+   */
+  treasuryVaultAddress?: string | null;
+  /**
+   * Isolated CooperativeLoanPool for this workspace (30% of vault deposits).
+   * Never share one pool across cooperatives.
+   */
+  loanPoolAddress?: string | null;
   createdAt: string;
 }
 

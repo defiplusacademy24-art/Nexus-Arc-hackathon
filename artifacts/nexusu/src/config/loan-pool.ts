@@ -1,13 +1,24 @@
 /**
  * CooperativeLoanPool — on-chain member lending on Arc.
- * Deploy with: contracts/script/DeployLoan.s.sol
- * Set VITE_LOAN_POOL_ADDRESS after deployment.
+ *
+ * Multi-workspace: each cooperative stores its own pool address
+ * (`cooperative.loanPoolAddress`). Deploy via CooperativeLoanPoolFactory
+ * and wire vault.setLendingPool so 30% of deposits fund that pool only.
+ *
+ * VITE_LOAN_POOL_ADDRESS is legacy single-pool only — do not use with multiple workspaces.
  */
 
 import { ARC_USDC_ERC20_ADDRESS } from '@/config/arc';
 
+/**
+ * @deprecated Legacy shared pool. Prefer per-cooperative `loanPoolAddress`.
+ */
 export const LOAN_POOL_ADDRESS = (import.meta.env.VITE_LOAN_POOL_ADDRESS ??
   '') as `0x${string}` | '';
+
+/** Factory that deploys one isolated loan pool per cooperative. */
+export const LOAN_POOL_FACTORY_ADDRESS = (import.meta.env
+  .VITE_LOAN_POOL_FACTORY_ADDRESS ?? '') as `0x${string}` | '';
 
 export const LOAN_POOL_USDC_ADDRESS = ARC_USDC_ERC20_ADDRESS;
 

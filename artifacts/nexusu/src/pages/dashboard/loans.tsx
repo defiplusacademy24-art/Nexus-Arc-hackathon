@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Banknote, Clock, CheckCircle2, XCircle, TrendingUp, Sparkles,
   Loader2, Shield, AlertTriangle, RefreshCcw, ArrowDownToLine,
-  Download,
+  Download, Zap,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/dashboard/Layout';
 import { useCooperative } from '@/providers/CooperativeProvider';
@@ -54,7 +54,6 @@ import {
   setVaultLendingPool,
   type VaultSnapshot,
 } from '@/services/treasury/vault';
-import { LOAN_POOL_ADDRESS } from '@/config/loan-pool';
 import { isAddress } from 'viem';
 import { formatCurrency, formatDate, riskColor, riskLabel } from '@/utils/format';
 import { cn } from '@/lib/utils';
@@ -552,8 +551,11 @@ function nextPaymentEstimate(loan: Loan): number {
 export default function Loans() {
   const { activeCooperative, updateCooperative, refresh } = useCooperative();
   const { walletAddress, identity, isConnected } = useWallet();
-  const onChainMode = isLoanPoolConfigured();
-  const vaultMode = isVaultConfigured();
+  const coopVault = activeCooperative?.treasuryVaultAddress ?? null;
+  const coopPool = activeCooperative?.loanPoolAddress ?? null;
+  // Only use on-chain loan mode when THIS workspace has its own pool
+  const onChainMode = isLoanPoolConfigured(coopPool);
+  const vaultMode = isVaultConfigured(coopVault);
   const [tab, setTab] = useState<FilterTab>('all');
   const [loans, setLoans] = useState<Loan[]>([]);
   const [poolSnap, setPoolSnap] = useState<PoolSnapshot | null>(null);
@@ -602,9 +604,11 @@ export default function Loans() {
           }
         }
         const [snap, chainLoans, vault] = await Promise.all([
-          fetchPoolSnapshot(walletAddress),
-          fetchOnChainLoans({ nameByWallet }),
-          vaultMode ? fetchVaultSnapshot(walletAddress).catch(() => null) : Promise.resolve(null),
+          fetchPoolSnapshot(walletAddress, coopPool),
+          fetchOnChainLoans({ nameByWallet, poolAddress: coopPool }),
+          vaultMode && coopVault
+            ? fetchVaultSnapshot(walletAddress, coopVault).catch(() => null)
+            : Promise.resolve(null),
         ]);
         setPoolSnap(snap);
         setLoans(chainLoans);
@@ -625,9 +629,9 @@ export default function Loans() {
 
     setLoans(loadLoans(activeCooperative.id));
     setPoolSnap(null);
-    if (vaultMode) {
+    if (vaultMode && coopVault) {
       try {
-        const vault = await fetchVaultSnapshot(walletAddress);
+        const vault = await fetchVaultSnapshot(walletAddress, coopVault);
         setVaultBalance(vault.totalBalance);
         setVaultLoanBucket(vault.residualLoanPool ?? vault.breakdown?.loanPool ?? null);
         setVaultSnap(vault);
@@ -641,7 +645,7 @@ export default function Loans() {
       setVaultLoanBucket(null);
       setVaultSnap(null);
     }
-  }, [activeCooperative, onChainMode, vaultMode, walletAddress]);
+  }, [activeCooperative, onChainMode, vaultMode, coopVault, coopPool, walletAddress]);
 
   useEffect(() => {
     void reload();
@@ -769,6 +773,7 @@ export default function Loans() {
         const { amount: paid } = await repayLoanOnChain({
           loanId: chainId,
           amountUsd: amount,
+          poolAddress: coopPool,
         });
         setRepayAmount('');
         setRepaySuccess(
@@ -873,7 +878,7 @@ export default function Loans() {
           `Insufficient pool liquidity (${formatCurrency(poolSnap.liquidity, currency)}). Fund the pool, then approve.`,
         );
       }
-      await approveLoanOnChain(chainId);
+      await approveLoanOnChain(chainId, { poolAddress: coopPool });
       setChainMsg(`Loan approved — ${formatCurrency(loan.requestedAmount, currency)} disbursing.`);
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
@@ -890,7 +895,7 @@ export default function Loans() {
     setActionBusyId(loan.id);
     setChainMsg(null);
     try {
-      await rejectLoanOnChain(chainId);
+      await rejectLoanOnChain(chainId, { poolAddress: coopPool });
       setChainMsg('Application rejected.');
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
@@ -915,7 +920,7 @@ export default function Loans() {
     setFormError('');
     setChainMsg(null);
     try {
-      await cancelLoanOnChain(chainId);
+      await cancelLoanOnChain(chainId, { poolAddress: coopPool });
       setChainMsg('Application cancelled.');
       if (editingLoanId === chainId) {
         setEditingLoanId(null);
@@ -968,7 +973,7 @@ export default function Loans() {
     setFormError('');
     setChainMsg(null);
     try {
-      await fundPoolOnChain({ amountUsd: amt });
+      await fundPoolOnChain({ amountUsd: amt, poolAddress: coopPool });
       setChainMsg(
         `Top-up of ${formatCurrency(amt, currency)} sent from your wallet to the loan pool.`,
       );
@@ -982,22 +987,26 @@ export default function Loans() {
     }
   };
 
-  /** Wire vault so each deposit's 30% loan share auto-funds the pool (no personal wallet). */
+  /** Wire THIS coop's vault so 30% of deposits auto-fund THIS coop's loan pool. */
   const onEnableAutoLoanFunding = async () => {
     if (!vaultSnap?.isOrganizer) {
-      setFormError('Only the vault founder can enable auto loan funding.');
+      setFormError('Only the vault organizer can enable auto loan funding.');
       return;
     }
-    if (!LOAN_POOL_ADDRESS || !isAddress(LOAN_POOL_ADDRESS)) {
-      setFormError('Loan pool address is not configured.');
+    if (!coopPool || !isAddress(coopPool)) {
+      setFormError('This cooperative has no loan pool yet. Provision on-chain infrastructure first.');
+      return;
+    }
+    if (!coopVault) {
+      setFormError('This cooperative has no treasury vault yet.');
       return;
     }
     setVaultBusy(true);
     setFormError('');
     setChainMsg(null);
     try {
-      await setVaultLendingPool(LOAN_POOL_ADDRESS as `0x${string}`);
-      setChainMsg('Vault linked: future deposits auto-send the loan share to the pool.');
+      await setVaultLendingPool(coopPool as `0x${string}`, { vaultAddress: coopVault });
+      setChainMsg('Vault linked: future deposits auto-send 30% loan share to this cooperative’s pool.');
       await new Promise((r) => setTimeout(r, 2000));
       await reload();
     } catch (e) {
@@ -1007,19 +1016,55 @@ export default function Loans() {
     }
   };
 
-  /** Push residual vault loan accounting USDC into the loan pool (from treasury, not personal). */
+  /** Push residual vault loan accounting USDC into THIS coop's loan pool. */
   const onPushVaultLoanShare = async () => {
     if (!vaultSnap?.isOrganizer) {
-      setFormError('Only the vault founder can transfer residual loan share.');
+      setFormError('Only the vault organizer can transfer residual loan share.');
+      return;
+    }
+    if (!coopVault) {
+      setFormError('This cooperative has no treasury vault yet.');
       return;
     }
     setVaultBusy(true);
     setFormError('');
     setChainMsg(null);
     try {
-      await pushVaultLoanAllocationToPool();
-      setChainMsg('Vault loan share transferred into the loan pool.');
+      await pushVaultLoanAllocationToPool({ vaultAddress: coopVault });
+      setChainMsg('Vault loan share transferred into this cooperative’s loan pool.');
       await new Promise((r) => setTimeout(r, 2500));
+      await reload();
+    } catch (e) {
+      setFormError(friendlyLoanError(e));
+    } finally {
+      setVaultBusy(false);
+    }
+  };
+
+  /** Provision isolated vault + loan pool for this workspace (server operator). */
+  const onProvisionLoanInfra = async () => {
+    if (!walletAddress || !activeCooperative) {
+      setFormError('Connect your wallet and select a cooperative first.');
+      return;
+    }
+    setVaultBusy(true);
+    setFormError('');
+    setChainMsg(null);
+    try {
+      const { apiProvisionCoopVault } = await import('@/services/notifications/api');
+      const res = await apiProvisionCoopVault(walletAddress, activeCooperative.id);
+      const vault = res.vault || res.cooperative?.treasuryVaultAddress;
+      const pool =
+        (res as { loanPool?: string }).loanPool ||
+        res.cooperative?.loanPoolAddress;
+      updateCooperative(activeCooperative.id, {
+        treasuryVaultAddress: vault ? String(vault) : activeCooperative.treasuryVaultAddress,
+        loanPoolAddress: pool ? String(pool) : activeCooperative.loanPoolAddress,
+      });
+      setChainMsg(
+        res.message ||
+          'Isolated vault and loan pool ready — 30% of deposits fund this pool.',
+      );
       await reload();
     } catch (e) {
       setFormError(friendlyLoanError(e));
@@ -1037,7 +1082,9 @@ export default function Loans() {
     setFormError('');
     setChainMsg(null);
     try {
-      await registerBorrowerOnChain(walletAddress as `0x${string}`);
+      await registerBorrowerOnChain(walletAddress as `0x${string}`, {
+        poolAddress: coopPool,
+      });
       setChainMsg('Borrower registration submitted (organizer only).');
       await new Promise((r) => setTimeout(r, 2500));
       await reload();
@@ -1152,6 +1199,7 @@ export default function Loans() {
             principalUsd: amount,
             termMonths: form.months,
             purpose: form.purpose,
+            poolAddress: coopPool,
           });
           setChainMsg(
             `Application updated to ${formatCurrency(amount, currency)}.`,
@@ -1162,6 +1210,7 @@ export default function Loans() {
             principalUsd: amount,
             termMonths: form.months,
             purpose: form.purpose,
+            poolAddress: coopPool,
           });
           setChainMsg(
             `Application submitted for ${formatCurrency(amount, currency)}.`,
@@ -1309,6 +1358,42 @@ export default function Loans() {
             </button>
           </div>
         </motion.div>
+
+        {/* No isolated loan pool for this workspace yet */}
+        {!onChainMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 rounded-2xl border border-dashed border-stone-200 dark:border-white/15 bg-white dark:bg-stone-900/60 p-4 sm:p-5"
+          >
+            <div className="flex items-start gap-3">
+              <Shield className="w-5 h-5 text-[#6393C4] flex-shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-stone-800 dark:text-white">
+                  Isolated loan pool required
+                </p>
+                <p className="text-xs text-stone-500 dark:text-white/45 mt-1 leading-relaxed">
+                  Each cooperative has its own loan pool, funded by{' '}
+                  <strong>30% of treasury deposits</strong>. This workspace has no pool yet —
+                  provision one so members can apply without sharing liquidity with other groups.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void onProvisionLoanInfra()}
+                  disabled={vaultBusy || !walletAddress}
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#6393C4] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  {vaultBusy ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Zap className="w-3.5 h-3.5" />
+                  )}
+                  Provision vault + loan pool
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* On-chain pool status — compact production UI */}
         {onChainMode ? (

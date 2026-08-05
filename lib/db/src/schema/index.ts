@@ -41,6 +41,10 @@ export const cooperativesTable = pgTable(
     rotationMode: text("rotation_mode"),
     currentRecipientPosition: integer("current_recipient_position"),
     currentCycle: integer("current_cycle"),
+    /** Isolated on-chain CooperativeTreasuryVault address for this workspace. */
+    treasuryVaultAddress: text("treasury_vault_address"),
+    /** Isolated CooperativeLoanPool address (30% of vault deposits). */
+    loanPoolAddress: text("loan_pool_address"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

@@ -1,14 +1,25 @@
 /**
  * CooperativeTreasuryVault — on-chain treasury on Arc.
- * Deploy with: contracts/script/Deploy.s.sol
- * Set VITE_TREASURY_VAULT_ADDRESS after deployment.
+ *
+ * Multi-workspace: each cooperative stores its own vault address
+ * (`cooperative.treasuryVaultAddress`). Deploy vaults via
+ * CooperativeTreasuryVaultFactory (script/DeployFactory.s.sol).
+ *
+ * VITE_TREASURY_VAULT_ADDRESS is legacy single-vault only — do not use it
+ * for multi-coop workspaces (balances and deposit state leak across coops).
  */
 
 import { ARC_USDC_ERC20_ADDRESS } from '@/config/arc';
 
-/** Deployed vault (empty until you set env / hardcode after deploy). */
+/**
+ * @deprecated Legacy shared vault. Prefer per-cooperative `treasuryVaultAddress`.
+ */
 export const TREASURY_VAULT_ADDRESS = (import.meta.env.VITE_TREASURY_VAULT_ADDRESS ??
   '') as `0x${string}` | '';
+
+/** Factory that deploys one isolated vault per cooperative. */
+export const TREASURY_VAULT_FACTORY_ADDRESS = (import.meta.env
+  .VITE_TREASURY_VAULT_FACTORY_ADDRESS ?? '') as `0x${string}` | '';
 
 export const TREASURY_USDC_ADDRESS = ARC_USDC_ERC20_ADDRESS;
 

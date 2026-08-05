@@ -133,6 +133,31 @@ export async function createCooperative(
   return file.createCooperative(input, founderWallet);
 }
 
+/** Bind an isolated CooperativeTreasuryVault address to a cooperative. */
+export async function setCooperativeTreasuryVault(
+  coopId: string,
+  treasuryVaultAddress: string,
+): Promise<StoredCooperative | null> {
+  if (usePg()) return pg.setCooperativeTreasuryVault(coopId, treasuryVaultAddress);
+  return file.setCooperativeTreasuryVault(coopId, treasuryVaultAddress);
+}
+
+export async function setCooperativeLoanPool(
+  coopId: string,
+  loanPoolAddress: string,
+): Promise<StoredCooperative | null> {
+  if (usePg()) return pg.setCooperativeLoanPool(coopId, loanPoolAddress);
+  return file.setCooperativeLoanPool(coopId, loanPoolAddress);
+}
+
+export async function setCooperativeOnchainAddresses(
+  coopId: string,
+  addrs: { treasuryVaultAddress?: string | null; loanPoolAddress?: string | null },
+): Promise<StoredCooperative | null> {
+  if (usePg()) return pg.setCooperativeOnchainAddresses(coopId, addrs);
+  return file.setCooperativeOnchainAddresses(coopId, addrs);
+}
+
 export async function joinCooperative(
   inviteCode: string,
   wallet: string,

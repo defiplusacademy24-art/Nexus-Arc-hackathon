@@ -29,6 +29,9 @@ import {
   erc20ApproveAbi,
   MIN_CONTRIBUTION_USDC,
 } from '@/config/treasury-vault';
+
+/** Optional per-cooperative vault address (preferred over global env). */
+export type VaultAddressInput = string | null | undefined;
 import {
   loadStoredUcSession,
   ucWrite,
@@ -140,13 +143,35 @@ export function formatFrequencyLabel(freq: ContributionFrequency | string | null
   }
 }
 
-export function isVaultConfigured(): boolean {
-  return Boolean(TREASURY_VAULT_ADDRESS && /^0x[a-fA-F0-9]{40}$/.test(TREASURY_VAULT_ADDRESS));
+function isHexAddress(value: string | null | undefined): value is string {
+  return Boolean(value && /^0x[a-fA-F0-9]{40}$/.test(value));
 }
 
+/**
+ * Resolve the vault for a workspace.
+ * Prefer the cooperative's own address — never silently reuse another coop's vault.
+ * Legacy global env is only used when no per-coop address is provided (single-coop installs).
+ */
+export function resolveVaultAddress(coopVault?: VaultAddressInput): Address | null {
+  if (isHexAddress(coopVault)) return coopVault as Address;
+  // Intentionally no fallback when caller passes an explicit empty string
+  // after a multi-coop context — pass undefined only for legacy.
+  if (coopVault === null || coopVault === '') return null;
+  if (isHexAddress(TREASURY_VAULT_ADDRESS)) return TREASURY_VAULT_ADDRESS as Address;
+  return null;
+}
+
+/** True when this workspace (or legacy global) has a vault address. */
+export function isVaultConfigured(coopVault?: VaultAddressInput): boolean {
+  return Boolean(resolveVaultAddress(coopVault));
+}
+
+/**
+ * @deprecated Use resolveVaultAddress(coop.treasuryVaultAddress).
+ * Legacy global only — causes multi-workspace isolation bugs if used alone.
+ */
 export function getVaultAddress(): Address | null {
-  if (!isVaultConfigured()) return null;
-  return TREASURY_VAULT_ADDRESS as Address;
+  return resolveVaultAddress(undefined);
 }
 
 const publicClient = createPublicClient({
@@ -251,9 +276,14 @@ function resultValue<T>(r: { status: 'success' | 'failure'; result?: unknown }):
 /**
  * Load vault state with as few RPC requests as possible.
  * Arc public RPC rate-limits burst eth_call traffic, so we multicall core reads.
+ * @param wallet Member wallet for status checks
+ * @param coopVault Per-cooperative vault address (required for multi-workspace isolation)
  */
-export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultSnapshot> {
-  const vault = getVaultAddress();
+export async function fetchVaultSnapshot(
+  wallet?: string | null,
+  coopVault?: VaultAddressInput,
+): Promise<VaultSnapshot> {
+  const vault = resolveVaultAddress(coopVault);
   if (!vault) return emptySnapshot();
 
   const account = wallet && /^0x[a-fA-F0-9]{40}$/i.test(wallet) ? (wallet as Address) : null;
@@ -457,8 +487,9 @@ export async function fetchVaultSnapshot(wallet?: string | null): Promise<VaultS
  */
 export async function fetchVaultContributionStats(
   currentCycle?: number,
+  coopVault?: VaultAddressInput,
 ): Promise<VaultContributionStats> {
-  const vault = getVaultAddress();
+  const vault = resolveVaultAddress(coopVault);
   if (!vault) {
     return { records: [], monthlyInflow: 0, cycleInflow: 0, totalInflow: 0 };
   }
@@ -507,10 +538,10 @@ export async function fetchVaultContributionStats(
 /** Organizer: wire CooperativeLoanPool so deposits auto-fund loan share. */
 export async function setVaultLendingPool(
   pool: Address,
-  opts?: { ucSession?: UcSession | null },
+  opts?: { ucSession?: UcSession | null; vaultAddress?: VaultAddressInput },
 ): Promise<{ txHash: string | null }> {
-  const vault = getVaultAddress();
-  if (!vault) throw new Error('Treasury vault not configured');
+  const vault = resolveVaultAddress(opts?.vaultAddress);
+  if (!vault) throw new Error('Treasury vault not configured for this cooperative');
   const callData = encodeFunctionData({
     abi: treasuryVaultAbi,
     functionName: 'setLendingPool',
@@ -527,9 +558,10 @@ export async function setVaultLendingPool(
 /** Organizer: push residual vault loan accounting USDC into the loan pool. */
 export async function pushVaultLoanAllocationToPool(opts?: {
   ucSession?: UcSession | null;
+  vaultAddress?: VaultAddressInput;
 }): Promise<{ txHash: string | null }> {
-  const vault = getVaultAddress();
-  if (!vault) throw new Error('Treasury vault not configured');
+  const vault = resolveVaultAddress(opts?.vaultAddress);
+  if (!vault) throw new Error('Treasury vault not configured for this cooperative');
   const callData = encodeFunctionData({
     abi: treasuryVaultAbi,
     functionName: 'pushLoanAllocationToPool',
@@ -683,12 +715,17 @@ async function waitForContributionPaid(
  * Silently ensure the wallet can deposit: joinVault (new contracts), else server
  * bootstrap (deploy-key operator for older vaults). Create/join coop callers use
  * this so users never see a separate "register on vault" step.
+ * @param opts.vaultAddress Per-cooperative vault (required for multi-workspace isolation)
  */
 export async function ensureVaultMembership(
   wallet?: string | null,
-  opts?: { claimOrganizer?: boolean; ucSession?: UcSession | null },
+  opts?: {
+    claimOrganizer?: boolean;
+    ucSession?: UcSession | null;
+    vaultAddress?: VaultAddressInput;
+  },
 ): Promise<'already' | 'joined' | 'bootstrapped' | 'skipped'> {
-  const vault = getVaultAddress();
+  const vault = resolveVaultAddress(opts?.vaultAddress);
   if (!vault || !wallet || !/^0x[a-fA-F0-9]{40}$/i.test(wallet)) return 'skipped';
 
   const account = wallet as Address;
@@ -720,10 +757,11 @@ export async function ensureVaultMembership(
     /* older vault or already member */
   }
 
-  // 2) Server operator path for pre-joinVault deploys
+  // 2) Server operator path — must target this coop's vault
   try {
     await bootstrapCircleWalletOnVault(account, {
       claimOrganizer: opts?.claimOrganizer === true,
+      vaultAddress: vault,
     });
     return 'bootstrapped';
   } catch {
@@ -741,6 +779,8 @@ export async function ensureVaultMembership(
 export async function depositToVault(opts?: {
   ucSession?: UcSession | null;
   walletAddress?: string | null;
+  /** Isolated vault for the active cooperative workspace. */
+  vaultAddress?: VaultAddressInput;
 }): Promise<{
   amount: number;
   txKind: 'circle' | 'injected';
@@ -748,10 +788,10 @@ export async function depositToVault(opts?: {
   depositTxHash: string | null;
   explorerUrl: string | null;
 }> {
-  const vault = getVaultAddress();
+  const vault = resolveVaultAddress(opts?.vaultAddress);
   if (!vault) {
     throw new Error(
-      'Vault not configured. Deploy the contract and set VITE_TREASURY_VAULT_ADDRESS.',
+      'This cooperative has no treasury vault yet. Create/provision an isolated vault for this workspace first.',
     );
   }
 
@@ -761,7 +801,7 @@ export async function depositToVault(opts?: {
     throw new Error('Connect your wallet first');
   }
 
-  await ensureVaultMembership(wallet, { ucSession: session });
+  await ensureVaultMembership(wallet, { ucSession: session, vaultAddress: vault });
 
   const amount = (await publicClient.readContract({
     address: vault,
@@ -866,11 +906,12 @@ export async function applyCoopRulesToVault(params: {
   amountUsd: number;
   frequency: ContributionFrequency;
   ucSession?: UcSession | null;
+  vaultAddress?: VaultAddressInput;
 }): Promise<void> {
-  const vault = getVaultAddress();
+  const vault = resolveVaultAddress(params.vaultAddress);
   if (!vault) {
     throw new Error(
-      'Vault not configured. Deploy the contract and set VITE_TREASURY_VAULT_ADDRESS.',
+      'This cooperative has no treasury vault yet. Provision an isolated vault for this workspace first.',
     );
   }
   if (!Number.isFinite(params.amountUsd) || params.amountUsd < MIN_CONTRIBUTION_USDC) {
@@ -919,11 +960,12 @@ export async function applyCoopRulesToVault(params: {
 export async function triggerVaultPayout(opts?: {
   ucSession?: UcSession | null;
   walletAddress?: string | null;
+  vaultAddress?: VaultAddressInput;
 }): Promise<void> {
-  const vault = getVaultAddress();
+  const vault = resolveVaultAddress(opts?.vaultAddress);
   if (!vault) {
     throw new Error(
-      'Vault not configured. Deploy the contract and set VITE_TREASURY_VAULT_ADDRESS.',
+      'This cooperative has no treasury vault yet. Provision an isolated vault for this workspace first.',
     );
   }
 
@@ -1004,12 +1046,12 @@ export async function triggerVaultPayout(opts?: {
 
 export async function registerMemberOnVault(
   member: Address,
-  opts?: { ucSession?: UcSession | null },
+  opts?: { ucSession?: UcSession | null; vaultAddress?: VaultAddressInput },
 ): Promise<void> {
-  const vault = getVaultAddress();
+  const vault = resolveVaultAddress(opts?.vaultAddress);
   if (!vault) {
     throw new Error(
-      'Vault not configured. Deploy the contract and set VITE_TREASURY_VAULT_ADDRESS.',
+      'This cooperative has no treasury vault yet. Provision an isolated vault for this workspace first.',
     );
   }
 
@@ -1046,7 +1088,7 @@ export type VaultBootstrapResult = {
  */
 export async function bootstrapCircleWalletOnVault(
   circleWallet: string,
-  opts?: { claimOrganizer?: boolean },
+  opts?: { claimOrganizer?: boolean; vaultAddress?: VaultAddressInput },
 ): Promise<VaultBootstrapResult> {
   const res = await fetch('/api/onchain/vault/register', {
     method: 'POST',
@@ -1058,6 +1100,8 @@ export async function bootstrapCircleWalletOnVault(
     body: JSON.stringify({
       // Keep deploy/operator key as organizer so Vercel can register every Circle wallet
       claimOrganizer: opts?.claimOrganizer === true,
+      // Per-coop vault — required so membership is not registered on a shared vault
+      vaultAddress: opts?.vaultAddress || undefined,
     }),
   });
   if (!res.ok) {

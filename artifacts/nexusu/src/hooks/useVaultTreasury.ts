@@ -1,9 +1,9 @@
 /**
  * Single source of truth for cooperative treasury cash display.
  *
- * When the Arc vault is configured, never paint stale localStorage / API
- * `treasuryBalance` while the chain is still loading — that caused $200 (etc.)
- * flashes on Overview / Analytics / Treasury before real figures appeared.
+ * When the active cooperative has an isolated Arc vault, never paint stale
+ * localStorage / API `treasuryBalance` while the chain is still loading.
+ * Each workspace must use its own vault address — never a shared global vault.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -18,7 +18,7 @@ export type VaultTreasuryState = {
   balance: number;
   /** True until the first successful vault read (or error) when vault is configured. */
   isLoading: boolean;
-  /** Vault is wired in env / config. */
+  /** Active coop has an isolated vault (or legacy global only when no multi-coop address). */
   vaultConfigured: boolean;
   /** Chain read finished (success or failure). Always true when vault is off. */
   isReady: boolean;
@@ -36,7 +36,9 @@ export function useVaultTreasury(
   walletAddress?: string | null,
 ): VaultTreasuryState {
   const { activeCooperative, updateCooperative } = useCooperative();
-  const vaultConfigured = isVaultConfigured();
+  const coopVault = activeCooperative?.treasuryVaultAddress ?? null;
+  // Only treat as on-chain when THIS workspace has a vault address
+  const vaultConfigured = isVaultConfigured(coopVault);
 
   const [chainBalance, setChainBalance] = useState<number | null>(null);
   const [paidCount, setPaidCount] = useState(0);
@@ -47,7 +49,7 @@ export function useVaultTreasury(
   const [error, setError] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!vaultConfigured) {
+    if (!vaultConfigured || !coopVault) {
       setChainBalance(null);
       setIsLoading(false);
       setError(false);
@@ -57,7 +59,7 @@ export function useVaultTreasury(
     setIsLoading(true);
     setError(false);
     try {
-      const snap = await fetchVaultSnapshot(walletAddress ?? undefined);
+      const snap = await fetchVaultSnapshot(walletAddress ?? undefined, coopVault);
       setChainBalance(snap.totalBalance);
       setPaidCount(snap.paidCount);
       setRequiredCount(snap.requiredCount);
@@ -77,7 +79,7 @@ export function useVaultTreasury(
     } finally {
       setIsLoading(false);
     }
-  }, [vaultConfigured, walletAddress, activeCooperative, updateCooperative]);
+  }, [vaultConfigured, coopVault, walletAddress, activeCooperative, updateCooperative]);
 
   useEffect(() => {
     if (vaultConfigured) {
@@ -86,7 +88,7 @@ export function useVaultTreasury(
       setError(false);
     }
     void refresh();
-  }, [walletAddress, activeCooperative?.id, vaultConfigured]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [walletAddress, activeCooperative?.id, vaultConfigured, coopVault]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!vaultConfigured) {
     return {

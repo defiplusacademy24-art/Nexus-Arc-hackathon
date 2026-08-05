@@ -243,6 +243,34 @@ export async function apiActivateCooperative(
   return res.json();
 }
 
+/**
+ * Deploy / bind an isolated CooperativeTreasuryVault for one cooperative workspace.
+ */
+export async function apiProvisionCoopVault(
+  wallet: string,
+  coopId: string,
+): Promise<{
+  cooperative?: {
+    id: string;
+    treasuryVaultAddress?: string | null;
+    loanPoolAddress?: string | null;
+    [k: string]: unknown;
+  };
+  vault?: string;
+  loanPool?: string | null;
+  txHash?: string;
+  alreadyExisted?: boolean;
+  message?: string;
+}> {
+  const res = await fetch(`/api/cooperatives/${encodeURIComponent(coopId)}/vault`, {
+    method: 'POST',
+    headers: headers(wallet, true),
+    body: '{}',
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
 export async function apiCooperativeSummary(
   wallet: string,
   coopId: string,
