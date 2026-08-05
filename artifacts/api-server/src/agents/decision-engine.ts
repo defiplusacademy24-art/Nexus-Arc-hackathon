@@ -239,16 +239,20 @@ Keep answers under 400 words unless the user asks for detail.`;
   private modelCandidates(): string[] {
     const primary = agentConfig.llmModel;
     const host = agentConfig.llmBaseHost.toLowerCase();
-    const extras = host.includes('agentrouter')
+    const extras = host.includes('openrouter')
       ? [
-          'glm-4.5-air',
-          'gpt-4o-mini',
-          'claude-haiku-3-5-20241022',
-          'deepseek-r1',
-          'claude-sonnet-4-5-20250929',
+          'openai/gpt-4o-mini',
+          'google/gemini-2.0-flash-001',
+          'anthropic/claude-3.5-sonnet',
+          'meta-llama/llama-3.3-70b-instruct',
         ]
-      : host.includes('openrouter')
-        ? ['openai/gpt-4o-mini', 'google/gemini-2.0-flash-001']
+      : host.includes('agentrouter')
+        ? [
+            'glm-4.5-air',
+            'gpt-4o-mini',
+            'claude-haiku-3-5-20241022',
+            'deepseek-r1',
+          ]
         : [];
     return [...new Set([primary, ...extras].filter(Boolean))];
   }

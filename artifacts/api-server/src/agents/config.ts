@@ -27,24 +27,43 @@ function requiredAddress(name: string): `0x${string}` {
   return value;
 }
 
+function llmBaseHost(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return baseUrl;
+  }
+}
+
+/** True for OpenRouter keys (sk-or-v1-…). */
+function isOpenRouterKey(key: string | undefined): boolean {
+  return Boolean(key && /^sk-or-/i.test(key));
+}
+
 /**
  * Normalize OpenAI-compatible base URLs.
- * AgentRouter Anthropic docs use `https://agentrouter.org` (no /v1);
- * chat.completions needs `…/v1`.
- *
- * Rewrite bare agentrouter.org → co.agentrouter.org: Vercel serverless
- * hits Aliyun WAF HTML on the marketing host; the API host returns JSON.
+ * - OpenRouter: https://openrouter.ai/api/v1
+ * - AgentRouter: bare agentrouter.org → co.agentrouter.org/v1 (WAF bypass)
+ * - Others: ensure …/v1
  */
 function normalizeLlmBaseUrl(raw: string): string {
   const trimmed = raw.trim().replace(/\/+$/, '');
   try {
     const parsed = new URL(trimmed);
-    if (
-      parsed.hostname === 'agentrouter.org' ||
-      parsed.hostname === 'www.agentrouter.org'
-    ) {
+    const host = parsed.hostname.toLowerCase();
+
+    // OpenRouter official path is /api/v1 (not /v1 alone)
+    if (host === 'openrouter.ai' || host === 'www.openrouter.ai') {
+      parsed.hostname = 'openrouter.ai';
+      parsed.pathname = '/api/v1';
+      return `${parsed.origin}${parsed.pathname}`;
+    }
+
+    // AgentRouter marketing host → API host (Vercel hits WAF on bare host)
+    if (host === 'agentrouter.org' || host === 'www.agentrouter.org') {
       parsed.hostname = 'co.agentrouter.org';
     }
+
     let path = parsed.pathname.replace(/\/+$/, '') || '';
     if (!/\/v\d+$/i.test(path) && !path.includes('/v1')) {
       path = `${path}/v1`.replace(/\/{2,}/g, '/');
@@ -57,23 +76,15 @@ function normalizeLlmBaseUrl(raw: string): string {
   }
 }
 
-function llmBaseHost(baseUrl: string): string {
-  try {
-    return new URL(baseUrl).host;
-  } catch {
-    return baseUrl;
-  }
-}
-
 /** Host-aware default when no model env is set. */
 function defaultLlmModel(baseUrl: string): string {
   const host = llmBaseHost(baseUrl).toLowerCase();
-  if (host.includes('agentrouter')) {
-    // Documented AgentRouter free-tier / gateway model id
-    return 'claude-sonnet-4-5-20250929';
-  }
   if (host.includes('openrouter')) {
+    // OpenRouter model ids are provider/model
     return 'openai/gpt-4o-mini';
+  }
+  if (host.includes('agentrouter')) {
+    return 'claude-sonnet-4-5-20250929';
   }
   return 'grok-4.5';
 }
@@ -96,15 +107,17 @@ function isServerless(): boolean {
 }
 
 /**
- * Resolve LLM credentials from several gateway env conventions:
- * - OpenAI / AgentRouter free credit: OPENAI_* or ANTHROPIC_* (key only) + base URL
- * - Generic: LLM_*
+ * Resolve LLM credentials from gateway env conventions:
+ * - OpenRouter (preferred free path): OPENROUTER_* or OPENAI_* with sk-or- key
+ * - Generic OpenAI-compatible: LLM_* / OPENAI_*
+ * - AgentRouter / Anthropic-style aliases
  * - SpaceXAI / xAI: XAI_*
  *
- * Prefer gateway / OpenAI-compatible vars over XAI so free AgentRouter credit works
- * even if a dead XAI_API_KEY is still present in Vercel.
+ * OpenRouter keys (sk-or-…) always use https://openrouter.ai/api/v1 even if
+ * an old ANTHROPIC_BASE_URL / agentrouter URL is still set in Vercel.
  */
 const resolvedLlmApiKey = firstEnv(
+  'OPENROUTER_API_KEY',
   'LLM_API_KEY',
   'OPENAI_API_KEY',
   'AGENTROUTER_API_KEY',
@@ -112,18 +125,33 @@ const resolvedLlmApiKey = firstEnv(
   'XAI_API_KEY',
 );
 
-const resolvedLlmBaseUrl = normalizeLlmBaseUrl(
-  firstEnv(
+function resolveLlmBaseUrl(apiKey: string | undefined): string {
+  const explicit = firstEnv(
+    'OPENROUTER_BASE_URL',
     'LLM_BASE_URL',
     'OPENAI_BASE_URL',
     'AGENTROUTER_BASE_URL',
     'ANTHROPIC_BASE_URL',
     'XAI_BASE_URL',
-  ) ?? 'https://api.x.ai/v1',
-);
+  );
 
-function resolveLlmModel(baseUrl: string): string {
+  // OpenRouter API keys must hit OpenRouter — ignore leftover agentrouter URLs.
+  if (isOpenRouterKey(apiKey)) {
+    if (explicit && llmBaseHost(explicit).toLowerCase().includes('openrouter')) {
+      return normalizeLlmBaseUrl(explicit);
+    }
+    return 'https://openrouter.ai/api/v1';
+  }
+
+  if (explicit) return normalizeLlmBaseUrl(explicit);
+  return 'https://api.x.ai/v1';
+}
+
+const resolvedLlmBaseUrl = resolveLlmBaseUrl(resolvedLlmApiKey);
+
+function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
   const explicit = firstEnv(
+    'OPENROUTER_MODEL',
     'LLM_MODEL',
     'OPENAI_AGENT_MODEL',
     'AGENTROUTER_MODEL',
@@ -131,23 +159,39 @@ function resolveLlmModel(baseUrl: string): string {
     'XAI_AGENT_MODEL',
   );
   const host = llmBaseHost(baseUrl).toLowerCase();
-  // Vercel often still has XAI_AGENT_MODEL=grok-4.5; that id does not exist on AgentRouter.
-  if (
-    host.includes('agentrouter') &&
-    (!explicit || /^grok/i.test(explicit) || explicit === 'grok-4.5')
-  ) {
-    return defaultLlmModel(baseUrl);
+  const onOpenRouter =
+    host.includes('openrouter') || isOpenRouterKey(apiKey);
+  const onAgentRouter = host.includes('agentrouter');
+
+  // Drop xAI-only model names on third-party gateways
+  if (onOpenRouter && (!explicit || /^grok/i.test(explicit))) {
+    return defaultLlmModel(baseUrl.includes('openrouter') ? baseUrl : 'https://openrouter.ai/api/v1');
   }
+  // OpenRouter model ids are "provider/model" — bare Claude/GPT names often 404
   if (
-    host.includes('openrouter') &&
-    (!explicit || /^grok/i.test(explicit))
+    onOpenRouter &&
+    explicit &&
+    !explicit.includes('/') &&
+    !/^openai\//i.test(explicit)
   ) {
+    // Common bare names → OpenRouter ids
+    const map: Record<string, string> = {
+      'gpt-4o-mini': 'openai/gpt-4o-mini',
+      'gpt-4o': 'openai/gpt-4o',
+      'gpt-4.1': 'openai/gpt-4.1',
+      'gpt-4.1-mini': 'openai/gpt-4.1-mini',
+      'claude-3.5-sonnet': 'anthropic/claude-3.5-sonnet',
+      'claude-sonnet-4': 'anthropic/claude-sonnet-4',
+    };
+    if (map[explicit]) return map[explicit];
+  }
+  if (onAgentRouter && (!explicit || /^grok/i.test(explicit))) {
     return defaultLlmModel(baseUrl);
   }
   return explicit ?? defaultLlmModel(baseUrl);
 }
 
-const resolvedLlmModel = resolveLlmModel(resolvedLlmBaseUrl);
+const resolvedLlmModel = resolveLlmModel(resolvedLlmBaseUrl, resolvedLlmApiKey);
 
 export const agentConfig = {
   enabled: env('AGENTS_ENABLED') === 'true',

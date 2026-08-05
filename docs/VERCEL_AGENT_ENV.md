@@ -13,25 +13,24 @@ Set these in **Vercel → Project → Settings → Environment Variables** (Prod
 | `CIRCLE_UC_BLOCKCHAIN` | `ARC-TESTNET` |
 | `CIRCLE_UC_ACCOUNT_TYPE` | `SCA` |
 
-### LLM (pick one gateway — AgentRouter free credit recommended if no xAI balance)
+### LLM — OpenRouter (recommended if no xAI credit)
 
-| Variable | Value (AgentRouter free credit) |
-|----------|----------------------------------|
-| `OPENAI_API_KEY` | Your AgentRouter / platform API key |
-| `OPENAI_BASE_URL` | `https://co.agentrouter.org/v1` (API host — **not** bare `agentrouter.org`, which hits WAF from Vercel) |
-| `OPENAI_AGENT_MODEL` | Model id from the platform dashboard (e.g. `claude-sonnet-4-5-20250929`, `gpt-4o-mini`, `glm-4.5-air`) |
+| Variable | Value |
+|----------|--------|
+| `OPENAI_API_KEY` or `OPENROUTER_API_KEY` | Your OpenRouter key (`sk-or-v1-…` from [openrouter.ai/keys](https://openrouter.ai/keys)) |
+| `OPENAI_BASE_URL` or `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
+| `OPENAI_AGENT_MODEL` or `OPENROUTER_MODEL` | e.g. `openai/gpt-4o-mini`, `google/gemini-2.0-flash-001`, `anthropic/claude-3.5-sonnet` |
 
-Aliases also work (same meaning):
+**Important:**
 
-- Key: `LLM_API_KEY`, `AGENTROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY`
-- Base URL: `LLM_BASE_URL`, `AGENTROUTER_BASE_URL`, `ANTHROPIC_BASE_URL`, or `XAI_BASE_URL`
-- Model: `LLM_MODEL`, `AGENTROUTER_MODEL`, `ANTHROPIC_MODEL`, or `XAI_AGENT_MODEL`
+- OpenRouter model ids look like `provider/model` (with a slash).
+- Keys starting with `sk-or-` automatically force `openrouter.ai` even if an old AgentRouter / `ANTHROPIC_BASE_URL` is still in Vercel.
+- Remove or empty any leftover `ANTHROPIC_BASE_URL=https://agentrouter.org` so config stays clear.
+- After changing env vars, **redeploy** Production.
 
-Notes:
+Aliases also accepted: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `XAI_*`.
 
-- Prefer **OpenAI-compatible** vars (`OPENAI_*`). If you set `ANTHROPIC_BASE_URL=https://agentrouter.org/`, the app normalizes it to `…/v1` automatically.
-- Leave empty any **dead** `XAI_API_KEY` only if you are not using those vars — gateway keys (`OPENAI_API_KEY`, etc.) are preferred over `XAI_*` so free credit wins.
-- Agents use **chat.completions** (not the OpenAI Responses API) so AgentRouter / OpenRouter work.
+Agents use **chat.completions** (OpenAI-compatible), which OpenRouter supports.
 
 ## Recommended (contracts + multi-workspace)
 

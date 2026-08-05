@@ -10,6 +10,6 @@
  * vercel.json) so Vercel rebuilds the nexusu project — ignore filters skip
  * deploys when only artifacts/api-server changes.
  *
- * Redeploy bump: route AgentRouter via co.agentrouter.org (bypass WAF).
+ * Redeploy bump: OpenRouter sk-or-* auto-route + /api/v1 base.
  */
 export { default } from "../.vercel-api/app.mjs";
