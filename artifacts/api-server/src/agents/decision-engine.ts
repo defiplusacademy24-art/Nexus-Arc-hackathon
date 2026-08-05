@@ -319,17 +319,29 @@ Keep answers under 400 words unless the user asks for detail.`;
         body: JSON.stringify(payload),
       });
       const raw = await res.text();
+      if (
+        /aliyun_waf/i.test(raw) ||
+        (/^\s*<!doctype html/i.test(raw) && !raw.trimStart().startsWith('{'))
+      ) {
+        throw new Error(
+          `Gateway returned WAF/HTML instead of JSON (host=${agentConfig.llmBaseHost}). ` +
+            'Set OPENAI_BASE_URL=https://co.agentrouter.org/v1 (not agentrouter.org).',
+        );
+      }
       let data: Record<string, unknown> = {};
       try {
         data = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
       } catch {
-        data = { raw: raw.slice(0, 500) };
+        throw new Error(
+          `Non-JSON LLM response HTTP ${res.status}: ${raw.slice(0, 240)}`,
+        );
       }
       if (!res.ok) {
         const errObj = data.error as { message?: string } | string | undefined;
         const errMsg =
           (typeof errObj === 'object' && errObj?.message) ||
           (typeof errObj === 'string' ? errObj : undefined) ||
+          (typeof data.msg === 'string' ? data.msg : undefined) ||
           (typeof data.message === 'string' ? data.message : undefined) ||
           raw.slice(0, 400) ||
           res.statusText;

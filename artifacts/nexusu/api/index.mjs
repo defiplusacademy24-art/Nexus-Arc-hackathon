@@ -10,6 +10,6 @@
  * vercel.json) so Vercel rebuilds the nexusu project — ignore filters skip
  * deploys when only artifacts/api-server changes.
  *
- * Redeploy bump: agentrouter raw chat + multi-model fallback.
+ * Redeploy bump: route AgentRouter via co.agentrouter.org (bypass WAF).
  */
 export { default } from "../.vercel-api/app.mjs";

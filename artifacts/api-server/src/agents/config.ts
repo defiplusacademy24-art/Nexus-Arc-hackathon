@@ -30,20 +30,31 @@ function requiredAddress(name: string): `0x${string}` {
 /**
  * Normalize OpenAI-compatible base URLs.
  * AgentRouter Anthropic docs use `https://agentrouter.org` (no /v1);
- * the OpenAI SDK needs `…/v1` for /chat/completions.
+ * chat.completions needs `…/v1`.
+ *
+ * Rewrite bare agentrouter.org → co.agentrouter.org: Vercel serverless
+ * hits Aliyun WAF HTML on the marketing host; the API host returns JSON.
  */
 function normalizeLlmBaseUrl(raw: string): string {
-  let url = raw.trim().replace(/\/+$/, '');
+  const trimmed = raw.trim().replace(/\/+$/, '');
   try {
-    const parsed = new URL(url);
-    // Host-only or path without /v1 → append /v1
-    if (!/\/v\d+$/i.test(parsed.pathname) && !parsed.pathname.includes('/v1')) {
-      url = `${url}/v1`;
+    const parsed = new URL(trimmed);
+    if (
+      parsed.hostname === 'agentrouter.org' ||
+      parsed.hostname === 'www.agentrouter.org'
+    ) {
+      parsed.hostname = 'co.agentrouter.org';
     }
+    let path = parsed.pathname.replace(/\/+$/, '') || '';
+    if (!/\/v\d+$/i.test(path) && !path.includes('/v1')) {
+      path = `${path}/v1`.replace(/\/{2,}/g, '/');
+    }
+    if (!path.startsWith('/')) path = `/${path}`;
+    parsed.pathname = path;
+    return `${parsed.origin}${parsed.pathname}`;
   } catch {
-    if (!url.endsWith('/v1')) url = `${url}/v1`;
+    return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
   }
-  return url;
 }
 
 function llmBaseHost(baseUrl: string): string {

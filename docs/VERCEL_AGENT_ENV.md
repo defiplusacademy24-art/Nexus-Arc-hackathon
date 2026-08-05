@@ -18,8 +18,8 @@ Set these in **Vercel → Project → Settings → Environment Variables** (Prod
 | Variable | Value (AgentRouter free credit) |
 |----------|----------------------------------|
 | `OPENAI_API_KEY` | Your AgentRouter / platform API key |
-| `OPENAI_BASE_URL` | `https://agentrouter.org/v1` |
-| `OPENAI_AGENT_MODEL` | Model id from the platform dashboard (e.g. `deepseek-r1-0528`, `gpt-4o-mini`) |
+| `OPENAI_BASE_URL` | `https://co.agentrouter.org/v1` (API host — **not** bare `agentrouter.org`, which hits WAF from Vercel) |
+| `OPENAI_AGENT_MODEL` | Model id from the platform dashboard (e.g. `claude-sonnet-4-5-20250929`, `gpt-4o-mini`, `glm-4.5-air`) |
 
 Aliases also work (same meaning):
 
