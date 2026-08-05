@@ -48,9 +48,14 @@ export class AgentRuntime {
     );
   }
 
-  async start(): Promise<void> {
+  /**
+   * @param opts.soft — request-driven mode (Vercel): init store + health, no poller.
+   *                    On-chain execute still needs CIRCLE_BIN on a long-running worker.
+   */
+  async start(opts?: { soft?: boolean }): Promise<void> {
     if (this.started) return;
-    agentConfig.assertRunnable();
+    const soft = Boolean(opts?.soft || agentConfig.serverless);
+    agentConfig.assertRunnable(soft ? 'soft' : 'full');
     await this.store.initialize();
 
     for (const agent of this.agents) {
@@ -80,22 +85,38 @@ export class AgentRuntime {
       this.unsubscribers.push(unsub);
     }
 
-    this.timer = setInterval(
-      () => void this.drain(),
-      Math.max(1_000, agentConfig.pollIntervalMs),
-    );
     this.started = true;
-    await this.drain();
+
+    if (!soft) {
+      this.timer = setInterval(
+        () => void this.drain(),
+        Math.max(1_000, agentConfig.pollIntervalMs),
+      );
+      await this.drain();
+    }
+
     logger.info(
       {
+        soft,
+        serverless: agentConfig.serverless,
+        canExecuteOnChain: agentConfig.canExecuteOnChain(),
         agents: this.agents.map((a) => a.name),
         wallets: AGENT_NAMES.map((n) => ({
           agent: n,
           configured: Boolean(this.wallets.wallet(n)),
+          address: this.wallets.wallet(n)?.address,
         })),
       },
-      'Autonomous multi-agent runtime started',
+      soft
+        ? 'Agent runtime started (soft / request-driven)'
+        : 'Autonomous multi-agent runtime started',
     );
+  }
+
+  /** Idempotent start for HTTP handlers (Nexa, health, emit) on Vercel. */
+  async ensureStarted(): Promise<void> {
+    if (this.started) return;
+    await this.start({ soft: agentConfig.serverless });
   }
 
   stop(): void {
@@ -106,11 +127,18 @@ export class AgentRuntime {
   }
 
   async statuses(): Promise<AgentHealth[]> {
+    if (agentConfig.enabled && !this.started) {
+      try {
+        await this.ensureStarted();
+      } catch (err) {
+        logger.warn({ err }, 'Agent soft-start failed during health check');
+      }
+    }
     const out: AgentHealth[] = [];
     for (const agent of AGENT_NAMES) {
       const base = this.health.get(agent) ?? {
         agent,
-        ready: false,
+        ready: this.started,
         queueDepth: 0,
         walletConfigured: Boolean(this.wallets.wallet(agent)),
         walletAddress: this.wallets.wallet(agent)?.address,

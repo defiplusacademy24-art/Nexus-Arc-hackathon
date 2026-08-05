@@ -5,12 +5,17 @@ function env(name: string): string | undefined {
   return value || undefined;
 }
 
+function parseAddress(value: string | undefined): `0x${string}` | undefined {
+  if (!value || !/^0x[a-fA-F0-9]{40}$/i.test(value)) return undefined;
+  return value as `0x${string}`;
+}
+
 function requiredAddress(name: string): `0x${string}` {
-  const value = env(name);
-  if (!value || !/^0x[a-fA-F0-9]{40}$/.test(value)) {
+  const value = parseAddress(env(name));
+  if (!value) {
     throw new Error(`${name} must be a valid contract address when AGENTS_ENABLED=true`);
   }
-  return value as `0x${string}`;
+  return value;
 }
 
 const walletEnvKeys: Record<AgentName, string> = {
@@ -25,8 +30,15 @@ const walletEnvKeys: Record<AgentName, string> = {
   notification: 'CIRCLE_AGENT_WALLET_NOTIFICATION_ADDRESS',
 };
 
+/** True on Vercel / Lambda — no long-lived poller; request-driven agents only. */
+function isServerless(): boolean {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
 export const agentConfig = {
   enabled: env('AGENTS_ENABLED') === 'true',
+  /** Serverless hosts (Vercel) run agents in soft/request mode only. */
+  serverless: isServerless(),
   rpcUrl: env('ARC_RPC_URL') ?? 'https://rpc.testnet.arc.network',
   pollIntervalMs: Number(env('AGENT_POLL_INTERVAL_MS') ?? 12_000),
   maxRetries: Number(env('AGENT_MAX_RETRIES') ?? 5),
@@ -44,32 +56,49 @@ export const agentConfig = {
     rotationManager: env('ROTATION_MANAGER_ADDRESS'),
   } as Record<ContractName, string | undefined>,
 
+  /**
+   * Per-agent wallet, falling back to CIRCLE_AGENT_WALLET_ADDRESS
+   * (one Circle Agent Stack wallet can serve all roles on Arc Testnet MVP).
+   */
   walletAddress(agent: AgentName): `0x${string}` | undefined {
-    const value = env(walletEnvKeys[agent]);
-    return value && /^0x[a-fA-F0-9]{40}$/.test(value)
-      ? (value as `0x${string}`)
-      : undefined;
+    return (
+      parseAddress(env(walletEnvKeys[agent])) ??
+      parseAddress(env('CIRCLE_AGENT_WALLET_ADDRESS'))
+    );
   },
 
   contractAddress(name: ContractName): `0x${string}` | undefined {
-    const value = this.contracts[name];
-    return value && /^0x[a-fA-F0-9]{40}$/.test(value)
-      ? (value as `0x${string}`)
-      : undefined;
+    return parseAddress(this.contracts[name]);
   },
 
-  assertRunnable(): void {
+  /** Whether Circle CLI can submit mutating txs from this host. */
+  canExecuteOnChain(): boolean {
+    return Boolean(this.circleBin);
+  },
+
+  /**
+   * Full worker (local/VPS): contracts + DB + CIRCLE_BIN required.
+   * Soft/serverless (Vercel): DB required for memory/audit; CIRCLE_BIN optional
+   * (Nexa / recommendations still work; on-chain execute needs a worker).
+   */
+  assertRunnable(mode: 'full' | 'soft' = 'full'): void {
     if (!this.enabled) return;
+    if (!env('DATABASE_URL')) {
+      throw new Error(
+        'DATABASE_URL is required when AGENTS_ENABLED=true (agent memory, tasks, audit)',
+      );
+    }
+    if (mode === 'soft' || this.serverless) {
+      // Soft mode: wallet addresses optional but recommended; no CIRCLE_BIN hard-fail
+      return;
+    }
     requiredAddress('COOPERATIVE_REGISTRY_ADDRESS');
     requiredAddress('TREASURY_VAULT_ADDRESS');
     requiredAddress('LOAN_POOL_ADDRESS');
     requiredAddress('ROTATION_MANAGER_ADDRESS');
-    if (!env('DATABASE_URL')) {
-      throw new Error('DATABASE_URL is required for autonomous agents');
-    }
     if (!this.circleBin) {
       throw new Error(
-        'CIRCLE_BIN must point to the authenticated Circle CLI (never store seed phrases in Nexusu)',
+        'CIRCLE_BIN must point to the authenticated Circle CLI for full agent worker mode (never store seed phrases in Nexusu)',
       );
     }
   },

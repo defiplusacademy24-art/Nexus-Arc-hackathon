@@ -13,9 +13,13 @@ Follow this document in order. When you finish, agents will:
 | Doc | Path |
 |-----|------|
 | This guide | `docs/AGENT_AND_CIRCLE_WALLET_SETUP.md` |
+| **Vercel env checklist** | `docs/VERCEL_AGENT_ENV.md` |
 | Architecture | `artifacts/api-server/src/agents/README.md` |
 | Env template | `artifacts/api-server/.env.example` |
 | Code | `artifacts/api-server/src/agents/` |
+
+> **Vercel:** set `AGENTS_ENABLED=true`, `DATABASE_URL`, `CIRCLE_AGENT_WALLET_ADDRESS`, and `XAI_API_KEY`.  
+> Soft mode runs Nexa/health without `CIRCLE_BIN`. On-chain approve/rotation still needs a long-running worker (see VERCEL_AGENT_ENV.md).
 
 ---
 

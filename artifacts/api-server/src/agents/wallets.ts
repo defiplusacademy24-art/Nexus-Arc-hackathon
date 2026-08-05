@@ -138,7 +138,11 @@ export class CircleAgentWallets {
 
     const circleBin = agentConfig.circleBin;
     if (!circleBin) {
-      throw new Error('CIRCLE_BIN is not configured');
+      throw new Error(
+        'CIRCLE_BIN is not configured. On Vercel, agent recommend/Nexa work without it; ' +
+          'on-chain approve/rotation requires a long-running worker with authenticated Circle CLI ' +
+          `(agent wallet ${wallet.address}).`,
+      );
     }
 
     logger.info(

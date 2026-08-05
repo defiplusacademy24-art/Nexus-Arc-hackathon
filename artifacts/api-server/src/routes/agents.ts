@@ -29,8 +29,12 @@ router.get('/health', async (_req: Request, res: Response) => {
 
     res.json({
       enabled: agentConfig.enabled,
+      serverless: agentConfig.serverless,
+      softMode: agentConfig.serverless || !agentConfig.canExecuteOnChain(),
+      canExecuteOnChain: agentConfig.canExecuteOnChain(),
       llmConfigured: Boolean(agentConfig.llmApiKey),
       llmModel: agentConfig.llmModel,
+      sharedAgentWallet: agentConfig.walletAddress('loan') ?? null,
       contracts: agentConfig.contracts,
       agents,
     });
@@ -69,6 +73,7 @@ router.get('/audit', async (req: Request, res: Response) => {
     return;
   }
   try {
+    await agentRuntime().ensureStarted();
     const agent =
       typeof req.query.agent === 'string' && isAgentName(req.query.agent)
         ? req.query.agent
@@ -93,6 +98,7 @@ router.get('/events', async (req: Request, res: Response) => {
     return;
   }
   try {
+    await agentRuntime().ensureStarted();
     const limit = Math.min(
       200,
       Math.max(1, Number(req.query.limit ?? 50) || 50),
@@ -125,6 +131,7 @@ router.get('/:name/memory', async (req: Request, res: Response) => {
     return;
   }
   try {
+    await agentRuntime().ensureStarted();
     const memory = await agentRuntime().store.listMemory(name, 100);
     res.json({ agent: name, memory });
   } catch (error) {
@@ -141,6 +148,7 @@ router.post('/events', async (req: Request, res: Response) => {
     return;
   }
   try {
+    await agentRuntime().ensureStarted();
     const body = req.body as {
       name?: DomainEventName;
       idempotencyKey?: string;
@@ -226,6 +234,9 @@ router.post('/nexa/ask', async (req: Request, res: Response) => {
       });
       return;
     }
+
+    // Vercel: soft-start agents on first request (no long-lived poller)
+    await agentRuntime().ensureStarted();
 
     const idempotencyKey = `nexa:${wallet}:${Date.now()}:${question.slice(0, 48)}`;
     const event = await agentRuntime().emit({
