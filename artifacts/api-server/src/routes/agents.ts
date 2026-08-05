@@ -35,6 +35,8 @@ router.get('/health', async (_req: Request, res: Response) => {
       llmConfigured: Boolean(agentConfig.llmApiKey),
       llmModel: agentConfig.llmModel,
       llmBaseHost: agentConfig.llmBaseHost,
+      llmProvider: agentConfig.llmProvider,
+      llmKeyKind: agentConfig.llmKeyKind,
       sharedAgentWallet: agentConfig.walletAddress('loan') ?? null,
       contracts: agentConfig.contracts,
       agents,

@@ -10,6 +10,6 @@
  * vercel.json) so Vercel rebuilds the nexusu project — ignore filters skip
  * deploys when only artifacts/api-server changes.
  *
- * Redeploy bump: OpenRouter sk-or-* auto-route + /api/v1 base.
+ * Redeploy bump: prefer OpenRouter keys + llmProvider health fields.
  */
 export { default } from "../.vercel-api/app.mjs";

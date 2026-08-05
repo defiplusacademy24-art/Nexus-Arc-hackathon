@@ -37,7 +37,13 @@ function llmBaseHost(baseUrl: string): string {
 
 /** True for OpenRouter keys (sk-or-v1-…). */
 function isOpenRouterKey(key: string | undefined): boolean {
-  return Boolean(key && /^sk-or-/i.test(key));
+  if (!key) return false;
+  const k = key.replace(/^Bearer\s+/i, '').trim();
+  return /^sk-or-/i.test(k) || /^or-v1-/i.test(k);
+}
+
+function stripKey(key: string): string {
+  return key.replace(/^Bearer\s+/i, '').trim();
 }
 
 /**
@@ -106,38 +112,64 @@ function isServerless(): boolean {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 }
 
-/**
- * Resolve LLM credentials from gateway env conventions:
- * - OpenRouter (preferred free path): OPENROUTER_* or OPENAI_* with sk-or- key
- * - Generic OpenAI-compatible: LLM_* / OPENAI_*
- * - AgentRouter / Anthropic-style aliases
- * - SpaceXAI / xAI: XAI_*
- *
- * OpenRouter keys (sk-or-…) always use https://openrouter.ai/api/v1 even if
- * an old ANTHROPIC_BASE_URL / agentrouter URL is still set in Vercel.
- */
-const resolvedLlmApiKey = firstEnv(
+const LLM_KEY_ENVS = [
   'OPENROUTER_API_KEY',
+  'OPENROUTER_KEY',
+  'OPEN_ROUTER_API_KEY',
   'LLM_API_KEY',
   'OPENAI_API_KEY',
   'AGENTROUTER_API_KEY',
   'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
   'XAI_API_KEY',
-);
+] as const;
+
+const LLM_BASE_ENVS = [
+  'OPENROUTER_BASE_URL',
+  'OPEN_ROUTER_BASE_URL',
+  'LLM_BASE_URL',
+  'OPENAI_BASE_URL',
+  'AGENTROUTER_BASE_URL',
+  'ANTHROPIC_BASE_URL',
+  'XAI_BASE_URL',
+] as const;
+
+/**
+ * Prefer an OpenRouter key (sk-or-…) from any env slot over other keys.
+ * Stops a leftover AgentRouter/xAI key from winning when OpenRouter is also set.
+ */
+function resolveLlmApiKey(): string | undefined {
+  const pairs = LLM_KEY_ENVS.map((name) => {
+    const raw = env(name);
+    return raw ? { name, value: stripKey(raw) } : null;
+  }).filter(Boolean) as Array<{ name: string; value: string }>;
+
+  const openRouter = pairs.find((p) => isOpenRouterKey(p.value));
+  if (openRouter) return openRouter.value;
+  return pairs[0]?.value;
+}
+
+function wantsOpenRouter(apiKey: string | undefined): boolean {
+  if (isOpenRouterKey(apiKey)) return true;
+  const provider = (env('LLM_PROVIDER') ?? env('AI_PROVIDER') ?? '').toLowerCase();
+  if (provider === 'openrouter' || provider === 'open-router') return true;
+  for (const name of LLM_BASE_ENVS) {
+    const v = env(name);
+    if (v && /openrouter/i.test(v)) return true;
+  }
+  // Explicit OpenRouter key env set (even if value was empty we already skipped)
+  if (env('OPENROUTER_API_KEY') || env('OPENROUTER_KEY') || env('OPEN_ROUTER_API_KEY')) {
+    return true;
+  }
+  return false;
+}
 
 function resolveLlmBaseUrl(apiKey: string | undefined): string {
-  const explicit = firstEnv(
-    'OPENROUTER_BASE_URL',
-    'LLM_BASE_URL',
-    'OPENAI_BASE_URL',
-    'AGENTROUTER_BASE_URL',
-    'ANTHROPIC_BASE_URL',
-    'XAI_BASE_URL',
-  );
+  const explicit = firstEnv(...LLM_BASE_ENVS);
 
-  // OpenRouter API keys must hit OpenRouter — ignore leftover agentrouter URLs.
-  if (isOpenRouterKey(apiKey)) {
-    if (explicit && llmBaseHost(explicit).toLowerCase().includes('openrouter')) {
+  // OpenRouter always uses openrouter.ai — ignore leftover agentrouter URLs in Vercel.
+  if (wantsOpenRouter(apiKey)) {
+    if (explicit && /openrouter/i.test(explicit)) {
       return normalizeLlmBaseUrl(explicit);
     }
     return 'https://openrouter.ai/api/v1';
@@ -147,7 +179,17 @@ function resolveLlmBaseUrl(apiKey: string | undefined): string {
   return 'https://api.x.ai/v1';
 }
 
+const resolvedLlmApiKey = resolveLlmApiKey();
 const resolvedLlmBaseUrl = resolveLlmBaseUrl(resolvedLlmApiKey);
+
+function llmKeyKind(key: string | undefined): string {
+  if (!key) return 'none';
+  if (isOpenRouterKey(key)) return 'openrouter';
+  if (/^xai-/i.test(key)) return 'xai';
+  if (/^sk-ant-/i.test(key)) return 'anthropic';
+  if (/^sk-/i.test(key)) return 'openai-style';
+  return 'other';
+}
 
 function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
   const explicit = firstEnv(
@@ -201,7 +243,7 @@ export const agentConfig = {
   pollIntervalMs: Number(env('AGENT_POLL_INTERVAL_MS') ?? 12_000),
   maxRetries: Number(env('AGENT_MAX_RETRIES') ?? 5),
   /**
-   * OpenAI-compatible LLM (AgentRouter, OpenRouter, xAI, etc.).
+   * OpenAI-compatible LLM (OpenRouter, AgentRouter, xAI, etc.).
    * Uses chat.completions — not the Responses API — for gateway compatibility.
    */
   llmApiKey: resolvedLlmApiKey,
@@ -209,6 +251,15 @@ export const agentConfig = {
   llmModel: resolvedLlmModel,
   /** Safe for health endpoints (no secrets). */
   llmBaseHost: llmBaseHost(resolvedLlmBaseUrl),
+  /** Safe key family label for debugging Vercel env wiring. */
+  llmKeyKind: llmKeyKind(resolvedLlmApiKey),
+  llmProvider: llmBaseHost(resolvedLlmBaseUrl).includes('openrouter')
+    ? 'openrouter'
+    : llmBaseHost(resolvedLlmBaseUrl).includes('agentrouter')
+      ? 'agentrouter'
+      : llmBaseHost(resolvedLlmBaseUrl).includes('x.ai')
+        ? 'xai'
+        : 'openai-compatible',
   circleBin: env('CIRCLE_BIN'),
   rateLimitWindowMs: Number(env('AGENT_RATE_LIMIT_WINDOW_MS') ?? 60_000),
   rateLimitMaxWalletCalls: Number(env('AGENT_RATE_LIMIT_MAX_WALLET_CALLS') ?? 10),
