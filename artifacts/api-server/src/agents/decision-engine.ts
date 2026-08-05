@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import type { AgentDecision, AgentName } from './types';
 import { agentConfig } from './config';
 import { promptFor } from './prompts';
@@ -121,22 +120,10 @@ function messageContent(
  * Fail-closed when the model is unavailable.
  */
 export class DecisionEngine {
-  private readonly client: OpenAI | null;
+  private readonly configured: boolean;
 
   constructor() {
-    this.client = agentConfig.llmApiKey
-      ? new OpenAI({
-          apiKey: agentConfig.llmApiKey,
-          baseURL: agentConfig.llmBaseUrl,
-          defaultHeaders: {
-            // Some gateways (AgentRouter free tier) fingerprint clients
-            'HTTP-Referer': process.env.VERCEL_URL
-              ? `https://${process.env.VERCEL_URL}`
-              : 'https://nexusu.app',
-            'X-Title': 'Nexusu Agents',
-          },
-        })
-      : null;
+    this.configured = Boolean(agentConfig.llmApiKey);
   }
 
   async decide(
@@ -144,7 +131,7 @@ export class DecisionEngine {
     context: Record<string, unknown>,
     extraInstructions?: string,
   ): Promise<AgentDecision> {
-    if (!this.client) {
+    if (!this.configured) {
       return failClosed(
         [
           'LLM decision engine is not configured (set OPENAI_API_KEY or XAI_API_KEY); fail closed.',
@@ -201,7 +188,7 @@ export class DecisionEngine {
     question: string,
     memberScopedContext: Record<string, unknown>,
   ): Promise<{ answer: string; decision: AgentDecision }> {
-    if (!this.client) {
+    if (!this.configured) {
       return {
         answer:
           'Nexa is temporarily unavailable (AI not configured). Please try again later.',
@@ -248,52 +235,161 @@ Keep answers under 400 words unless the user asks for detail.`;
     }
   }
 
+  /** Prefer configured model, then free/cheap gateway models. */
+  private modelCandidates(): string[] {
+    const primary = agentConfig.llmModel;
+    const host = agentConfig.llmBaseHost.toLowerCase();
+    const extras = host.includes('agentrouter')
+      ? [
+          'glm-4.5-air',
+          'gpt-4o-mini',
+          'claude-haiku-3-5-20241022',
+          'deepseek-r1',
+          'claude-sonnet-4-5-20250929',
+        ]
+      : host.includes('openrouter')
+        ? ['openai/gpt-4o-mini', 'google/gemini-2.0-flash-001']
+        : [];
+    return [...new Set([primary, ...extras].filter(Boolean))];
+  }
+
   /**
-   * chat.completions — works with AgentRouter / OpenRouter / xAI.
-   * Prefer json_object when supported; fall back to plain text if the gateway rejects it.
+   * chat.completions via raw HTTP for reliable gateway errors
+   * (AgentRouter / OpenRouter / xAI). Tries multiple models when needed.
    */
   private async chat(
     system: string,
     user: string,
     jsonMode: boolean,
   ): Promise<string> {
-    if (!this.client) return '';
+    if (!agentConfig.llmApiKey) return '';
 
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: 'system', content: system },
-      { role: 'user', content: user },
+    const messages = [
+      { role: 'system' as const, content: system },
+      { role: 'user' as const, content: user },
     ];
 
-    const attempt = async (useJsonObject: boolean) => {
-      const response = await this.client!.chat.completions.create({
-        model: agentConfig.llmModel,
-        messages,
-        ...(useJsonObject ? { response_format: { type: 'json_object' as const } } : {}),
-        temperature: 0.2,
-        max_tokens: jsonMode ? 1200 : 800,
-      });
-      const choice = response?.choices?.[0];
-      if (!choice) {
-        throw new Error(
-          `LLM returned no choices (host=${agentConfig.llmBaseHost}, model=${agentConfig.llmModel}). ` +
-            'Set OPENAI_AGENT_MODEL (or LLM_MODEL) to a model id your gateway serves.',
+    const errors: string[] = [];
+    for (const model of this.modelCandidates()) {
+      try {
+        return await this.chatOnce(model, messages, jsonMode);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        errors.push(`${model}: ${msg}`);
+        logger.warn(
+          { model, host: agentConfig.llmBaseHost, err: error },
+          'LLM model attempt failed; trying next',
         );
       }
-      return messageContent(choice.message?.content);
+    }
+    throw new Error(
+      `All LLM models failed (host=${agentConfig.llmBaseHost}): ${errors.join(' | ')}`,
+    );
+  }
+
+  private async chatOnce(
+    model: string,
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    jsonMode: boolean,
+  ): Promise<string> {
+    const base = agentConfig.llmBaseUrl.replace(/\/+$/, '');
+    const url = `${base}/chat/completions`;
+
+    const body: Record<string, unknown> = {
+      model,
+      messages,
+      temperature: 0.2,
+      max_tokens: jsonMode ? 1200 : 800,
+    };
+    if (jsonMode) {
+      body.response_format = { type: 'json_object' };
+    }
+
+    const doFetch = async (payload: Record<string, unknown>) => {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${agentConfig.llmApiKey}`,
+          'HTTP-Referer': process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : 'https://nexusu-v0.vercel.app',
+          'X-Title': 'Nexusu Agents',
+        },
+        body: JSON.stringify(payload),
+      });
+      const raw = await res.text();
+      let data: Record<string, unknown> = {};
+      try {
+        data = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+      } catch {
+        data = { raw: raw.slice(0, 500) };
+      }
+      if (!res.ok) {
+        const errObj = data.error as { message?: string } | string | undefined;
+        const errMsg =
+          (typeof errObj === 'object' && errObj?.message) ||
+          (typeof errObj === 'string' ? errObj : undefined) ||
+          (typeof data.message === 'string' ? data.message : undefined) ||
+          raw.slice(0, 400) ||
+          res.statusText;
+        throw new Error(`HTTP ${res.status}: ${errMsg}`);
+      }
+      return data;
     };
 
-    if (!jsonMode) {
-      return attempt(false);
+    let data: Record<string, unknown>;
+    try {
+      data = await doFetch(body);
+    } catch (error) {
+      // Some gateways reject response_format; retry plain JSON instruction only
+      if (jsonMode) {
+        logger.warn(
+          { model, err: error },
+          'json response_format rejected; retrying without it',
+        );
+        const { response_format: _rf, ...plain } = body;
+        data = await doFetch(plain);
+      } else {
+        throw error;
+      }
     }
 
-    try {
-      return await attempt(true);
-    } catch (error) {
-      logger.warn(
-        { err: error, host: agentConfig.llmBaseHost },
-        'json_object response_format rejected; retrying without it',
+    const content = extractCompletionText(data);
+    if (!content) {
+      throw new Error(
+        `empty completion body: ${JSON.stringify(data).slice(0, 400)}`,
       );
-      return attempt(false);
     }
+    return content;
   }
+}
+
+function extractCompletionText(data: Record<string, unknown>): string {
+  const choices = data.choices;
+  if (Array.isArray(choices) && choices[0]) {
+    const c0 = choices[0] as Record<string, unknown>;
+    const message = c0.message as
+      | { content?: string | Array<{ type?: string; text?: string }> }
+      | undefined;
+    if (message?.content != null) {
+      return messageContent(message.content);
+    }
+    if (typeof c0.text === 'string') return c0.text;
+    if (typeof c0.content === 'string') return c0.content;
+  }
+  if (typeof data.output_text === 'string') return data.output_text;
+  if (typeof data.content === 'string') return data.content;
+  // Anthropic-ish passthrough
+  const content = data.content;
+  if (Array.isArray(content)) {
+    return content
+      .map((p) =>
+        typeof p === 'object' && p && 'text' in p
+          ? String((p as { text?: string }).text ?? '')
+          : '',
+      )
+      .join('');
+  }
+  return '';
 }

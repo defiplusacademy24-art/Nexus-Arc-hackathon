@@ -9,5 +9,7 @@
  * Note: any agent/LLM change in api-server must also touch this tree (or
  * vercel.json) so Vercel rebuilds the nexusu project — ignore filters skip
  * deploys when only artifacts/api-server changes.
+ *
+ * Redeploy bump: agentrouter raw chat + multi-model fallback.
  */
 export { default } from "../.vercel-api/app.mjs";
