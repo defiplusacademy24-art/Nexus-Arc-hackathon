@@ -224,6 +224,8 @@ function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
       'gpt-4.1-mini': 'openai/gpt-4.1-mini',
       'claude-3.5-sonnet': 'anthropic/claude-3.5-sonnet',
       'claude-sonnet-4': 'anthropic/claude-sonnet-4',
+      'claude-opus-5': 'anthropic/claude-opus-5',
+      'claude-opus-5-fast': 'anthropic/claude-opus-5-fast',
     };
     if (map[explicit]) return map[explicit];
   }
