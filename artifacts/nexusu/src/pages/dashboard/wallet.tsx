@@ -190,48 +190,50 @@ export default function WalletPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.04 }}
-          className="bg-gradient-to-br from-[#6393C4] to-[#77A6DB] rounded-2xl p-5 sm:p-6 mb-4 text-white relative overflow-hidden"
+          className="relative overflow-hidden rounded-2xl p-5 sm:p-6 mb-4 text-white
+            bg-gradient-to-br from-[#4A7FB0] via-[#6393C4] to-[#7AA8D4]
+            shadow-[0_8px_32px_rgba(99,147,196,0.28)] border border-white/10"
         >
           <div
-            className="absolute inset-0 opacity-10 pointer-events-none"
+            className="absolute inset-0 pointer-events-none opacity-40"
             style={{
-              backgroundImage: 'radial-gradient(circle at 85% 20%, white, transparent 55%)',
+              background:
+                'radial-gradient(ellipse 80% 60% at 100% 0%, rgba(255,255,255,0.25), transparent 55%)',
             }}
           />
           <div className="relative">
-            <div className="flex items-center gap-2 mb-1">
-              <img src={USDC_LOGO_URL} alt="" className="w-5 h-5 rounded-full bg-white" />
-              <p className="text-xs font-semibold text-white/75 uppercase tracking-widest">
+            <div className="flex items-center gap-2 mb-1.5">
+              <img src={USDC_LOGO_URL} alt="" className="w-5 h-5 rounded-full bg-white shadow-sm" />
+              <p className="text-[11px] font-semibold text-white/70 uppercase tracking-[0.08em]">
                 Available balance
               </p>
             </div>
-            <p className="text-3xl sm:text-4xl font-display font-bold tabular-nums tracking-tight">
+            <p className="text-3xl sm:text-[2.5rem] font-display font-semibold tabular-nums tracking-tight leading-none">
               {assets.isLoading && !erc20 ? (
                 <span className="opacity-70">…</span>
               ) : (
                 <>
                   ${formatUsdc(portfolio)}
-                  <span className="text-lg font-semibold text-white/80 ml-1.5">USDC</span>
+                  <span className="text-base font-semibold text-white/75 ml-1.5">USDC</span>
                 </>
               )}
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-white/15 rounded-lg px-2.5 py-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+            <div className="mt-3.5 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-black/10 backdrop-blur-sm rounded-full px-2.5 py-1 border border-white/10">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
                 {isOnArcTestnet ? 'Arc Testnet' : 'Check network'}
               </span>
             </div>
 
-            {/* Primary actions */}
-            <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => openPanel(panel === 'receive' ? null : 'receive')}
                 className={cn(
                   'flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all',
                   panel === 'receive'
-                    ? 'bg-white text-[#6393C4] shadow-md'
-                    : 'bg-white/20 hover:bg-white/30 text-white',
+                    ? 'bg-white text-[#4A7FB0] shadow-md'
+                    : 'bg-white/15 hover:bg-white/25 text-white border border-white/10',
                 )}
               >
                 <ArrowDownLeft className="w-4 h-4" />
@@ -243,8 +245,8 @@ export default function WalletPage() {
                 className={cn(
                   'flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all',
                   panel === 'withdraw'
-                    ? 'bg-white text-[#6393C4] shadow-md'
-                    : 'bg-white/20 hover:bg-white/30 text-white',
+                    ? 'bg-white text-[#4A7FB0] shadow-md'
+                    : 'bg-white/15 hover:bg-white/25 text-white border border-white/10',
                 )}
               >
                 <ArrowUpRight className="w-4 h-4" />
@@ -262,12 +264,12 @@ export default function WalletPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
+              className="surface-card p-5 mb-4"
             >
               <div className="flex items-center gap-2 mb-1">
                 <ArrowDownLeft className="w-4 h-4 text-emerald-500" />
-                <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-                  Deposit / Receive USDC
+                <h2 className="text-sm font-semibold text-stone-800 dark:text-white tracking-tight">
+                  Deposit
                 </h2>
               </div>
               <p className="text-xs text-stone-400 dark:text-white/40 mb-4">
@@ -326,12 +328,12 @@ export default function WalletPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
+              className="surface-card p-5 mb-4"
             >
               <div className="flex items-center gap-2 mb-1">
                 <ArrowUpRight className="w-4 h-4 text-amber-500" />
-                <h2 className="text-sm font-semibold text-stone-800 dark:text-white">
-                  Withdraw USDC
+                <h2 className="text-sm font-semibold text-stone-800 dark:text-white tracking-tight">
+                  Withdraw
                 </h2>
               </div>
               <p className="text-xs text-stone-400 dark:text-white/40 mb-4">
@@ -434,11 +436,13 @@ export default function WalletPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
+          className="surface-card p-5 mb-4"
         >
           <div className="flex items-center gap-2 mb-3">
             <Globe className="w-4 h-4 text-[#6393C4]" />
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Wallet details</h2>
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white tracking-tight">
+              Details
+            </h2>
           </div>
 
           {walletAddress && (
@@ -482,24 +486,26 @@ export default function WalletPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.16 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
+          className="surface-card p-5 mb-4"
         >
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheck className="w-4 h-4 text-[#6393C4]" />
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Security</h2>
+            <h2 className="text-sm font-semibold text-stone-800 dark:text-white tracking-tight">
+              Security
+            </h2>
           </div>
-          <ul className="space-y-2.5 text-sm text-stone-600 dark:text-white/65">
+          <ul className="space-y-2 text-[13px] text-stone-600 dark:text-white/60">
             <li className="flex gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-              Non-custodial Circle wallet — you control transfers with your PIN
+              Non-custodial · PIN-confirmed transfers
             </li>
             <li className="flex gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-              Cooperative treasury funds stay in smart contracts, not this balance
+              Treasury funds stay in smart contracts
             </li>
             <li className="flex gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-              Always verify the recipient address before withdrawing
+              Verify recipient before withdraw
             </li>
           </ul>
         </motion.div>

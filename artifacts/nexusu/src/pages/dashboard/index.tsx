@@ -76,10 +76,10 @@ function StatCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-3.5 sm:p-5 hover:shadow-md dark:hover:border-white/10 transition-all cursor-pointer group min-w-0"
+      className="surface-card-hover p-3.5 sm:p-5 cursor-pointer group min-w-0"
     >
       <div className="flex items-start justify-between gap-2 mb-3 sm:mb-4">
-        <div className={cn('w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center bg-stone-50 dark:bg-[#2E3B4B]/40 border border-stone-100 dark:border-[#1A2A3A] flex-shrink-0')}>
+        <div className={cn('w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center bg-stone-50/90 dark:bg-white/[0.04] border border-stone-100/80 dark:border-white/[0.06] flex-shrink-0')}>
           <Icon className={cn('w-4 h-4 sm:w-[1.125rem] sm:h-[1.125rem]', iconColor)} />
         </div>
         {change !== undefined && !empty && !loading && (
@@ -102,13 +102,13 @@ function StatCard({
           {prefix}{formatted}{suffix}
         </p>
       )}
-      <p className="text-[11px] sm:text-xs text-stone-400 dark:text-white/40 font-medium leading-snug">
+      <p className="text-[11px] sm:text-xs text-stone-500 dark:text-white/40 font-medium leading-snug tracking-tight">
         {label}
         {loading && (
-          <span className="ml-1 text-stone-300 dark:text-white/25 block sm:inline">· loading on-chain</span>
+          <span className="ml-1 text-stone-300 dark:text-white/25 block sm:inline">· loading</span>
         )}
         {changeLabel && !empty && !loading && (
-          <span className="ml-1 text-stone-300 dark:text-white/25 block sm:inline">· {changeLabel}</span>
+          <span className="ml-1 text-stone-400 dark:text-white/30 block sm:inline">· {changeLabel}</span>
         )}
       </p>
     </motion.div>
@@ -488,17 +488,17 @@ export default function Overview() {
       <DashboardLayout>
         <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-7">
-            <h1 className="text-2xl font-display font-bold text-stone-900 dark:text-white">
-              {greeting}, {displayName} 👋
+            <h1 className="text-xl sm:text-2xl font-display font-semibold tracking-tight text-stone-900 dark:text-white">
+              {greeting}, {displayName}
             </h1>
-            <p className="text-sm text-stone-400 dark:text-white/40 mt-1">
+            <p className="text-[13px] text-stone-500 dark:text-white/40 mt-1">
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
               })}
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
             <StatCard label="Total Treasury" value={0} format="currency" icon={Vault} empty delay={0} />
             <StatCard label="Monthly Contributions" value={0} format="currency" icon={PiggyBank} empty delay={0.05} />
             <StatCard label="Active Members" value={0} format="number" icon={Users} empty delay={0.1} />
@@ -508,19 +508,21 @@ export default function Overview() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-10 text-center"
+            className="surface-card p-8 sm:p-10 text-center"
           >
-            <Building2 className="w-12 h-12 text-stone-200 dark:text-white/10 mx-auto mb-4" />
-            <h2 className="font-display font-bold text-stone-800 dark:text-white mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-stone-50 dark:bg-white/[0.04] border border-stone-100 dark:border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+              <Building2 className="w-6 h-6 text-stone-300 dark:text-white/20" />
+            </div>
+            <h2 className="font-display font-semibold text-stone-800 dark:text-white mb-1.5 tracking-tight">
               No cooperative yet
             </h2>
-            <p className="text-sm text-stone-400 dark:text-white/40 mb-6 max-w-md mx-auto">
+            <p className="text-sm text-stone-500 dark:text-white/40 mb-6 max-w-sm mx-auto">
               Create a cooperative or join with an invite code.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link
                 href="/dashboard/cooperatives"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6393C4] text-white text-sm font-semibold hover:bg-[#5289B8] shadow-sm shadow-[#6393C4]/25 transition-colors"
               >
                 <Plus className="w-4 h-4" /> Create or join
               </Link>
@@ -533,23 +535,23 @@ export default function Overview() {
 
   return (
     <DashboardLayout>
-      <div className="px-4 sm:px-6 py-5 sm:py-6 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-6 py-5 sm:py-8 max-w-7xl mx-auto">
 
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-7"
+          className="mb-6 sm:mb-8"
         >
-          <h1 className="text-xl sm:text-2xl font-display font-bold text-stone-900 dark:text-white break-words">
+          <h1 className="text-xl sm:text-2xl font-display font-semibold tracking-tight text-stone-900 dark:text-white break-words">
             {greeting}, {displayName}
           </h1>
-          <p className="text-sm text-stone-400 dark:text-white/40 mt-1 break-words">
+          <p className="text-[13px] text-stone-500 dark:text-white/40 mt-1 break-words">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             {' · '}
-            <span className="text-stone-600 dark:text-white/70 font-medium">{coopName}</span>
+            <span className="text-stone-700 dark:text-white/70 font-medium">{coopName}</span>
             {summary && (
-              <span className="ml-1">
+              <span className="ml-1 text-stone-400 dark:text-white/35">
                 · {summary.memberCount}
                 {summary.maxMembers != null ? ` / ${summary.maxMembers}` : ''} members
                 {summary.status === 'active' ? ' · Active' : ` · ${summary.status}`}
@@ -559,7 +561,7 @@ export default function Overview() {
         </motion.div>
 
         {/* Stat cards — live cooperative data */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <StatCard
             label="Cash on hand"
             value={treasury}

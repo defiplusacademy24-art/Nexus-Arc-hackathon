@@ -29,24 +29,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     href === '/dashboard' ? location === '/dashboard' : location.startsWith(href);
 
   return (
-    <div className="flex h-screen bg-[#EEF2F6] dark:bg-[#030F1F] overflow-hidden">
-      {/* Desktop sidebar */}
+    <div className="flex h-screen bg-[#F4F6F9] dark:bg-[#050D18] overflow-hidden">
       <Sidebar open={false} onClose={() => {}} />
-
-      {/* Mobile drawer */}
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} mobile />
 
-      {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopNav onMenuClick={() => setSidebarOpen(true)} />
 
-        {/* Scrollable content — extra bottom pad clears fixed mobile nav + safe area */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-10">
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
 
-        {/* Mobile bottom nav */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-[#081827] border-t border-[#1A2A3A]/20 dark:border-[#1A2A3A] flex pb-[env(safe-area-inset-bottom)]">
+        {/* Mobile tab bar — app-store style */}
+        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 border-t border-stone-200/80 dark:border-white/[0.06] bg-white/90 dark:bg-[#0A1522]/92 backdrop-blur-xl supports-[backdrop-filter]:bg-white/75 dark:supports-[backdrop-filter]:bg-[#0A1522]/80 flex pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_24px_rgba(15,23,42,0.04)]">
           {MOBILE_NAV.map((item) => {
             const active = mobileIsActive(item.href);
             return (
@@ -54,13 +49,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors min-w-0',
+                  'flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-semibold transition-colors min-w-0',
                   active
-                    ? 'text-[#6393C4]'
-                    : 'text-stone-400 dark:text-white/40 hover:text-stone-600 dark:hover:text-white/60',
+                    ? 'text-[#4A7FB0]'
+                    : 'text-stone-400 dark:text-white/35',
                 )}
               >
-                <item.icon className={cn('w-5 h-5 flex-shrink-0', active && 'text-[#6393C4]')} />
+                <span
+                  className={cn(
+                    'flex items-center justify-center w-10 h-7 rounded-full transition-colors',
+                    active && 'bg-[#6393C4]/12 dark:bg-[#6393C4]/15',
+                  )}
+                >
+                  <item.icon className={cn('w-[1.15rem] h-[1.15rem]', active && 'text-[#6393C4]')} />
+                </span>
                 <span className="truncate max-w-full px-0.5">{item.label}</span>
               </Link>
             );
