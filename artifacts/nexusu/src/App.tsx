@@ -28,7 +28,7 @@ import Governance from '@/pages/dashboard/governance';
 import Analytics from '@/pages/dashboard/analytics';
 import Notifications from '@/pages/dashboard/notifications';
 import SettingsPage from '@/pages/dashboard/settings';
-import WalletProfile from '@/pages/dashboard/wallet';
+import WalletPage from '@/pages/dashboard/wallet';
 import ProfilePage from '@/pages/dashboard/profile';
 
 const queryClient = new QueryClient();
@@ -57,7 +57,7 @@ function Router() {
       <Route path="/dashboard/analytics" component={Analytics} />
       <Route path="/dashboard/notifications" component={Notifications} />
       <Route path="/dashboard/settings" component={SettingsPage} />
-      <Route path="/dashboard/wallet" component={WalletProfile} />
+      <Route path="/dashboard/wallet" component={WalletPage} />
       <Route path="/dashboard/profile" component={ProfilePage} />
 
       <Route component={NotFound} />
