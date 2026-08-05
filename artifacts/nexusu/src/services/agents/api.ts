@@ -28,6 +28,7 @@ export type AgentsHealthResponse = {
   enabled: boolean;
   llmConfigured: boolean;
   llmModel: string;
+  llmBaseHost?: string;
   contracts: Record<string, string | undefined>;
   agents: AgentHealthItem[];
 };
@@ -141,6 +142,7 @@ export async function fetchAgentsDashboard(): Promise<{
   enabled: boolean;
   llmConfigured: boolean;
   llmModel: string;
+  llmBaseHost?: string;
   contracts: Record<string, string | undefined>;
   agents: AgentDashboardRow[];
   error?: string;
@@ -174,6 +176,7 @@ export async function fetchAgentsDashboard(): Promise<{
       enabled: health.enabled,
       llmConfigured: health.llmConfigured,
       llmModel: health.llmModel,
+      llmBaseHost: health.llmBaseHost,
       contracts: health.contracts ?? {},
       agents,
     };

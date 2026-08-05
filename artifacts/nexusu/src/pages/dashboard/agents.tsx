@@ -98,6 +98,7 @@ export default function AgentsPage() {
   const [enabled, setEnabled] = useState(false);
   const [llmConfigured, setLlmConfigured] = useState(false);
   const [llmModel, setLlmModel] = useState('—');
+  const [llmBaseHost, setLlmBaseHost] = useState<string | undefined>();
   const [agents, setAgents] = useState<AgentDashboardRow[]>([]);
   const [audit, setAudit] = useState<AgentAuditRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,6 +111,7 @@ export default function AgentsPage() {
     setEnabled(data.enabled);
     setLlmConfigured(data.llmConfigured);
     setLlmModel(data.llmModel);
+    setLlmBaseHost(data.llmBaseHost);
     setAgents(data.agents);
     if (data.error) setError(data.error);
 
@@ -185,7 +187,7 @@ export default function AgentsPage() {
                 </p>
                 <p className="text-xs text-stone-600 dark:text-white/55 mt-0.5 leading-relaxed">
                   {enabled
-                    ? `${running} of ${agents.length} agents ready · ${walletsReady} Circle wallets configured · model ${llmModel || '—'}`
+                    ? `${running} of ${agents.length} agents ready · ${walletsReady} Circle wallets configured · model ${llmModel || '—'}${llmBaseHost ? ` @ ${llmBaseHost}` : ''}`
                     : 'Autonomous agents need the API worker enabled. Member features (contributions, loans, treasury) still work on-chain. See product docs for setup.'}
                 </p>
                 {error && (
@@ -198,7 +200,7 @@ export default function AgentsPage() {
                 Runtime {enabled ? 'on' : 'off'}
               </span>
               <span className="px-2.5 py-1 rounded-full bg-white/80 dark:bg-black/20 border border-stone-200/80 dark:border-white/10">
-                LLM {llmConfigured ? 'ready' : 'missing'}
+                LLM {llmConfigured ? (llmBaseHost ? `ready · ${llmBaseHost}` : 'ready') : 'missing'}
               </span>
               <span className="px-2.5 py-1 rounded-full bg-white/80 dark:bg-black/20 border border-stone-200/80 dark:border-white/10">
                 {running} running

@@ -5,6 +5,15 @@ function env(name: string): string | undefined {
   return value || undefined;
 }
 
+/** First non-empty env among the given names. */
+function firstEnv(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = env(name);
+    if (value) return value;
+  }
+  return undefined;
+}
+
 function parseAddress(value: string | undefined): `0x${string}` | undefined {
   if (!value || !/^0x[a-fA-F0-9]{40}$/i.test(value)) return undefined;
   return value as `0x${string}`;
@@ -16,6 +25,33 @@ function requiredAddress(name: string): `0x${string}` {
     throw new Error(`${name} must be a valid contract address when AGENTS_ENABLED=true`);
   }
   return value;
+}
+
+/**
+ * Normalize OpenAI-compatible base URLs.
+ * AgentRouter Anthropic docs use `https://agentrouter.org` (no /v1);
+ * the OpenAI SDK needs `…/v1` for /chat/completions.
+ */
+function normalizeLlmBaseUrl(raw: string): string {
+  let url = raw.trim().replace(/\/+$/, '');
+  try {
+    const parsed = new URL(url);
+    // Host-only or path without /v1 → append /v1
+    if (!/\/v\d+$/i.test(parsed.pathname) && !parsed.pathname.includes('/v1')) {
+      url = `${url}/v1`;
+    }
+  } catch {
+    if (!url.endsWith('/v1')) url = `${url}/v1`;
+  }
+  return url;
+}
+
+function llmBaseHost(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return baseUrl;
+  }
 }
 
 const walletEnvKeys: Record<AgentName, string> = {
@@ -35,6 +71,42 @@ function isServerless(): boolean {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 }
 
+/**
+ * Resolve LLM credentials from several gateway env conventions:
+ * - OpenAI / AgentRouter free credit: OPENAI_* or ANTHROPIC_* (key only) + base URL
+ * - Generic: LLM_*
+ * - SpaceXAI / xAI: XAI_*
+ *
+ * Prefer gateway / OpenAI-compatible vars over XAI so free AgentRouter credit works
+ * even if a dead XAI_API_KEY is still present in Vercel.
+ */
+const resolvedLlmApiKey = firstEnv(
+  'LLM_API_KEY',
+  'OPENAI_API_KEY',
+  'AGENTROUTER_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'XAI_API_KEY',
+);
+
+const resolvedLlmBaseUrl = normalizeLlmBaseUrl(
+  firstEnv(
+    'LLM_BASE_URL',
+    'OPENAI_BASE_URL',
+    'AGENTROUTER_BASE_URL',
+    'ANTHROPIC_BASE_URL',
+    'XAI_BASE_URL',
+  ) ?? 'https://api.x.ai/v1',
+);
+
+const resolvedLlmModel =
+  firstEnv(
+    'LLM_MODEL',
+    'OPENAI_AGENT_MODEL',
+    'AGENTROUTER_MODEL',
+    'ANTHROPIC_MODEL',
+    'XAI_AGENT_MODEL',
+  ) ?? 'grok-4.5';
+
 export const agentConfig = {
   enabled: env('AGENTS_ENABLED') === 'true',
   /** Serverless hosts (Vercel) run agents in soft/request mode only. */
@@ -42,10 +114,15 @@ export const agentConfig = {
   rpcUrl: env('ARC_RPC_URL') ?? 'https://rpc.testnet.arc.network',
   pollIntervalMs: Number(env('AGENT_POLL_INTERVAL_MS') ?? 12_000),
   maxRetries: Number(env('AGENT_MAX_RETRIES') ?? 5),
-  /** Prefer SpaceXAI (xAI). OPENAI_* kept as fallback for existing deploys. */
-  llmApiKey: env('XAI_API_KEY') ?? env('OPENAI_API_KEY'),
-  llmBaseUrl: env('XAI_BASE_URL') ?? env('OPENAI_BASE_URL') ?? 'https://api.x.ai/v1',
-  llmModel: env('XAI_AGENT_MODEL') ?? env('OPENAI_AGENT_MODEL') ?? 'grok-4.5',
+  /**
+   * OpenAI-compatible LLM (AgentRouter, OpenRouter, xAI, etc.).
+   * Uses chat.completions — not the Responses API — for gateway compatibility.
+   */
+  llmApiKey: resolvedLlmApiKey,
+  llmBaseUrl: resolvedLlmBaseUrl,
+  llmModel: resolvedLlmModel,
+  /** Safe for health endpoints (no secrets). */
+  llmBaseHost: llmBaseHost(resolvedLlmBaseUrl),
   circleBin: env('CIRCLE_BIN'),
   rateLimitWindowMs: Number(env('AGENT_RATE_LIMIT_WINDOW_MS') ?? 60_000),
   rateLimitMaxWalletCalls: Number(env('AGENT_RATE_LIMIT_MAX_WALLET_CALLS') ?? 10),

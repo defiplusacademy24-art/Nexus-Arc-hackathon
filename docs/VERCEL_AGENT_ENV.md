@@ -9,10 +9,29 @@ Set these in **Vercel → Project → Settings → Environment Variables** (Prod
 | `AGENTS_ENABLED` | `true` |
 | `DATABASE_URL` | Your Postgres URL (Neon/Supabase/Vercel Postgres) |
 | `CIRCLE_AGENT_WALLET_ADDRESS` | `0x5669a51537e53bc2d3d1c7f0e30491d7bd4468a0` |
-| `XAI_API_KEY` | Your xAI key (Nexa + agent decisions) |
 | `CIRCLE_UC_API_KEY` | Member email/PIN wallets (already used by app) |
 | `CIRCLE_UC_BLOCKCHAIN` | `ARC-TESTNET` |
 | `CIRCLE_UC_ACCOUNT_TYPE` | `SCA` |
+
+### LLM (pick one gateway — AgentRouter free credit recommended if no xAI balance)
+
+| Variable | Value (AgentRouter free credit) |
+|----------|----------------------------------|
+| `OPENAI_API_KEY` | Your AgentRouter / platform API key |
+| `OPENAI_BASE_URL` | `https://agentrouter.org/v1` |
+| `OPENAI_AGENT_MODEL` | Model id from the platform dashboard (e.g. `deepseek-r1-0528`, `gpt-4o-mini`) |
+
+Aliases also work (same meaning):
+
+- Key: `LLM_API_KEY`, `AGENTROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY`
+- Base URL: `LLM_BASE_URL`, `AGENTROUTER_BASE_URL`, `ANTHROPIC_BASE_URL`, or `XAI_BASE_URL`
+- Model: `LLM_MODEL`, `AGENTROUTER_MODEL`, `ANTHROPIC_MODEL`, or `XAI_AGENT_MODEL`
+
+Notes:
+
+- Prefer **OpenAI-compatible** vars (`OPENAI_*`). If you set `ANTHROPIC_BASE_URL=https://agentrouter.org/`, the app normalizes it to `…/v1` automatically.
+- Leave empty any **dead** `XAI_API_KEY` only if you are not using those vars — gateway keys (`OPENAI_API_KEY`, etc.) are preferred over `XAI_*` so free credit wins.
+- Agents use **chat.completions** (not the OpenAI Responses API) so AgentRouter / OpenRouter work.
 
 ## Recommended (contracts + multi-workspace)
 
@@ -43,7 +62,7 @@ CIRCLE_AGENT_WALLET_NEXA_ADDRESS=0x5669a51537e53bc2d3d1c7f0e30491d7bd4468a0
 |---------|-------------------|
 | `/api/agents/health` | Yes — shows wallet addresses |
 | `/api/agents` catalog | Yes |
-| Nexa chat (`/api/agents/nexa/ask`) | Yes (needs `XAI_API_KEY` + `DATABASE_URL`) |
+| Nexa chat (`/api/agents/nexa/ask`) | Yes (needs LLM key + base URL + `DATABASE_URL`) |
 | Agent memory / audit | Yes (Postgres) |
 | Circle CLI on-chain execute (approve loan, rotation) | **No** — needs long-running worker with `CIRCLE_BIN` + authenticated CLI session |
 
@@ -60,7 +79,8 @@ CIRCLE_AGENT_WALLET_NEXA_ADDRESS=0x5669a51537e53bc2d3d1c7f0e30491d7bd4468a0
 
 ```bash
 curl -s https://YOUR-APP.vercel.app/api/agents/health | jq .
-# enabled: true, agents[].walletConfigured: true
+# enabled: true, llmConfigured: true, llmBaseHost: agentrouter.org
+# llmModel: <your model>, agents[].walletConfigured: true
 # sharedAgentWallet: 0x5669…
 ```
 
