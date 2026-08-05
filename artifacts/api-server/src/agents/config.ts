@@ -54,6 +54,19 @@ function llmBaseHost(baseUrl: string): string {
   }
 }
 
+/** Host-aware default when no model env is set. */
+function defaultLlmModel(baseUrl: string): string {
+  const host = llmBaseHost(baseUrl).toLowerCase();
+  if (host.includes('agentrouter')) {
+    // Documented AgentRouter free-tier / gateway model id
+    return 'claude-sonnet-4-5-20250929';
+  }
+  if (host.includes('openrouter')) {
+    return 'openai/gpt-4o-mini';
+  }
+  return 'grok-4.5';
+}
+
 const walletEnvKeys: Record<AgentName, string> = {
   treasury: 'CIRCLE_AGENT_WALLET_TREASURY_ADDRESS',
   contribution: 'CIRCLE_AGENT_WALLET_CONTRIBUTION_ADDRESS',
@@ -105,7 +118,7 @@ const resolvedLlmModel =
     'AGENTROUTER_MODEL',
     'ANTHROPIC_MODEL',
     'XAI_AGENT_MODEL',
-  ) ?? 'grok-4.5';
+  ) ?? defaultLlmModel(resolvedLlmBaseUrl);
 
 export const agentConfig = {
   enabled: env('AGENTS_ENABLED') === 'true',

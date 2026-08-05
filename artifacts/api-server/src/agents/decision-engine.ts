@@ -270,8 +270,16 @@ Keep answers under 400 words unless the user asks for detail.`;
         messages,
         ...(useJsonObject ? { response_format: { type: 'json_object' as const } } : {}),
         temperature: 0.2,
+        max_tokens: jsonMode ? 1200 : 800,
       });
-      return messageContent(response.choices[0]?.message?.content);
+      const choice = response?.choices?.[0];
+      if (!choice) {
+        throw new Error(
+          `LLM returned no choices (host=${agentConfig.llmBaseHost}, model=${agentConfig.llmModel}). ` +
+            'Set OPENAI_AGENT_MODEL (or LLM_MODEL) to a model id your gateway serves.',
+        );
+      }
+      return messageContent(choice.message?.content);
     };
 
     if (!jsonMode) {
