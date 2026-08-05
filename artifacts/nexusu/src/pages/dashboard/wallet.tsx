@@ -65,17 +65,13 @@ export default function WalletPage() {
     () => assets.data?.assets.find((a) => a.coinId === ARC_USDC_ERC20_ADDRESS),
     [assets.data],
   );
-  const gas = useMemo(
-    () => assets.data?.assets.find((a) => a.coinId === 'native-usdc'),
-    [assets.data],
-  );
 
   const availableUsdc = useMemo(() => {
     const n = Number.parseFloat(erc20?.balance ?? '0');
     return Number.isFinite(n) ? n : 0;
   }, [erc20?.balance]);
 
-  const portfolio = assets.data?.portfolioValueUsd ?? availableUsdc;
+  const portfolio = availableUsdc;
 
   const copyAddress = async () => {
     if (!walletAddress) return;
@@ -224,9 +220,6 @@ export default function WalletPage() {
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 {isOnArcTestnet ? 'Arc Testnet' : 'Check network'}
               </span>
-              <span className="text-[11px] text-white/70">
-                ERC-20 spendable · Gas: {formatUsdc(Number(gas?.balance ?? 0))} native USDC
-              </span>
             </div>
 
             {/* Primary actions */}
@@ -342,8 +335,11 @@ export default function WalletPage() {
                 </h2>
               </div>
               <p className="text-xs text-stone-400 dark:text-white/40 mb-4">
-                Send spendable ERC-20 USDC from your wallet. You’ll confirm with your Circle PIN.
-                Available: <span className="font-semibold text-stone-600 dark:text-white/70">{formatUsdc(availableUsdc)} USDC</span>
+                Send USDC from your wallet. You’ll confirm with your Circle PIN.
+                Available:{' '}
+                <span className="font-semibold text-stone-600 dark:text-white/70">
+                  {formatUsdc(availableUsdc)} USDC
+                </span>
               </p>
 
               <label className="block text-[10px] font-semibold text-stone-400 dark:text-white/30 uppercase tracking-widest mb-1.5">
@@ -433,59 +429,11 @@ export default function WalletPage() {
           )}
         </AnimatePresence>
 
-        {/* Asset breakdown */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 }}
-          className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Wallet className="w-4 h-4 text-[#6393C4]" />
-            <h2 className="text-sm font-semibold text-stone-800 dark:text-white">Balances</h2>
-          </div>
-          {assets.error && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">{assets.error}</p>
-          )}
-          <div className="space-y-2">
-            {[
-              {
-                key: 'erc20',
-                name: 'USDC',
-                subtitle: 'Spendable (ERC-20)',
-                bal: formatUsdc(availableUsdc),
-              },
-              {
-                key: 'gas',
-                name: 'USDC (Gas)',
-                subtitle: 'Native gas token on Arc',
-                bal: formatUsdc(Number(gas?.balance ?? 0)),
-              },
-            ].map((row) => (
-              <div
-                key={row.key}
-                className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 dark:bg-[#2E3B4B]/35 border border-stone-100 dark:border-white/5"
-              >
-                <div className="w-9 h-9 rounded-xl bg-white dark:bg-white/10 flex items-center justify-center border border-stone-100 dark:border-white/10 overflow-hidden">
-                  <img src={USDC_LOGO_URL} alt="" className="w-6 h-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-stone-800 dark:text-white">{row.name}</p>
-                  <p className="text-[11px] text-stone-400 dark:text-white/40">{row.subtitle}</p>
-                </div>
-                <p className="text-sm font-semibold tabular-nums text-stone-800 dark:text-white">
-                  {row.bal}
-                </p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
         {/* Wallet details */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
+          transition={{ delay: 0.08 }}
           className="bg-white dark:bg-stone-900/60 border border-stone-100 dark:border-[#1A2A3A] rounded-2xl p-5 mb-4"
         >
           <div className="flex items-center gap-2 mb-3">
