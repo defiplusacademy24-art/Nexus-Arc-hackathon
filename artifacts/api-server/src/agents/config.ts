@@ -111,14 +111,32 @@ const resolvedLlmBaseUrl = normalizeLlmBaseUrl(
   ) ?? 'https://api.x.ai/v1',
 );
 
-const resolvedLlmModel =
-  firstEnv(
+function resolveLlmModel(baseUrl: string): string {
+  const explicit = firstEnv(
     'LLM_MODEL',
     'OPENAI_AGENT_MODEL',
     'AGENTROUTER_MODEL',
     'ANTHROPIC_MODEL',
     'XAI_AGENT_MODEL',
-  ) ?? defaultLlmModel(resolvedLlmBaseUrl);
+  );
+  const host = llmBaseHost(baseUrl).toLowerCase();
+  // Vercel often still has XAI_AGENT_MODEL=grok-4.5; that id does not exist on AgentRouter.
+  if (
+    host.includes('agentrouter') &&
+    (!explicit || /^grok/i.test(explicit) || explicit === 'grok-4.5')
+  ) {
+    return defaultLlmModel(baseUrl);
+  }
+  if (
+    host.includes('openrouter') &&
+    (!explicit || /^grok/i.test(explicit))
+  ) {
+    return defaultLlmModel(baseUrl);
+  }
+  return explicit ?? defaultLlmModel(baseUrl);
+}
+
+const resolvedLlmModel = resolveLlmModel(resolvedLlmBaseUrl);
 
 export const agentConfig = {
   enabled: env('AGENTS_ENABLED') === 'true',
