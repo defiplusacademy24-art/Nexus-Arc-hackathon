@@ -37,6 +37,10 @@ router.get('/health', async (_req: Request, res: Response) => {
       llmBaseHost: agentConfig.llmBaseHost,
       llmProvider: agentConfig.llmProvider,
       llmKeyKind: agentConfig.llmKeyKind,
+      /** Safe diagnostics — never the full secret */
+      llmKeyLength: agentConfig.llmKeyLength,
+      llmKeyPrefix: agentConfig.llmKeyPrefix,
+      llmAuthHint: agentConfig.llmAuthHint ?? null,
       sharedAgentWallet: agentConfig.walletAddress('loan') ?? null,
       contracts: agentConfig.contracts,
       agents,
@@ -168,9 +172,12 @@ router.post('/events', async (req: Request, res: Response) => {
       idempotencyKey: body.idempotencyKey,
       payload: body.payload ?? {},
     });
+    // Soft/serverless: no background poller — process a batch now
+    const drained = await agentRuntime().tick(24);
     res.status(recorded ? 202 : 200).json({
       accepted: Boolean(recorded),
       duplicate: !recorded,
+      drained,
       event: recorded
         ? {
             ...recorded,
@@ -184,6 +191,39 @@ router.post('/events', async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : 'emit failed',
+    });
+  }
+});
+
+/**
+ * POST /api/agents/tick — process queued agent tasks (Vercel soft mode).
+ * Call this after events, or from a Vercel cron, since serverless has no poller.
+ */
+router.post('/tick', async (req: Request, res: Response) => {
+  if (!agentConfig.enabled) {
+    res.status(503).json({ error: 'Agents disabled (set AGENTS_ENABLED=true)' });
+    return;
+  }
+  try {
+    await agentRuntime().ensureStarted();
+    const max =
+      typeof req.body?.max === 'number'
+        ? Math.min(50, Math.max(1, req.body.max))
+        : 24;
+    const drained = await agentRuntime().tick(max);
+    const agents = await agentRuntime().statuses();
+    res.json({
+      ok: true,
+      drained,
+      queue: agents.map((a) => ({
+        agent: a.agent,
+        queueDepth: a.queueDepth,
+        ready: a.ready,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'tick failed',
     });
   }
 });

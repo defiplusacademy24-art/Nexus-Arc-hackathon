@@ -10,6 +10,6 @@
  * vercel.json) so Vercel rebuilds the nexusu project — ignore filters skip
  * deploys when only artifacts/api-server changes.
  *
- * Redeploy bump: cross-device profile username via /api/profile + Postgres.
+ * Redeploy bump: agent soft-mode tick + live LLM env diagnostics.
  */
 export { default } from "../.vercel-api/app.mjs";

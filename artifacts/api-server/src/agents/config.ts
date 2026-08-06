@@ -179,9 +179,6 @@ function resolveLlmBaseUrl(apiKey: string | undefined): string {
   return 'https://api.x.ai/v1';
 }
 
-const resolvedLlmApiKey = resolveLlmApiKey();
-const resolvedLlmBaseUrl = resolveLlmBaseUrl(resolvedLlmApiKey);
-
 function llmKeyKind(key: string | undefined): string {
   if (!key) return 'none';
   if (isOpenRouterKey(key)) return 'openrouter';
@@ -189,6 +186,13 @@ function llmKeyKind(key: string | undefined): string {
   if (/^sk-ant-/i.test(key)) return 'anthropic';
   if (/^sk-/i.test(key)) return 'openai-style';
   return 'other';
+}
+
+/** Safe prefix for health (never the full secret). */
+function llmKeyPrefix(key: string | undefined): string | null {
+  if (!key) return null;
+  // show first 7 chars of key shape only, e.g. "sk-or-v" or "sk-proj"
+  return key.slice(0, 7);
 }
 
 function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
@@ -235,42 +239,107 @@ function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
   return explicit ?? defaultLlmModel(baseUrl);
 }
 
-const resolvedLlmModel = resolveLlmModel(resolvedLlmBaseUrl, resolvedLlmApiKey);
+/**
+ * Lazy LLM resolution so serverless always reads live process.env
+ * (never a build-time snapshot).
+ */
+function liveLlm() {
+  const apiKey = resolveLlmApiKey();
+  const baseUrl = resolveLlmBaseUrl(apiKey);
+  const model = resolveLlmModel(baseUrl, apiKey);
+  const host = llmBaseHost(baseUrl);
+  const keyKind = llmKeyKind(apiKey);
+  const provider = host.includes('openrouter')
+    ? 'openrouter'
+    : host.includes('agentrouter')
+      ? 'agentrouter'
+      : host.includes('x.ai')
+        ? 'xai'
+        : 'openai-compatible';
+
+  let authHint: string | undefined;
+  if (!apiKey) {
+    authHint =
+      'No LLM key found. Set OPENROUTER_API_KEY=sk-or-v1-… (from openrouter.ai/keys).';
+  } else if (provider === 'openrouter' && !isOpenRouterKey(apiKey)) {
+    authHint =
+      'Host is openrouter.ai but key does not start with sk-or-. ' +
+      'Paste your OpenRouter key into OPENROUTER_API_KEY (or OPENAI_API_KEY). ' +
+      'Do not use a plain OpenAI/Anthropic key against OpenRouter.';
+  }
+
+  return { apiKey, baseUrl, model, host, keyKind, provider, authHint };
+}
 
 export const agentConfig = {
-  enabled: env('AGENTS_ENABLED') === 'true',
+  get enabled(): boolean {
+    return env('AGENTS_ENABLED') === 'true';
+  },
   /** Serverless hosts (Vercel) run agents in soft/request mode only. */
-  serverless: isServerless(),
-  rpcUrl: env('ARC_RPC_URL') ?? 'https://rpc.testnet.arc.network',
-  pollIntervalMs: Number(env('AGENT_POLL_INTERVAL_MS') ?? 12_000),
-  maxRetries: Number(env('AGENT_MAX_RETRIES') ?? 5),
+  get serverless(): boolean {
+    return isServerless();
+  },
+  get rpcUrl(): string {
+    return env('ARC_RPC_URL') ?? 'https://rpc.testnet.arc.network';
+  },
+  get pollIntervalMs(): number {
+    return Number(env('AGENT_POLL_INTERVAL_MS') ?? 12_000);
+  },
+  get maxRetries(): number {
+    return Number(env('AGENT_MAX_RETRIES') ?? 5);
+  },
   /**
    * OpenAI-compatible LLM (OpenRouter, AgentRouter, xAI, etc.).
    * Uses chat.completions — not the Responses API — for gateway compatibility.
    */
-  llmApiKey: resolvedLlmApiKey,
-  llmBaseUrl: resolvedLlmBaseUrl,
-  llmModel: resolvedLlmModel,
+  get llmApiKey(): string | undefined {
+    return liveLlm().apiKey;
+  },
+  get llmBaseUrl(): string {
+    return liveLlm().baseUrl;
+  },
+  get llmModel(): string {
+    return liveLlm().model;
+  },
   /** Safe for health endpoints (no secrets). */
-  llmBaseHost: llmBaseHost(resolvedLlmBaseUrl),
+  get llmBaseHost(): string {
+    return liveLlm().host;
+  },
   /** Safe key family label for debugging Vercel env wiring. */
-  llmKeyKind: llmKeyKind(resolvedLlmApiKey),
-  llmProvider: llmBaseHost(resolvedLlmBaseUrl).includes('openrouter')
-    ? 'openrouter'
-    : llmBaseHost(resolvedLlmBaseUrl).includes('agentrouter')
-      ? 'agentrouter'
-      : llmBaseHost(resolvedLlmBaseUrl).includes('x.ai')
-        ? 'xai'
-        : 'openai-compatible',
-  circleBin: env('CIRCLE_BIN'),
-  rateLimitWindowMs: Number(env('AGENT_RATE_LIMIT_WINDOW_MS') ?? 60_000),
-  rateLimitMaxWalletCalls: Number(env('AGENT_RATE_LIMIT_MAX_WALLET_CALLS') ?? 10),
-  contracts: {
-    registry: env('COOPERATIVE_REGISTRY_ADDRESS'),
-    treasury: env('TREASURY_VAULT_ADDRESS'),
-    loanPool: env('LOAN_POOL_ADDRESS'),
-    rotationManager: env('ROTATION_MANAGER_ADDRESS'),
-  } as Record<ContractName, string | undefined>,
+  get llmKeyKind(): string {
+    return liveLlm().keyKind;
+  },
+  get llmProvider(): string {
+    return liveLlm().provider;
+  },
+  /** Key length only — helps confirm Vercel injected the secret. */
+  get llmKeyLength(): number {
+    return liveLlm().apiKey?.length ?? 0;
+  },
+  get llmKeyPrefix(): string | null {
+    return llmKeyPrefix(liveLlm().apiKey);
+  },
+  /** Human-readable misconfiguration hint (safe). */
+  get llmAuthHint(): string | undefined {
+    return liveLlm().authHint;
+  },
+  get circleBin(): string | undefined {
+    return env('CIRCLE_BIN');
+  },
+  get rateLimitWindowMs(): number {
+    return Number(env('AGENT_RATE_LIMIT_WINDOW_MS') ?? 60_000);
+  },
+  get rateLimitMaxWalletCalls(): number {
+    return Number(env('AGENT_RATE_LIMIT_MAX_WALLET_CALLS') ?? 10);
+  },
+  get contracts(): Record<ContractName, string | undefined> {
+    return {
+      registry: env('COOPERATIVE_REGISTRY_ADDRESS'),
+      treasury: env('TREASURY_VAULT_ADDRESS'),
+      loanPool: env('LOAN_POOL_ADDRESS'),
+      rotationManager: env('ROTATION_MANAGER_ADDRESS'),
+    };
+  },
 
   /**
    * Per-agent wallet, falling back to CIRCLE_AGENT_WALLET_ADDRESS

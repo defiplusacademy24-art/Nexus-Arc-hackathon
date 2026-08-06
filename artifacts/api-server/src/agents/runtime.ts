@@ -170,6 +170,37 @@ export class AgentRuntime {
     return complete;
   }
 
+  /**
+   * Process up to `maxTasks` queued items across all agents.
+   * Used by the background poller and by Vercel soft-mode HTTP tick/emit.
+   */
+  async tick(maxTasks = 24): Promise<{ processed: number; errors: number }> {
+    let processed = 0;
+    let errors = 0;
+    // Round-robin agents so one busy agent does not starve others
+    for (let i = 0; i < maxTasks; i++) {
+      let claimed = false;
+      for (const service of this.agents) {
+        const before = processed;
+        const ok = await this.drainAgent(service);
+        if (ok === 'processed') {
+          processed += 1;
+          claimed = true;
+          break;
+        }
+        if (ok === 'error') {
+          errors += 1;
+          processed += 1;
+          claimed = true;
+          break;
+        }
+        void before;
+      }
+      if (!claimed) break;
+    }
+    return { processed, errors };
+  }
+
   private contextFor(agent: AgentName): AgentServiceContext {
     return {
       remember: (key, value) => this.store.remember(agent, key, value),
@@ -181,15 +212,16 @@ export class AgentRuntime {
   }
 
   private async drain(): Promise<void> {
-    for (const agent of this.agents) {
-      await this.drainAgent(agent);
-    }
+    await this.tick(AGENT_NAMES.length * 2);
   }
 
-  private async drainAgent(service: BaseAgent): Promise<void> {
+  /** @returns whether a task was claimed (processed or error) */
+  private async drainAgent(
+    service: BaseAgent,
+  ): Promise<'empty' | 'processed' | 'error'> {
     const agent = service.name;
     const task = await this.store.claim(agent);
-    if (!task) return;
+    if (!task) return 'empty';
 
     const health = this.health.get(agent);
     if (health) health.lastEventAt = new Date().toISOString();
@@ -255,6 +287,7 @@ export class AgentRuntime {
 
       await this.store.complete(task.id);
       if (health) health.lastError = undefined;
+      return 'processed';
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (health) health.lastError = message;
@@ -267,6 +300,7 @@ export class AgentRuntime {
         task.event.idempotencyKey,
       );
       logger.error({ agent, err: error, taskId: task.id }, 'Agent task failed');
+      return 'error';
     }
   }
 

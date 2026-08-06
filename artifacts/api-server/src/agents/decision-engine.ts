@@ -120,10 +120,8 @@ function messageContent(
  * Fail-closed when the model is unavailable.
  */
 export class DecisionEngine {
-  private readonly configured: boolean;
-
-  constructor() {
-    this.configured = Boolean(agentConfig.llmApiKey);
+  private get configured(): boolean {
+    return Boolean(agentConfig.llmApiKey);
   }
 
   async decide(
@@ -134,8 +132,9 @@ export class DecisionEngine {
     if (!this.configured) {
       return failClosed(
         [
-          'LLM decision engine is not configured (set OPENAI_API_KEY or XAI_API_KEY); fail closed.',
-        ],
+          'LLM decision engine is not configured (set OPENROUTER_API_KEY=sk-or-v1-… from openrouter.ai/keys); fail closed.',
+          agentConfig.llmAuthHint ?? '',
+        ].filter(Boolean),
         context,
       );
     }
@@ -310,11 +309,17 @@ Keep answers under 400 words unless the user asks for detail.`;
     }
 
     const doFetch = async (payload: Record<string, unknown>) => {
+      const apiKey = agentConfig.llmApiKey?.trim();
+      if (!apiKey) {
+        throw new Error(
+          'LLM API key missing at request time. Set OPENROUTER_API_KEY on Vercel (Production) and redeploy.',
+        );
+      }
       const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${agentConfig.llmApiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'HTTP-Referer': process.env.VERCEL_URL
             ? `https://${process.env.VERCEL_URL}`
             : 'https://nexusu-v0.vercel.app',
