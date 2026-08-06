@@ -232,7 +232,10 @@
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.22);
 }
 .surface-card-hover {
-  @apply surface-card transition-all duration-200;
+  /* Expand surface-card utilities here — Tailwind v4 cannot @apply custom classes */
+  @apply bg-white dark:bg-[#0A1522] border border-stone-200/70 dark:border-white/[0.06]
+    rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_16px_rgba(15,23,42,0.03)]
+    transition-all duration-200;
 }
 .surface-card-hover:hover {
   @apply border-stone-300/80 dark:border-white/10;
