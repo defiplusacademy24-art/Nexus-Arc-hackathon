@@ -334,7 +334,7 @@ Keep answers under 400 words unless the user asks for detail.`;
       ) {
         throw new Error(
           `Gateway returned WAF/HTML instead of JSON (host=${agentConfig.llmBaseHost}). ` +
-            'Set OPENAI_BASE_URL=https://co.agentrouter.org/v1 (not agentrouter.org).',
+            'Set AGENTROUTER_BASE_URL=https://agentrouter.org/v1 (same as Claude Code).',
         );
       }
       let data: Record<string, unknown> = {};

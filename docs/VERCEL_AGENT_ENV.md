@@ -20,7 +20,7 @@ If your key is from [agentrouter.org](https://agentrouter.org) (works with Claud
 | Variable | Value |
 |----------|--------|
 | `AGENTROUTER_API_KEY` or `OPENAI_API_KEY` or `ANTHROPIC_AUTH_TOKEN` | Your AgentRouter key (`sk-…` from [token console](https://agentrouter.org/console/token)) |
-| `AGENTROUTER_BASE_URL` or `OPENAI_BASE_URL` | `https://co.agentrouter.org/v1` (API host; bare `agentrouter.org` hits WAF on Vercel) |
+| `AGENTROUTER_BASE_URL` or `OPENAI_BASE_URL` | `https://agentrouter.org/v1` (same site as Claude Code) |
 | `AGENTROUTER_MODEL` or `OPENAI_AGENT_MODEL` | e.g. `claude-sonnet-4-5-20250929`, `gpt-4o-mini`, `glm-4.5-air` |
 | `LLM_PROVIDER` | `agentrouter` |
 
@@ -29,7 +29,7 @@ If your key is from [agentrouter.org](https://agentrouter.org) (works with Claud
 Also set for Claude Code parity (optional):
 
 ```text
-ANTHROPIC_BASE_URL=https://co.agentrouter.org/v1
+ANTHROPIC_BASE_URL=https://agentrouter.org/
 ANTHROPIC_AUTH_TOKEN=<same key>
 ```
 

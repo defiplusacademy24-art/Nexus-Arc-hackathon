@@ -10,6 +10,6 @@
  * vercel.json) so Vercel rebuilds the nexusu project — ignore filters skip
  * deploys when only artifacts/api-server changes.
  *
- * Redeploy bump: AgentRouter (Claude Code) key routing, not OpenRouter.
+ * Redeploy bump: AgentRouter base URL https://agentrouter.org/v1 (Claude Code).
  */
 export { default } from "../.vercel-api/app.mjs";

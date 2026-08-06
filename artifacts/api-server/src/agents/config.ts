@@ -65,13 +65,20 @@ function normalizeLlmBaseUrl(raw: string): string {
       return `${parsed.origin}${parsed.pathname}`;
     }
 
-    // AgentRouter marketing host → API host (Vercel hits WAF on bare host)
-    if (host === 'agentrouter.org' || host === 'www.agentrouter.org') {
-      parsed.hostname = 'co.agentrouter.org';
+    // Keep agentrouter.org as-is (same host Claude Code uses).
+    // Path must end with /v1 for OpenAI-compatible chat.completions.
+    if (host === 'www.agentrouter.org') {
+      parsed.hostname = 'agentrouter.org';
     }
 
     let path = parsed.pathname.replace(/\/+$/, '') || '';
-    if (!/\/v\d+$/i.test(path) && !path.includes('/v1')) {
+    // ANTHROPIC_BASE_URL is often https://agentrouter.org/ (no /v1) — Claude Code style
+    if (
+      (host === 'agentrouter.org' || host === 'co.agentrouter.org') &&
+      (!path || path === '/')
+    ) {
+      path = '/v1';
+    } else if (!/\/v\d+$/i.test(path) && !path.includes('/v1')) {
       path = `${path}/v1`.replace(/\/{2,}/g, '/');
     }
     if (!path.startsWith('/')) path = `/${path}`;
@@ -228,13 +235,12 @@ function resolveLlmBaseUrl(apiKey: string | undefined): string {
     return 'https://openrouter.ai/api/v1';
   }
 
-  // AgentRouter (Claude Code): use API host, not marketing host (WAF).
+  // AgentRouter (Claude Code): same host as https://agentrouter.org/
   if (wantsAgentRouter(apiKey)) {
     if (explicit && /agentrouter/i.test(explicit)) {
       return normalizeLlmBaseUrl(explicit);
     }
-    // co.agentrouter.org bypasses the Aliyun WAF on agentrouter.org
-    return 'https://co.agentrouter.org/v1';
+    return 'https://agentrouter.org/v1';
   }
 
   if (explicit) return normalizeLlmBaseUrl(explicit);
@@ -342,15 +348,15 @@ function liveLlm() {
   let authHint: string | undefined;
   if (!apiKey) {
     authHint =
-      'No LLM key found. For AgentRouter (Claude Code): set AGENTROUTER_API_KEY + AGENTROUTER_BASE_URL=https://co.agentrouter.org/v1. For OpenRouter: OPENROUTER_API_KEY=sk-or-v1-…';
+      'No LLM key found. For AgentRouter (Claude Code): set AGENTROUTER_API_KEY + AGENTROUTER_BASE_URL=https://agentrouter.org/v1. For OpenRouter: OPENROUTER_API_KEY=sk-or-v1-…';
   } else if (provider === 'openrouter' && !isOpenRouterKey(apiKey)) {
     authHint =
       'Host is openrouter.ai but key does not start with sk-or-. ' +
-      'If this is an AgentRouter key (from agentrouter.org), set LLM_PROVIDER=agentrouter and BASE_URL=https://co.agentrouter.org/v1 — do not use openrouter.ai.';
+      'If this is an AgentRouter key (from agentrouter.org), set LLM_PROVIDER=agentrouter and BASE_URL=https://agentrouter.org/v1 — do not use openrouter.ai.';
   } else if (provider === 'agentrouter') {
     authHint =
-      'Using AgentRouter. Prefer model ids like claude-sonnet-4-5-20250929 or gpt-4o-mini (not anthropic/…). ' +
-      'If Vercel still gets 401 Invalid API Key, regenerate the token at agentrouter.org/console/token.';
+      'Using AgentRouter (agentrouter.org). Prefer model ids like claude-sonnet-4-5-20250929 or gpt-4o-mini (not anthropic/…). ' +
+      'If Vercel still gets 401, regenerate the token at agentrouter.org/console/token.';
   }
 
   return { apiKey, baseUrl, model, host, keyKind, provider, authHint };
