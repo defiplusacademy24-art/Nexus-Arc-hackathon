@@ -10,6 +10,6 @@
  * vercel.json) so Vercel rebuilds the nexusu project — ignore filters skip
  * deploys when only artifacts/api-server changes.
  *
- * Redeploy bump: agent soft-mode tick + live LLM env diagnostics.
+ * Redeploy bump: AgentRouter (Claude Code) key routing, not OpenRouter.
  */
 export { default } from "../.vercel-api/app.mjs";

@@ -113,30 +113,31 @@ function isServerless(): boolean {
 }
 
 const LLM_KEY_ENVS = [
+  // AgentRouter first for Claude Code–style keys (sk-… not sk-or-)
+  'AGENTROUTER_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_API_KEY',
   'OPENROUTER_API_KEY',
   'OPENROUTER_KEY',
   'OPEN_ROUTER_API_KEY',
   'LLM_API_KEY',
   'OPENAI_API_KEY',
-  'AGENTROUTER_API_KEY',
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
   'XAI_API_KEY',
 ] as const;
 
 const LLM_BASE_ENVS = [
+  'AGENTROUTER_BASE_URL',
+  'ANTHROPIC_BASE_URL',
   'OPENROUTER_BASE_URL',
   'OPEN_ROUTER_BASE_URL',
   'LLM_BASE_URL',
   'OPENAI_BASE_URL',
-  'AGENTROUTER_BASE_URL',
-  'ANTHROPIC_BASE_URL',
   'XAI_BASE_URL',
 ] as const;
 
 /**
- * Prefer an OpenRouter key (sk-or-…) from any env slot over other keys.
- * Stops a leftover AgentRouter/xAI key from winning when OpenRouter is also set.
+ * Prefer a real OpenRouter key (sk-or-…) when present.
+ * Otherwise use the first configured key (AgentRouter / Anthropic / OpenAI / …).
  */
 function resolveLlmApiKey(): string | undefined {
   const pairs = LLM_KEY_ENVS.map((name) => {
@@ -149,17 +150,69 @@ function resolveLlmApiKey(): string | undefined {
   return pairs[0]?.value;
 }
 
-function wantsOpenRouter(apiKey: string | undefined): boolean {
-  if (isOpenRouterKey(apiKey)) return true;
-  const provider = (env('LLM_PROVIDER') ?? env('AI_PROVIDER') ?? '').toLowerCase();
-  if (provider === 'openrouter' || provider === 'open-router') return true;
+function providerHint(): string {
+  return (env('LLM_PROVIDER') ?? env('AI_PROVIDER') ?? '').toLowerCase().trim();
+}
+
+function anyBaseMatches(re: RegExp): boolean {
   for (const name of LLM_BASE_ENVS) {
     const v = env(name);
-    if (v && /openrouter/i.test(v)) return true;
+    if (v && re.test(v)) return true;
   }
-  // Explicit OpenRouter key env set (even if value was empty we already skipped)
-  if (env('OPENROUTER_API_KEY') || env('OPENROUTER_KEY') || env('OPEN_ROUTER_API_KEY')) {
+  return false;
+}
+
+/**
+ * OpenRouter only when we have a real sk-or- key, or the user explicitly
+ * points base URL / provider at openrouter AND the key is sk-or- (or empty).
+ * Putting a Claude Code / AgentRouter key into OPENROUTER_API_KEY must NOT
+ * force openrouter.ai (that caused 401 Missing Authentication).
+ */
+function wantsOpenRouter(apiKey: string | undefined): boolean {
+  if (isOpenRouterKey(apiKey)) return true;
+  const provider = providerHint();
+  if (provider === 'agentrouter' || provider === 'agent-router') return false;
+  if (anyBaseMatches(/agentrouter/i)) return false;
+  // Non–sk-or key can never authenticate to OpenRouter
+  if (apiKey && !isOpenRouterKey(apiKey)) return false;
+  if (provider === 'openrouter' || provider === 'open-router') return true;
+  if (anyBaseMatches(/openrouter/i)) return true;
+  return false;
+}
+
+function wantsAgentRouter(apiKey: string | undefined): boolean {
+  if (isOpenRouterKey(apiKey)) return false;
+  const provider = providerHint();
+  if (provider === 'agentrouter' || provider === 'agent-router') return true;
+  if (anyBaseMatches(/agentrouter/i)) return true;
+  if (env('AGENTROUTER_API_KEY') || env('AGENTROUTER_BASE_URL')) return true;
+  // Claude Code style: ANTHROPIC_BASE_URL=https://agentrouter.org/
+  if (env('ANTHROPIC_BASE_URL') && /agentrouter/i.test(env('ANTHROPIC_BASE_URL')!)) {
     return true;
+  }
+  // Non–sk-or sk- key + no other explicit provider → treat as AgentRouter
+  // (AgentRouter keys look like sk-VuHa…; OpenRouter is sk-or-v1-…)
+  if (
+    apiKey &&
+    /^sk-/i.test(apiKey) &&
+    !isOpenRouterKey(apiKey) &&
+    !/^sk-ant-/i.test(apiKey) &&
+    !/^sk-proj-/i.test(apiKey) &&
+    provider !== 'openai' &&
+    provider !== 'xai' &&
+    provider !== 'openrouter'
+  ) {
+    // Only auto-pick AgentRouter when provider/base hints exist, or
+    // OPENROUTER_* was misused for an AgentRouter key.
+    if (
+      provider === 'agentrouter' ||
+      anyBaseMatches(/agentrouter/i) ||
+      env('AGENTROUTER_API_KEY') ||
+      // Misnamed env: key in OPENROUTER_API_KEY but not sk-or-
+      (env('OPENROUTER_API_KEY') && !isOpenRouterKey(env('OPENROUTER_API_KEY')))
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -167,12 +220,21 @@ function wantsOpenRouter(apiKey: string | undefined): boolean {
 function resolveLlmBaseUrl(apiKey: string | undefined): string {
   const explicit = firstEnv(...LLM_BASE_ENVS);
 
-  // OpenRouter always uses openrouter.ai — ignore leftover agentrouter URLs in Vercel.
+  // Real OpenRouter keys always hit openrouter.ai
   if (wantsOpenRouter(apiKey)) {
     if (explicit && /openrouter/i.test(explicit)) {
       return normalizeLlmBaseUrl(explicit);
     }
     return 'https://openrouter.ai/api/v1';
+  }
+
+  // AgentRouter (Claude Code): use API host, not marketing host (WAF).
+  if (wantsAgentRouter(apiKey)) {
+    if (explicit && /agentrouter/i.test(explicit)) {
+      return normalizeLlmBaseUrl(explicit);
+    }
+    // co.agentrouter.org bypasses the Aliyun WAF on agentrouter.org
+    return 'https://co.agentrouter.org/v1';
   }
 
   if (explicit) return normalizeLlmBaseUrl(explicit);
@@ -197,11 +259,11 @@ function llmKeyPrefix(key: string | undefined): string | null {
 
 function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
   const explicit = firstEnv(
+    'AGENTROUTER_MODEL',
+    'ANTHROPIC_MODEL',
     'OPENROUTER_MODEL',
     'LLM_MODEL',
     'OPENAI_AGENT_MODEL',
-    'AGENTROUTER_MODEL',
-    'ANTHROPIC_MODEL',
     'XAI_AGENT_MODEL',
   );
   const host = llmBaseHost(baseUrl).toLowerCase();
@@ -233,8 +295,28 @@ function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
     };
     if (map[explicit]) return map[explicit];
   }
-  if (onAgentRouter && (!explicit || /^grok/i.test(explicit))) {
-    return defaultLlmModel(baseUrl);
+  // AgentRouter uses bare model ids (Claude Code style), not provider/model
+  if (onAgentRouter) {
+    if (!explicit || /^grok/i.test(explicit)) {
+      return defaultLlmModel(baseUrl);
+    }
+    // Map OpenRouter-style ids users often paste by mistake
+    const arMap: Record<string, string> = {
+      'anthropic/claude-opus-5': 'claude-opus-4-5-20251101',
+      'anthropic/claude-opus-5-fast': 'claude-opus-4-5-20251101',
+      'anthropic/claude-sonnet-4': 'claude-sonnet-4-5-20250929',
+      'anthropic/claude-3.5-sonnet': 'claude-sonnet-4-5-20250929',
+      'openai/gpt-4o-mini': 'gpt-4o-mini',
+      'openai/gpt-4o': 'gpt-4o',
+      'claude-opus-5': 'claude-opus-4-5-20251101',
+      'claude-opus-5-fast': 'claude-opus-4-5-20251101',
+    };
+    if (arMap[explicit]) return arMap[explicit];
+    // Strip provider/ prefix if present
+    if (explicit.includes('/')) {
+      return explicit.split('/').pop() || explicit;
+    }
+    return explicit;
   }
   return explicit ?? defaultLlmModel(baseUrl);
 }
@@ -260,12 +342,15 @@ function liveLlm() {
   let authHint: string | undefined;
   if (!apiKey) {
     authHint =
-      'No LLM key found. Set OPENROUTER_API_KEY=sk-or-v1-… (from openrouter.ai/keys).';
+      'No LLM key found. For AgentRouter (Claude Code): set AGENTROUTER_API_KEY + AGENTROUTER_BASE_URL=https://co.agentrouter.org/v1. For OpenRouter: OPENROUTER_API_KEY=sk-or-v1-…';
   } else if (provider === 'openrouter' && !isOpenRouterKey(apiKey)) {
     authHint =
       'Host is openrouter.ai but key does not start with sk-or-. ' +
-      'Paste your OpenRouter key into OPENROUTER_API_KEY (or OPENAI_API_KEY). ' +
-      'Do not use a plain OpenAI/Anthropic key against OpenRouter.';
+      'If this is an AgentRouter key (from agentrouter.org), set LLM_PROVIDER=agentrouter and BASE_URL=https://co.agentrouter.org/v1 — do not use openrouter.ai.';
+  } else if (provider === 'agentrouter') {
+    authHint =
+      'Using AgentRouter. Prefer model ids like claude-sonnet-4-5-20250929 or gpt-4o-mini (not anthropic/…). ' +
+      'If Vercel still gets 401 Invalid API Key, regenerate the token at agentrouter.org/console/token.';
   }
 
   return { apiKey, baseUrl, model, host, keyKind, provider, authHint };

@@ -13,24 +13,43 @@ Set these in **Vercel → Project → Settings → Environment Variables** (Prod
 | `CIRCLE_UC_BLOCKCHAIN` | `ARC-TESTNET` |
 | `CIRCLE_UC_ACCOUNT_TYPE` | `SCA` |
 
-### LLM — OpenRouter (recommended if no xAI credit)
+### LLM — AgentRouter (Claude Code keys from agentrouter.org)
+
+If your key is from [agentrouter.org](https://agentrouter.org) (works with Claude Code as `ANTHROPIC_AUTH_TOKEN`), use **AgentRouter**, not OpenRouter:
 
 | Variable | Value |
 |----------|--------|
-| `OPENAI_API_KEY` or `OPENROUTER_API_KEY` | Your OpenRouter key (`sk-or-v1-…` from [openrouter.ai/keys](https://openrouter.ai/keys)) |
-| `OPENAI_BASE_URL` or `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `OPENAI_AGENT_MODEL` or `OPENROUTER_MODEL` | e.g. `openai/gpt-4o-mini`, `google/gemini-2.0-flash-001`, `anthropic/claude-3.5-sonnet` |
+| `AGENTROUTER_API_KEY` or `OPENAI_API_KEY` or `ANTHROPIC_AUTH_TOKEN` | Your AgentRouter key (`sk-…` from [token console](https://agentrouter.org/console/token)) |
+| `AGENTROUTER_BASE_URL` or `OPENAI_BASE_URL` | `https://co.agentrouter.org/v1` (API host; bare `agentrouter.org` hits WAF on Vercel) |
+| `AGENTROUTER_MODEL` or `OPENAI_AGENT_MODEL` | e.g. `claude-sonnet-4-5-20250929`, `gpt-4o-mini`, `glm-4.5-air` |
+| `LLM_PROVIDER` | `agentrouter` |
+
+**Do not** put an AgentRouter key into OpenRouter env vars with `openrouter.ai` — that always 401s.
+
+Also set for Claude Code parity (optional):
+
+```text
+ANTHROPIC_BASE_URL=https://co.agentrouter.org/v1
+ANTHROPIC_AUTH_TOKEN=<same key>
+```
+
+### LLM — OpenRouter (alternative)
+
+| Variable | Value |
+|----------|--------|
+| `OPENROUTER_API_KEY` | OpenRouter key only (`sk-or-v1-…` from [openrouter.ai/keys](https://openrouter.ai/keys)) |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
+| `OPENROUTER_MODEL` | e.g. `openai/gpt-4o-mini`, `anthropic/claude-3.5-sonnet` |
+| `LLM_PROVIDER` | `openrouter` |
 
 **Important:**
 
-- OpenRouter model ids look like `provider/model` (with a slash).
-- Keys starting with `sk-or-` automatically force `openrouter.ai` even if an old AgentRouter / `ANTHROPIC_BASE_URL` is still in Vercel.
-- Remove or empty any leftover `ANTHROPIC_BASE_URL=https://agentrouter.org` so config stays clear.
+- OpenRouter keys always start with `sk-or-v1-`. AgentRouter keys look like `sk-VuHa…` and are a different product.
 - After changing env vars, **redeploy** Production.
 
 Aliases also accepted: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `XAI_*`.
 
-Agents use **chat.completions** (OpenAI-compatible), which OpenRouter supports.
+Agents use **chat.completions** (OpenAI-compatible).
 
 ## Recommended (contracts + multi-workspace)
 
