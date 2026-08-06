@@ -308,14 +308,14 @@ function resolveLlmModel(baseUrl: string, apiKey: string | undefined): string {
     }
     // Map OpenRouter-style ids users often paste by mistake
     const arMap: Record<string, string> = {
-      'anthropic/claude-opus-5': 'claude-opus-4-5-20251101',
-      'anthropic/claude-opus-5-fast': 'claude-opus-4-5-20251101',
+      // Keep bare AgentRouter ids users see in their console / Claude Code
+      'anthropic/claude-opus-5': 'claude-opus-5',
+      'anthropic/claude-opus-5-fast': 'claude-opus-5-fast',
       'anthropic/claude-sonnet-4': 'claude-sonnet-4-5-20250929',
       'anthropic/claude-3.5-sonnet': 'claude-sonnet-4-5-20250929',
       'openai/gpt-4o-mini': 'gpt-4o-mini',
       'openai/gpt-4o': 'gpt-4o',
-      'claude-opus-5': 'claude-opus-4-5-20251101',
-      'claude-opus-5-fast': 'claude-opus-4-5-20251101',
+      // already bare — pass through via explicit return below
     };
     if (arMap[explicit]) return arMap[explicit];
     // Strip provider/ prefix if present
